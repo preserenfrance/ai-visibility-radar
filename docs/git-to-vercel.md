@@ -8,7 +8,7 @@ Namesti Node.js 22 in pnpm. Ce imas Node, lahko pnpm vklopis prek Corepack:
 
 ```powershell
 corepack enable
-corepack prepare pnpm@9.15.0 --activate
+corepack prepare pnpm@10.15.0 --activate
 pnpm --version
 ```
 
@@ -105,7 +105,7 @@ V Vercel:
 5. Nastavitve naj pridejo iz `vercel.json`:
 
 ```text
-Install Command: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile
+Install Command: corepack enable && corepack prepare pnpm@10.15.0 --activate && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile
 Build Command: pnpm vercel:build
 Output Directory: apps/web/.next
 Node.js Version: 22.x

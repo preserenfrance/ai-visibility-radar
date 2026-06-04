@@ -8,7 +8,7 @@ Za celoten postopek od lokalnega Git commita do Vercel importa glej [Git to Verc
 
 - Framework Preset: `Next.js`
 - Root Directory: repository root
-- Install Command: `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile`
+- Install Command: `corepack enable && corepack prepare pnpm@10.15.0 --activate && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile`
 - Build Command: `pnpm vercel:build`
 - Output Directory: `apps/web/.next`
 - Node.js Version: `22.x`

@@ -15,7 +15,7 @@ cd "C:\Users\HP\OneDrive - seos.si\Dokumenti\AI Radar"
 ```cmd
 node --version
 corepack enable
-corepack prepare pnpm@9.15.0 --activate
+corepack prepare pnpm@10.15.0 --activate
 pnpm --version
 ```
 
@@ -34,7 +34,7 @@ V CMD zazeni:
 
 ```cmd
 corepack enable
-corepack prepare pnpm@9.15.0 --activate
+corepack prepare pnpm@10.15.0 --activate
 ```
 
 Zapri CMD, odpri nov CMD in preveri:
@@ -50,7 +50,7 @@ Ce `corepack enable` zahteva admin pravice, odpri CMD kot Administrator in ponov
 Ce Corepack ne dela, namesti pnpm prek npm:
 
 ```cmd
-npm install -g pnpm@9.15.0
+npm install -g pnpm@10.15.0
 ```
 
 Zapri CMD, odpri nov CMD in preveri:
@@ -167,7 +167,7 @@ V Vercel:
 Nastavitve so ze v `vercel.json`:
 
 ```text
-Install Command: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile
+Install Command: corepack enable && corepack prepare pnpm@10.15.0 --activate && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile
 Build Command: pnpm vercel:build
 Output Directory: apps/web/.next
 Node.js Version: 22.x
