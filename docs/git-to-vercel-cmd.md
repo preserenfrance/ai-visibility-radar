@@ -19,6 +19,53 @@ corepack prepare pnpm@9.15.0 --activate
 pnpm --version
 ```
 
+Ce dobis:
+
+```text
+'pnpm' is not recognized as an internal or external command,
+operable program or batch file.
+```
+
+uporabi eno od spodnjih resitev.
+
+### Resitev A: Corepack
+
+V CMD zazeni:
+
+```cmd
+corepack enable
+corepack prepare pnpm@9.15.0 --activate
+```
+
+Zapri CMD, odpri nov CMD in preveri:
+
+```cmd
+pnpm --version
+```
+
+Ce `corepack enable` zahteva admin pravice, odpri CMD kot Administrator in ponovi ukaza.
+
+### Resitev B: npm global install
+
+Ce Corepack ne dela, namesti pnpm prek npm:
+
+```cmd
+npm install -g pnpm@9.15.0
+```
+
+Zapri CMD, odpri nov CMD in preveri:
+
+```cmd
+pnpm --version
+```
+
+Ce se se vedno ne najde, v isti CMD seji dodaj npm global folder v PATH:
+
+```cmd
+set "PATH=%APPDATA%\npm;%PATH%"
+pnpm --version
+```
+
 Namesti dependencies:
 
 ```cmd
