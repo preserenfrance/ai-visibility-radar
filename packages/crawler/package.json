@@ -1,0 +1,21 @@
+{
+  "name": "@ai-radar/crawler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ai-radar/shared": "workspace:*",
+    "cheerio": "^1.0.0",
+    "robots-parser": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/robots-parser": "^3.0.4"
+  }
+}

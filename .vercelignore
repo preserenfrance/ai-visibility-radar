@@ -1,0 +1,9 @@
+.git
+.next
+.turbo
+coverage
+node_modules
+playwright-report
+test-results
+tests
+*.tsbuildinfo

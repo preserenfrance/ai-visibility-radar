@@ -1,0 +1,119 @@
+import { redirect } from "next/navigation";
+import { prisma } from "@ai-radar/db";
+import { normalizeDomain } from "@ai-radar/shared";
+import { ArrowRight, Globe, ListChecks, ScanSearch } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { getCurrentUser, setUserSession } from "@/lib/auth";
+import { crawlBrand, generatePromptsForBrand } from "@/lib/services";
+
+const steps: Array<{ step: string; label: string; Icon: typeof Globe }> = [
+  { step: "1", label: "Vnos domene", Icon: Globe },
+  { step: "2", label: "Analiza domene", Icon: ScanSearch },
+  { step: "3", label: "Prompt set", Icon: ListChecks }
+];
+
+async function onboard(formData: FormData) {
+  "use server";
+  const email = String(formData.get("email") ?? "").toLowerCase();
+  const name = String(formData.get("name") ?? "");
+  const organizationName = String(formData.get("organizationName") ?? "");
+  const brandName = String(formData.get("brandName") ?? "");
+  const domain = normalizeDomain(String(formData.get("domain") ?? ""));
+  const competitors = String(formData.get("competitors") ?? "")
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: { name },
+    create: { email, name }
+  });
+  await setUserSession(user.id);
+
+  const organization = await prisma.organization.create({
+    data: {
+      name: organizationName || brandName,
+      memberships: {
+        create: {
+          userId: user.id,
+          role: "owner"
+        }
+      }
+    }
+  });
+  const brand = await prisma.brand.create({
+    data: {
+      organizationId: organization.id,
+      name: brandName,
+      domain,
+      industry: String(formData.get("industry") ?? ""),
+      country: String(formData.get("country") ?? "Slovenia"),
+      language: String(formData.get("language") ?? "sl"),
+      aliases: []
+    }
+  });
+  await prisma.competitor.createMany({
+    data: competitors.map((competitor) => ({ brandId: brand.id, name: competitor })),
+    skipDuplicates: true
+  });
+  await crawlBrand(brand.id, 50).catch(() => null);
+  await generatePromptsForBrand(brand.id, 25);
+  redirect(`/app/brands/${brand.id}`);
+}
+
+export default async function OnboardingPage() {
+  const user = await getCurrentUser();
+  return (
+    <section className="mx-auto grid max-w-7xl gap-6 px-5 py-8 lg:grid-cols-[0.85fr_1.15fr]">
+      <div>
+        <h1 className="text-3xl font-semibold">Brand onboarding</h1>
+        <p className="mt-3 max-w-xl text-muted-foreground">
+          V enem toku ustvari organizacijo, brand, konkurente, crawl snapshot in začetni set 25 promptov.
+        </p>
+        <div className="mt-6 grid gap-3">
+          {steps.map(({ step, label, Icon }) => (
+            <div key={step} className="flex items-center gap-3 rounded-lg border bg-white p-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-primary/10 text-sm font-semibold text-primary">
+                {step}
+              </div>
+              <Icon className="h-4 w-4 text-primary" />
+              <span className="font-medium">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{user ? "Dodaj nov brand" : "Registracija in prvi brand"}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={onboard} className="grid gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input name="email" type="email" placeholder="you@company.com" defaultValue={user?.email} required />
+              <Input name="name" placeholder="Ime" defaultValue={user?.name ?? ""} />
+            </div>
+            <Input name="organizationName" placeholder="Organization name" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input name="brandName" placeholder="Brand name" required />
+              <Input name="domain" placeholder="domain.com" required />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input name="country" defaultValue="Slovenia" />
+              <Input name="language" defaultValue="sl" />
+              <Input name="industry" placeholder="Industry" />
+            </div>
+            <Textarea name="competitors" placeholder="Competitor A, Competitor B" />
+            <Button type="submit">
+              Ustvari brand in prompte <ArrowRight className="h-4 w-4" />
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}

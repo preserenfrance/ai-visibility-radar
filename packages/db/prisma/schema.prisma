@@ -1,0 +1,482 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  free
+  starter
+  growth
+}
+
+enum MembershipRole {
+  owner
+  admin
+  member
+}
+
+enum PromptSetStatus {
+  draft
+  active
+  archived
+}
+
+enum EngineProvider {
+  openai
+  google
+  anthropic
+  mock
+}
+
+enum ScanRunStatus {
+  queued
+  running
+  completed
+  failed
+  canceled
+}
+
+enum PromptRunStatus {
+  queued
+  running
+  completed
+  failed
+  skipped
+}
+
+enum TriggerType {
+  manual
+  scheduled
+  free_audit
+}
+
+enum RecommendationStrength {
+  none
+  low
+  medium
+  high
+}
+
+enum Sentiment {
+  positive
+  neutral
+  mixed
+  negative
+}
+
+enum RecommendationStatus {
+  open
+  in_progress
+  done
+  dismissed
+}
+
+enum LeadStatus {
+  new
+  report_sent
+  opened
+  demo_clicked
+  converted
+  archived
+}
+
+enum EmailEventType {
+  queued
+  sent
+  failed
+  opened
+  clicked
+}
+
+enum BillingStatus {
+  incomplete
+  active
+  past_due
+  canceled
+  unpaid
+}
+
+enum AuditAction {
+  login
+  brand_created
+  scan_started
+  scan_completed
+  report_viewed
+  billing_checkout_started
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  memberships Membership[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Organization {
+  id                  String                @id @default(cuid())
+  name                String
+  plan                Plan                  @default(free)
+  stripeCustomerId    String?
+  memberships         Membership[]
+  brands              Brand[]
+  leads               Lead[]
+  billingSubscription BillingSubscription?
+  auditLogs           AuditLog[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+}
+
+model Membership {
+  id             String         @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MembershipRole @default(member)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Brand {
+  id              String           @id @default(cuid())
+  organizationId  String
+  name            String
+  domain          String
+  description     String?
+  industry        String?
+  country         String
+  language        String
+  aliases         Json             @default("[]")
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  competitors     Competitor[]
+  crawlSnapshots  CrawlSnapshot[]
+  promptSets      PromptSet[]
+  scanRuns        ScanRun[]
+  scoreSnapshots  ScoreSnapshot[]
+  recommendations Recommendation[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([organizationId])
+}
+
+model Competitor {
+  id          String   @id @default(cuid())
+  brandId     String
+  name        String
+  domain      String?
+  description String?
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brandId, name])
+  @@index([brandId])
+}
+
+model CrawlSnapshot {
+  id             String        @id @default(cuid())
+  brandId        String
+  status         String        @default("queued")
+  robotsTxt      String?
+  sitemapUrl     String?
+  errorMessage   String?
+  maxPages       Int           @default(50)
+  brand          Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  pages          CrawledPage[]
+  createdAt      DateTime      @default(now())
+  completedAt    DateTime?
+
+  @@index([brandId, createdAt])
+}
+
+model CrawledPage {
+  id              String        @id @default(cuid())
+  crawlSnapshotId String
+  url             String
+  title           String?
+  metaDescription String?
+  h1              String?
+  h2              Json          @default("[]")
+  mainText        String?
+  schemaJson      Json?
+  statusCode      Int
+  canonicalUrl    String?
+  discoveredAt    DateTime
+  crawlSnapshot   CrawlSnapshot @relation(fields: [crawlSnapshotId], references: [id], onDelete: Cascade)
+
+  @@unique([crawlSnapshotId, url])
+  @@index([crawlSnapshotId])
+}
+
+model PromptSet {
+  id        String          @id @default(cuid())
+  brandId   String
+  name      String
+  language  String
+  country   String
+  status    PromptSetStatus @default(draft)
+  brand     Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  prompts   Prompt[]
+  scanRuns  ScanRun[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([brandId, status])
+}
+
+model Prompt {
+  id          String      @id @default(cuid())
+  promptSetId String
+  text        String
+  category    String
+  intent      String
+  persona     String
+  funnelStage String
+  priority    Int
+  isActive    Boolean     @default(true)
+  promptSet   PromptSet   @relation(fields: [promptSetId], references: [id], onDelete: Cascade)
+  promptRuns  PromptRun[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([promptSetId, isActive])
+}
+
+model Engine {
+  id            String         @id @default(cuid())
+  provider      EngineProvider
+  engineName    String
+  model         String
+  searchEnabled Boolean        @default(true)
+  isActive      Boolean        @default(true)
+  promptRuns    PromptRun[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([provider, model, searchEnabled])
+}
+
+model ScanRun {
+  id                  String          @id @default(cuid())
+  brandId             String
+  promptSetId         String
+  status              ScanRunStatus   @default(queued)
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  triggerType         TriggerType     @default(manual)
+  totalPromptRuns     Int             @default(0)
+  completedPromptRuns Int             @default(0)
+  failedPromptRuns    Int             @default(0)
+  costEstimate        Decimal?        @db.Decimal(12, 6)
+  brand               Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  promptSet           PromptSet       @relation(fields: [promptSetId], references: [id], onDelete: Restrict)
+  promptRuns          PromptRun[]
+  scoreSnapshot       ScoreSnapshot?
+  recommendations     Recommendation[]
+  leads               Lead[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([brandId, createdAt])
+}
+
+model PromptRun {
+  id          String          @id @default(cuid())
+  scanRunId   String
+  promptId    String
+  engineId    String
+  repeatIndex Int             @default(0)
+  status      PromptRunStatus @default(queued)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  errorMessage String?
+  scanRun     ScanRun         @relation(fields: [scanRunId], references: [id], onDelete: Cascade)
+  prompt      Prompt          @relation(fields: [promptId], references: [id], onDelete: Restrict)
+  engine      Engine          @relation(fields: [engineId], references: [id], onDelete: Restrict)
+  aiResponse  AiResponse?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([scanRunId, promptId, engineId, repeatIndex])
+  @@index([scanRunId, status])
+}
+
+model AiResponse {
+  id            String         @id @default(cuid())
+  promptRunId   String         @unique
+  provider      EngineProvider
+  model         String
+  rawText       String
+  rawJson       Json
+  citationsJson Json           @default("[]")
+  inputTokens   Int?
+  outputTokens  Int?
+  cost          Decimal?       @db.Decimal(12, 6)
+  promptRun     PromptRun      @relation(fields: [promptRunId], references: [id], onDelete: Cascade)
+  parsedResult  ParsedResult?
+  citations     Citation[]
+  mentions      Mention[]
+  createdAt     DateTime       @default(now())
+
+  @@index([provider, createdAt])
+}
+
+model ParsedResult {
+  id                     String                 @id @default(cuid())
+  aiResponseId           String                 @unique
+  brandMentioned         Boolean
+  brandRank              Int?
+  mentionCount           Int
+  recommendationStrength RecommendationStrength
+  sentiment              Sentiment
+  accuracyScore          Int
+  confidence             Float
+  parsedJson             Json
+  aiResponse             AiResponse             @relation(fields: [aiResponseId], references: [id], onDelete: Cascade)
+  createdAt              DateTime               @default(now())
+}
+
+model Citation {
+  id                 String     @id @default(cuid())
+  aiResponseId       String
+  url                String
+  domain             String
+  title              String?
+  isOwnedDomain      Boolean    @default(false)
+  isCompetitorDomain Boolean    @default(false)
+  supportsBrand      Boolean    @default(false)
+  supportsCompetitor Boolean    @default(false)
+  sourceType         String?
+  aiResponse         AiResponse @relation(fields: [aiResponseId], references: [id], onDelete: Cascade)
+
+  @@index([aiResponseId])
+  @@index([domain])
+}
+
+model Mention {
+  id           String     @id @default(cuid())
+  aiResponseId String
+  entityName   String
+  entityType   String
+  rankPosition Int?
+  sentiment    Sentiment?
+  evidenceText String?
+  confidence   Float?
+  aiResponse   AiResponse @relation(fields: [aiResponseId], references: [id], onDelete: Cascade)
+
+  @@index([aiResponseId])
+  @@index([entityName])
+}
+
+model ScoreSnapshot {
+  id                    String   @id @default(cuid())
+  brandId               String
+  scanRunId             String   @unique
+  visibilityScore       Int
+  mentionScore          Int
+  rankScore             Int
+  citationScore         Int
+  shareOfVoiceScore     Int
+  sentimentScore        Int
+  accuracyScore         Int
+  brand                 Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  scanRun               ScanRun  @relation(fields: [scanRunId], references: [id], onDelete: Cascade)
+  createdAt             DateTime @default(now())
+
+  @@index([brandId, createdAt])
+}
+
+model Recommendation {
+  id                  String               @id @default(cuid())
+  brandId             String
+  scanRunId           String?
+  title               String
+  description         String
+  impactScore         Int
+  effortScore         Int
+  status              RecommendationStatus @default(open)
+  affectedPromptsJson Json                 @default("[]")
+  affectedEnginesJson Json                 @default("[]")
+  brand               Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  scanRun             ScanRun?             @relation(fields: [scanRunId], references: [id], onDelete: SetNull)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([brandId, status])
+}
+
+model Lead {
+  id             String       @id @default(cuid())
+  organizationId String?
+  email          String
+  domain         String
+  brandName      String
+  companyName    String?
+  source         String       @default("free_audit")
+  utmSource      String?
+  utmCampaign    String?
+  leadScore      Int          @default(0)
+  status         LeadStatus   @default(new)
+  auditScanRunId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  auditScanRun   ScanRun?      @relation(fields: [auditScanRunId], references: [id], onDelete: SetNull)
+  emailEvents    EmailEvent[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([email])
+  @@index([createdAt])
+}
+
+model EmailEvent {
+  id          String         @id @default(cuid())
+  leadId      String?
+  type        EmailEventType
+  provider    String?
+  providerId  String?
+  subject     String?
+  errorMessage String?
+  lead        Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+
+  @@index([leadId])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String?
+  userId         String?
+  action         AuditAction
+  entityType     String?
+  entityId       String?
+  metadata       Json?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model BillingSubscription {
+  id                   String        @id @default(cuid())
+  organizationId       String        @unique
+  stripeSubscriptionId String?       @unique
+  stripePriceId        String?
+  status               BillingStatus @default(incomplete)
+  plan                 Plan          @default(free)
+  currentPeriodEnd     DateTime?
+  organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile",
+  "buildCommand": "pnpm vercel:build",
+  "outputDirectory": "apps/web/.next",
+  "functions": {
+    "apps/web/app/api/public/audit/route.ts": {
+      "maxDuration": 60
+    },
+    "apps/web/app/api/brands/[id]/crawl/route.ts": {
+      "maxDuration": 60
+    },
+    "apps/web/app/api/brands/[id]/scans/route.ts": {
+      "maxDuration": 60
+    },
+    "apps/web/app/api/scans/[id]/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}

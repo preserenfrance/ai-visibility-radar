@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ai-radar/ai": ["packages/ai/src/index.ts"],
+      "@ai-radar/config": ["packages/config/src/index.ts"],
+      "@ai-radar/crawler": ["packages/crawler/src/index.ts"],
+      "@ai-radar/db": ["packages/db/src/index.ts"],
+      "@ai-radar/email": ["packages/email/src/index.ts"],
+      "@ai-radar/parser": ["packages/parser/src/index.ts"],
+      "@ai-radar/prompts": ["packages/prompts/src/index.ts"],
+      "@ai-radar/reports": ["packages/reports/src/index.ts"],
+      "@ai-radar/scoring": ["packages/scoring/src/index.ts"],
+      "@ai-radar/shared": ["packages/shared/src/index.ts"],
+      "@ai-radar/usage": ["packages/usage/src/index.ts"]
+    }
+  }
+}
