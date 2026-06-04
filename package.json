@@ -2,7 +2,11 @@
   "name": "ai-visibility-radar",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.15.0",
+  "packageManager": "npm@10.9.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": "22.x"
   },
@@ -14,13 +18,13 @@
     "test:e2e": "playwright test",
     "test:watch": "vitest",
     "typecheck": "turbo run typecheck",
-    "db:generate": "pnpm --filter @ai-radar/db prisma:generate",
-    "db:migrate:init": "pnpm --filter @ai-radar/db exec prisma migrate dev --schema prisma/schema.prisma --name init",
-    "db:migrate": "pnpm --filter @ai-radar/db prisma:migrate",
-    "db:deploy": "pnpm --filter @ai-radar/db prisma:deploy",
-    "vercel:build": "pnpm db:generate && turbo run build --filter=@ai-radar/web...",
-    "worker:dev": "pnpm --filter @ai-radar/worker dev",
-    "web:dev": "pnpm --filter @ai-radar/web dev"
+    "db:generate": "npm --workspace @ai-radar/db run prisma:generate",
+    "db:migrate:init": "npm --workspace @ai-radar/db exec -- prisma migrate dev --schema prisma/schema.prisma --name init",
+    "db:migrate": "npm --workspace @ai-radar/db run prisma:migrate",
+    "db:deploy": "npm --workspace @ai-radar/db run prisma:deploy",
+    "vercel:build": "npm run db:generate && turbo run build --filter=@ai-radar/web...",
+    "worker:dev": "npm --workspace @ai-radar/worker run dev",
+    "web:dev": "npm --workspace @ai-radar/web run dev"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -41,7 +41,7 @@ Use `PARSER_PROVIDER=mock` and the mock engine for local end-to-end tests before
 The web app is prepared for Vercel from the repository root. Vercel should run:
 
 ```bash
-pnpm vercel:build
+npm run vercel:build
 ```
 
 That command generates Prisma Client and builds the web app plus its workspace package dependencies.

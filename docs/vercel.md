@@ -8,8 +8,8 @@ Za celoten postopek od lokalnega Git commita do Vercel importa glej [Git to Verc
 
 - Framework Preset: `Next.js`
 - Root Directory: repository root
-- Install Command: `corepack enable && corepack prepare pnpm@10.15.0 --activate && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile`
-- Build Command: `pnpm vercel:build`
+- Install Command: `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --legacy-peer-deps`
+- Build Command: `npm run vercel:build`
 - Output Directory: `apps/web/.next`
 - Node.js Version: `22.x`
 
@@ -63,9 +63,9 @@ Use a hosted PostgreSQL database such as Vercel Postgres, Neon, Supabase, or Rai
 Before the first production deploy, run migrations from a trusted machine or CI job:
 
 ```bash
-pnpm install
-pnpm db:generate
-pnpm db:deploy
+npm install --legacy-peer-deps
+npm run db:generate
+npm run db:deploy
 ```
 
 The Vercel build runs `pnpm db:generate`, but it does not run migrations automatically.
@@ -77,9 +77,9 @@ Vercel Serverless Functions are not suitable for the long-running BullMQ worker.
 Worker command:
 
 ```bash
-pnpm install
-pnpm db:generate
-pnpm --filter @ai-radar/worker start
+npm install --legacy-peer-deps
+npm run db:generate
+npm --workspace @ai-radar/worker run start
 ```
 
 Required worker env:

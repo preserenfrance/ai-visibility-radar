@@ -11,8 +11,8 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ai-radar/config": "workspace:*",
-    "@ai-radar/reports": "workspace:*",
+    "@ai-radar/config": "0.1.0",
+    "@ai-radar/reports": "0.1.0",
     "resend": "^4.0.1"
   }
 }

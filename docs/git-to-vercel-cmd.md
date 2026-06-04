@@ -167,8 +167,8 @@ V Vercel:
 Nastavitve so ze v `vercel.json`:
 
 ```text
-Install Command: corepack enable && corepack prepare pnpm@10.15.0 --activate && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --no-frozen-lockfile
-Build Command: pnpm vercel:build
+Install Command: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --legacy-peer-deps
+Build Command: npm run vercel:build
 Output Directory: apps/web/.next
 Node.js Version: 22.x
 ```
@@ -238,7 +238,7 @@ Worker command:
 ```cmd
 pnpm install
 pnpm db:generate
-pnpm --filter @ai-radar/worker start
+npm --workspace @ai-radar/worker run start
 ```
 
 Worker potrebuje vsaj:

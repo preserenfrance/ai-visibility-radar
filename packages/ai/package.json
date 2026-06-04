@@ -11,8 +11,8 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ai-radar/config": "workspace:*",
-    "@ai-radar/shared": "workspace:*",
+    "@ai-radar/config": "0.1.0",
+    "@ai-radar/shared": "0.1.0",
     "@anthropic-ai/sdk": "^0.33.1",
     "@google/genai": "^0.3.0",
     "openai": "^4.77.0"
