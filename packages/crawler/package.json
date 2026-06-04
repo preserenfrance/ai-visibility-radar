@@ -14,8 +14,5 @@
     "@ai-radar/shared": "0.1.0",
     "cheerio": "^1.0.0",
     "robots-parser": "^3.0.1"
-  },
-  "devDependencies": {
-    "@types/robots-parser": "^3.0.4"
   }
 }
