@@ -56,7 +56,8 @@ export async function crawlDomain(input: CrawlDomainInput): Promise<CrawlResult>
         url: normalizedUrl,
         h2: [],
         statusCode: error?.statusCode ?? 0,
-        discoveredAt: new Date().toISOString()
+        discoveredAt: new Date().toISOString(),
+        links: []
       }));
 
       pages.push(crawled);
