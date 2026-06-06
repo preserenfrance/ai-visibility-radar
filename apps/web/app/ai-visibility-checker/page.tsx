@@ -86,8 +86,34 @@ export default async function CheckerPage({
 
 function auditErrorCode(error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("DATABASE_URL") || message.includes("Prisma")) return "database";
-  if (message.toLowerCase().includes("timeout") || message.toLowerCase().includes("timed out")) return "timeout";
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("prepared statement") ||
+    lower.includes("pgbouncer") ||
+    lower.includes("supavisor")
+  ) {
+    return "pooler";
+  }
+  if (
+    lower.includes("does not exist in the current database") ||
+    lower.includes("relation") ||
+    lower.includes("column") ||
+    lower.includes("p2021") ||
+    lower.includes("p2022")
+  ) {
+    return "schema";
+  }
+  if (
+    lower.includes("database_url") ||
+    lower.includes("prisma") ||
+    lower.includes("p1000") ||
+    lower.includes("p1001") ||
+    lower.includes("can't reach database") ||
+    lower.includes("authentication failed")
+  ) {
+    return "database";
+  }
+  if (lower.includes("timeout") || lower.includes("timed out")) return "timeout";
   return "unknown";
 }
 
@@ -95,6 +121,10 @@ function auditErrorMessage(errorCode: string) {
   switch (errorCode) {
     case "database":
       return "Audita trenutno ni bilo mogoče zagnati, ker povezava z bazo ali migracije niso pripravljene. Preveri Vercel okoljske spremenljivke in produkcijsko bazo.";
+    case "schema":
+      return "Audita trenutno ni bilo mogoče zagnati, ker produkcijska baza še nima vseh tabel ali stolpcev. Zaženi Prisma db push na Supabase bazo.";
+    case "pooler":
+      return "Audita trenutno ni bilo mogoče zagnati zaradi Supabase pooler povezave. Za DATABASE_URL uporabi POSTGRES_PRISMA_URL oziroma Transaction pooler z nastavljenim pgbouncer=true.";
     case "timeout":
       return "Audit je trajal predolgo. Poskusi z drugo domeno ali ponovno čez nekaj minut.";
     default:

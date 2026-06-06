@@ -542,12 +542,15 @@ export async function createFreeAudit(input: {
   utmSource?: string;
   utmCampaign?: string;
 }) {
+  let auditStep = "organization";
+  try {
   const organization = await prisma.organization.create({
     data: {
       name: input.brandName,
       plan: "free"
     }
   });
+  auditStep = "brand";
   const brand = await prisma.brand.create({
     data: {
       organizationId: organization.id,
@@ -559,6 +562,7 @@ export async function createFreeAudit(input: {
     }
   });
   const competitorNames = splitCompetitors(input.competitors);
+  auditStep = "competitors";
   await prisma.competitor.createMany({
     data: competitorNames.map((name) => ({
       brandId: brand.id,
@@ -566,6 +570,7 @@ export async function createFreeAudit(input: {
     })),
     skipDuplicates: true
   });
+  auditStep = "lead";
   const lead = await prisma.lead.create({
     data: {
       organizationId: organization.id,
@@ -583,8 +588,11 @@ export async function createFreeAudit(input: {
     }
   });
 
+  auditStep = "crawl";
   await crawlBrand(brand.id, FREE_AUDIT_LIMITS.maxPages, { timeoutMs: 2500, rateLimitMs: 100 }).catch(() => null);
+  auditStep = "prompts";
   await generatePromptsForBrand(brand.id, FREE_AUDIT_LIMITS.promptCount);
+  auditStep = "scan";
   const scan = await createScanForBrand(brand.id, {
     triggerType: "free_audit",
     promptLimit: FREE_AUDIT_LIMITS.promptCount,
@@ -593,6 +601,7 @@ export async function createFreeAudit(input: {
     runNow: true
   });
 
+  auditStep = "lead update";
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
@@ -608,6 +617,7 @@ export async function createFreeAudit(input: {
     }
   });
 
+  auditStep = "lead result";
   return prisma.lead.findUnique({
     where: { id: lead.id },
     include: {
@@ -619,6 +629,10 @@ export async function createFreeAudit(input: {
       }
     }
   });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Free audit failed at ${auditStep}: ${message}`);
+  }
 }
 
 export async function sendLeadAuditEmail(leadId: string) {
