@@ -13,6 +13,8 @@ export type CreateAiAdapterOptions = {
   searchEnabled?: boolean;
 };
 
+const DEFAULT_OPENAI_MODEL = "gpt-5.4-mini";
+
 export function createAiAdapter(
   provider: AiEngineProvider,
   options: CreateAiAdapterOptions = {}
@@ -53,9 +55,8 @@ class OpenAiResponsesAdapter implements AiEngineAdapter {
 
   async runPrompt(input: RunPromptInput): Promise<RunPromptOutput> {
     const apiKey = this.config.OPENAI_API_KEY;
-    const model = this.options.modelOverride ?? this.config.OPENAI_MODEL;
+    const model = this.options.modelOverride ?? this.config.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
     if (!apiKey) throw new Error("OPENAI_API_KEY is required");
-    if (!model) throw new Error("OPENAI_MODEL is required");
 
     const searchEnabled = this.options.searchEnabled ?? input.searchEnabled;
     const body: Record<string, unknown> = {

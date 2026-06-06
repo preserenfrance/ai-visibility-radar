@@ -48,10 +48,11 @@ export default async function CheckerPage({
             AI Visibility Radar
           </div>
           <h1 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Preveri, ali te ChatGPT, Gemini in Claude priporočajo.
+            Preveri, ali te ChatGPT priporoča.
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni audit ustvari lead, pregleda do 10 strani, generira 5 promptov in pokaže začetni rezultat.
+            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 5 realnih promptov na OpenAI API
+            in pokaže začetni rezultat tvoje AI vidnosti.
           </p>
         </div>
         <Card>
@@ -88,6 +89,14 @@ function auditErrorCode(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   const lower = message.toLowerCase();
   if (
+    lower.includes("openai_api_key") ||
+    lower.includes("openai responses api error") ||
+    lower.includes("rate limit") ||
+    lower.includes("insufficient_quota")
+  ) {
+    return "openai";
+  }
+  if (
     lower.includes("prepared statement") ||
     lower.includes("pgbouncer") ||
     lower.includes("supavisor")
@@ -119,6 +128,8 @@ function auditErrorCode(error: unknown) {
 
 function auditErrorMessage(errorCode: string) {
   switch (errorCode) {
+    case "openai":
+      return "Audita trenutno ni bilo mogoče zagnati, ker OpenAI API ni pravilno nastavljen ali nima dovolj kvote. Na Vercelu preveri OPENAI_API_KEY in po želji OPENAI_MODEL.";
     case "database":
       return "Audita trenutno ni bilo mogoče zagnati, ker povezava z bazo ali migracije niso pripravljene. Preveri Vercel okoljske spremenljivke in produkcijsko bazo.";
     case "schema":

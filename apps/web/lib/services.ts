@@ -596,7 +596,7 @@ export async function createFreeAudit(input: {
   const scan = await createScanForBrand(brand.id, {
     triggerType: "free_audit",
     promptLimit: FREE_AUDIT_LIMITS.promptCount,
-    providers: ["mock"],
+    providers: ["openai"],
     repeatCount: FREE_AUDIT_LIMITS.repeatCount,
     runNow: true
   });
