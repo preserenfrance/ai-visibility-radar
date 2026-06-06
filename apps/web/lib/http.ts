@@ -9,7 +9,10 @@ export function fail(message: string, status = 400, details?: unknown) {
   return NextResponse.json({ error: message, details }, { status });
 }
 
-export async function parseBody<T>(request: Request, schema: z.Schema<T>): Promise<T> {
+export async function parseBody<TSchema extends z.ZodTypeAny>(
+  request: Request,
+  schema: TSchema
+): Promise<z.output<TSchema>> {
   const body = await request.json().catch(() => ({}));
   return schema.parse(body);
 }
