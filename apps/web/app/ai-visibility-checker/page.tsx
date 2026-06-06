@@ -51,7 +51,7 @@ export default async function CheckerPage({
             Preveri, ali te ChatGPT priporoča.
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 5 realnih promptov na OpenAI API
+            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 3 realne prompte na OpenAI API
             in pokaže začetni rezultat tvoje AI vidnosti.
           </p>
         </div>

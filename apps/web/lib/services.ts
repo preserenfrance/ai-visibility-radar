@@ -135,7 +135,10 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
   });
 }
 
-export async function ensureEngines(providers: AiEngineProvider[] = [...ENGINE_PROVIDERS, "mock"]) {
+export async function ensureEngines(
+  providers: AiEngineProvider[] = [...ENGINE_PROVIDERS, "mock"],
+  options: { searchEnabled?: boolean } = {}
+) {
   const config = getConfig();
   const models: Record<AiEngineProvider, string | undefined> = {
     openai: config.OPENAI_MODEL,
@@ -145,13 +148,15 @@ export async function ensureEngines(providers: AiEngineProvider[] = [...ENGINE_P
   };
 
   return Promise.all(
-    providers.map((provider) =>
+    providers.map((provider) => {
+      const searchEnabled = options.searchEnabled ?? provider !== "mock";
+      return (
       prisma.engine.upsert({
         where: {
           provider_model_searchEnabled: {
             provider,
             model: models[provider] ?? `env:${provider}`,
-            searchEnabled: provider !== "mock"
+            searchEnabled
           }
         },
         update: {
@@ -162,11 +167,12 @@ export async function ensureEngines(providers: AiEngineProvider[] = [...ENGINE_P
           provider,
           engineName: engineName(provider),
           model: models[provider] ?? `env:${provider}`,
-          searchEnabled: provider !== "mock",
+          searchEnabled,
           isActive: true
         }
       })
-    )
+      );
+    })
   );
 }
 
@@ -178,6 +184,7 @@ export async function createScanForBrand(
     providers?: AiEngineProvider[];
     repeatCount?: number;
     runNow?: boolean;
+    searchEnabled?: boolean;
   } = {}
 ) {
   const brand = await prisma.brand.findUnique({
@@ -196,7 +203,9 @@ export async function createScanForBrand(
   const promptSet =
     brand.promptSets[0] ?? (await generatePromptsForBrand(brandId, options.promptLimit ?? MVP_LIMITS.promptCount));
   const prompts = promptSet.prompts.slice(0, options.promptLimit ?? MVP_LIMITS.promptCount);
-  const engines = await ensureEngines(options.providers ?? ENGINE_PROVIDERS);
+  const engines = await ensureEngines(options.providers ?? ENGINE_PROVIDERS, {
+    searchEnabled: options.searchEnabled
+  });
   const repeatCount = options.repeatCount ?? MVP_LIMITS.repeatCount;
   const totalPromptRuns = prompts.length * engines.length * repeatCount;
 
@@ -263,10 +272,11 @@ export async function runScanNow(scanRunId: string) {
     }
   });
 
-  for (const promptRun of scan.promptRuns) {
-    if (promptRun.aiResponse) continue;
-    await runPromptRun(promptRun.id);
-  }
+  await Promise.allSettled(
+    scan.promptRuns
+      .filter((promptRun) => !promptRun.aiResponse)
+      .map((promptRun) => runPromptRun(promptRun.id))
+  );
 
   return scoreScan(scanRunId);
 }
@@ -598,7 +608,8 @@ export async function createFreeAudit(input: {
     promptLimit: FREE_AUDIT_LIMITS.promptCount,
     providers: ["openai"],
     repeatCount: FREE_AUDIT_LIMITS.repeatCount,
-    runNow: true
+    runNow: true,
+    searchEnabled: false
   });
 
   auditStep = "lead update";

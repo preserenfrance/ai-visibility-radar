@@ -13,7 +13,7 @@ export type CreateAiAdapterOptions = {
   searchEnabled?: boolean;
 };
 
-const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
 export function createAiAdapter(
   provider: AiEngineProvider,

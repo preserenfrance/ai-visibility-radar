@@ -144,7 +144,7 @@ export const ENGINE_PROVIDERS: AiEngineProvider[] = ["openai", "google", "anthro
 
 export const FREE_AUDIT_LIMITS = {
   maxPages: 10,
-  promptCount: 5,
+  promptCount: 3,
   repeatCount: 1
 } as const;
 
