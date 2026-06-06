@@ -17,8 +17,7 @@ import {
   normalizeDomain,
   type AiEngineProvider,
   type CrawledPageSnapshot,
-  type ParsedAiResult,
-  type ScoreInputResult
+  type ParsedAiResult
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
@@ -475,7 +474,7 @@ export async function scoreScan(scanRunId: string) {
         engine: promptRun.engine.engineName
       };
     })
-    .filter((result): result is ScoreInputResult & { prompt: string; engine: string } => Boolean(result));
+    .filter((result): result is ParsedAiResult & { prompt: string; engine: string } => Boolean(result));
 
   const score = calculateVisibilityScore(parsedResults);
   const scoreSnapshot = await prisma.scoreSnapshot.upsert({
