@@ -5,8 +5,13 @@ import { fileURLToPath } from "node:url";
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
-  experimental: {
-    outputFileTracingRoot: path.join(dirname, "../../")
+  outputFileTracingRoot: path.join(dirname, "../../"),
+  webpack(config) {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@": dirname
+    };
+    return config;
   },
   transpilePackages: [
     "@ai-radar/ai",
