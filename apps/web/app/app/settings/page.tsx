@@ -22,23 +22,23 @@ export default async function SettingsPage() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Settings</h1>
-        <p className="text-muted-foreground">Organizacije, planske omejitve in billing status.</p>
+        <h1 className="text-3xl font-semibold">Nastavitve</h1>
+        <p className="text-muted-foreground">Organizacije, omejitve paketov in status plačil.</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Organizations</CardTitle>
+          <CardTitle>Organizacije</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Name</TH>
+                <TH>Ime</TH>
                 <TH>Plan</TH>
-                <TH>Brands</TH>
-                <TH>Prompt limit</TH>
-                <TH>Scan cadence</TH>
-                <TH>Billing</TH>
+                <TH>Znamke</TH>
+                <TH>Limit promptov</TH>
+                <TH>Pogostost scanov</TH>
+                <TH>Plačila</TH>
               </TR>
             </THead>
             <TBody>
@@ -49,9 +49,9 @@ export default async function SettingsPage() {
                     <TD className="font-medium">{organization.name}</TD>
                     <TD><Badge>{organization.plan}</Badge></TD>
                     <TD>{organization.brands.length}/{limits.brandCount}</TD>
-                    <TD>{limits.promptsPerBrand} per brand</TD>
+                    <TD>{limits.promptsPerBrand} na znamko</TD>
                     <TD>{limits.scanCadence}</TD>
-                    <TD>{organization.billingSubscription?.status ?? "not active"}</TD>
+                    <TD>{organization.billingSubscription?.status ?? "ni aktivno"}</TD>
                   </TR>
                 );
               })}

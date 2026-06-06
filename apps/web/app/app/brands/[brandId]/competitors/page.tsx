@@ -38,24 +38,24 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ br
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Competitor leaderboard</h1>
+        <h1 className="text-3xl font-semibold">Pregled konkurentov</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Competitors</CardTitle>
+          <CardTitle>Konkurenti</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Competitor name</TH>
-                <TH>Mention count</TH>
-                <TH>Average rank</TH>
-                <TH>Share of voice</TH>
+                <TH>Ime konkurenta</TH>
+                <TH>Število omemb</TH>
+                <TH>Povprečni rang</TH>
+                <TH>Delež glasu</TH>
                 <TH>Sentiment</TH>
-                <TH>Top prompts where competitor wins</TH>
-                <TH>Citations that support competitor</TH>
+                <TH>Prompti, kjer konkurent zmaga</TH>
+                <TH>Citati, ki podpirajo konkurenta</TH>
               </TR>
             </THead>
             <TBody>
@@ -77,7 +77,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ br
                   <TR key={competitor.id}>
                     <TD>
                       <div className="font-medium">{competitor.name}</div>
-                      <div className="text-xs text-muted-foreground">{competitor.domain ?? "no domain"}</div>
+                      <div className="text-xs text-muted-foreground">{competitor.domain ?? "brez domene"}</div>
                     </TD>
                     <TD>{group?._count.entityName ?? 0}</TD>
                     <TD>{group?._avg.rankPosition?.toFixed(1) ?? "-"}</TD>

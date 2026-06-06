@@ -22,6 +22,7 @@
     "db:migrate:init": "npm --workspace @ai-radar/db exec -- prisma migrate dev --schema prisma/schema.prisma --name init",
     "db:migrate": "npm --workspace @ai-radar/db run prisma:migrate",
     "db:deploy": "npm --workspace @ai-radar/db run prisma:deploy",
+    "db:push": "npm --workspace @ai-radar/db exec -- prisma db push --schema prisma/schema.prisma",
     "vercel:build": "npm run db:generate && turbo run build --filter=@ai-radar/web...",
     "worker:dev": "npm --workspace @ai-radar/worker run dev",
     "web:dev": "npm --workspace @ai-radar/web run dev"

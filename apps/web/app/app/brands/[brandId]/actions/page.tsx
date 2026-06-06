@@ -13,7 +13,7 @@ async function updateStatus(formData: FormData) {
   const id = String(formData.get("recommendationId"));
   const status = String(formData.get("status")) as "open" | "in_progress" | "done" | "dismissed";
   const recommendation = await prisma.recommendation.findUnique({ where: { id } });
-  if (!recommendation) throw new Error("Recommendation not found");
+  if (!recommendation) throw new Error("Priporočilo ni najdeno");
   await requireBrandAccess(recommendation.brandId);
   await prisma.recommendation.update({ where: { id }, data: { status } });
   redirect(`/app/brands/${recommendation.brandId}/actions`);
@@ -30,25 +30,25 @@ export default async function ActionsPage({ params }: { params: Promise<{ brandI
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Action Center</h1>
+        <h1 className="text-3xl font-semibold">Akcijski center</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Recommended actions</CardTitle>
+          <CardTitle>Priporočene naloge</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Title</TH>
-                <TH>Description</TH>
-                <TH>Impact</TH>
-                <TH>Effort</TH>
+                <TH>Naslov</TH>
+                <TH>Opis</TH>
+                <TH>Učinek</TH>
+                <TH>Zahtevnost</TH>
                 <TH>Status</TH>
-                <TH>Affected prompts</TH>
-                <TH>Affected engines</TH>
-                <TH>Update</TH>
+                <TH>Povezani prompti</TH>
+                <TH>Povezani modeli</TH>
+                <TH>Posodobi</TH>
               </TR>
             </THead>
             <TBody>
@@ -65,12 +65,12 @@ export default async function ActionsPage({ params }: { params: Promise<{ brandI
                     <form action={updateStatus} className="flex gap-2">
                       <input type="hidden" name="recommendationId" value={item.id} />
                       <select name="status" defaultValue={item.status} className="h-8 rounded-md border bg-background px-2 text-xs">
-                        <option value="open">open</option>
-                        <option value="in_progress">in progress</option>
-                        <option value="done">done</option>
-                        <option value="dismissed">dismissed</option>
+                        <option value="open">odprto</option>
+                        <option value="in_progress">v delu</option>
+                        <option value="done">zaključeno</option>
+                        <option value="dismissed">zavrnjeno</option>
                       </select>
-                      <Button size="sm" type="submit">Save</Button>
+                      <Button size="sm" type="submit">Shrani</Button>
                     </form>
                   </TD>
                 </TR>

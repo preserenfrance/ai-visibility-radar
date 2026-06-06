@@ -23,37 +23,37 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Audit result</CardTitle>
+            <CardTitle>Rezultat audita</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
             <div className="flex justify-between"><span>Status</span><Badge variant="secondary">{lead.status}</Badge></div>
             <div className="flex justify-between"><span>Lead score</span><strong>{lead.leadScore}</strong></div>
             <div className="flex justify-between"><span>AI Visibility Score</span><strong>{lead.auditScanRun?.scoreSnapshot?.visibilityScore ?? "-"}</strong></div>
-            <div className="flex justify-between"><span>Mention score</span><strong>{lead.auditScanRun?.scoreSnapshot?.mentionScore ?? "-"}</strong></div>
-            <div className="flex justify-between"><span>Citation score</span><strong>{lead.auditScanRun?.scoreSnapshot?.citationScore ?? "-"}</strong></div>
+            <div className="flex justify-between"><span>Ocena omemb</span><strong>{lead.auditScanRun?.scoreSnapshot?.mentionScore ?? "-"}</strong></div>
+            <div className="flex justify-between"><span>Ocena citatov</span><strong>{lead.auditScanRun?.scoreSnapshot?.citationScore ?? "-"}</strong></div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Generated sales brief</CardTitle>
+            <CardTitle>Generiran prodajni povzetek</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="whitespace-pre-wrap rounded-md bg-slate-950 p-4 text-sm text-white">{salesBrief ?? "Report not ready."}</pre>
+            <pre className="whitespace-pre-wrap rounded-md bg-slate-950 p-4 text-sm text-white">{salesBrief ?? "Poročilo še ni pripravljeno."}</pre>
           </CardContent>
         </Card>
       </div>
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Top losing prompts</CardTitle>
+          <CardTitle>Najšibkejši prompti</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Prompt</TH>
-                <TH>Engine</TH>
-                <TH>Brand mentioned</TH>
-                <TH>Rank</TH>
+                <TH>Model</TH>
+                <TH>Znamka omenjena</TH>
+                <TH>Rang</TH>
               </TR>
             </THead>
             <TBody>
@@ -63,7 +63,7 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
                   <TR key={run.id}>
                     <TD>{run.prompt.text}</TD>
                     <TD>{run.engine.engineName}</TD>
-                    <TD>{parsed?.brandMentioned ? "yes" : "no"}</TD>
+                    <TD>{parsed?.brandMentioned ? "da" : "ne"}</TD>
                     <TD>{parsed?.brandRank ?? "-"}</TD>
                   </TR>
                 );

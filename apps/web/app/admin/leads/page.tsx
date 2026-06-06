@@ -34,24 +34,24 @@ export default async function AdminLeadsPage() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Admin leads</h1>
-        <p className="text-muted-foreground">Lead capture, audit score, top competitor and status.</p>
+        <h1 className="text-3xl font-semibold">Admin leadi</h1>
+        <p className="text-muted-foreground">Zajeti leadi, audit rezultat, glavni konkurent in status.</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Lead table</CardTitle>
+          <CardTitle>Tabela leadov</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Email</TH>
-                <TH>Domain</TH>
-                <TH>Brand</TH>
+                <TH>Domena</TH>
+                <TH>Znamka</TH>
                 <TH>AI Visibility Score</TH>
-                <TH>Top competitor</TH>
+                <TH>Glavni konkurent</TH>
                 <TH>Lead score</TH>
-                <TH>Created</TH>
+                <TH>Ustvarjeno</TH>
                 <TH>Status</TH>
               </TR>
             </THead>

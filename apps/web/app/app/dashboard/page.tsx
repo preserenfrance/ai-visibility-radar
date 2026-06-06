@@ -26,25 +26,25 @@ export default async function AppDashboardPage() {
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold">Dashboard</h1>
-          <p className="text-muted-foreground">Pregled brandov, zadnjih score snapshotov in scan statusov.</p>
+          <h1 className="text-3xl font-semibold">Pregled</h1>
+          <p className="text-muted-foreground">Pregled znamk, zadnjih rezultatov in statusov scanov.</p>
         </div>
         <Button asChild>
-          <Link href="/app/onboarding">Dodaj brand</Link>
+          <Link href="/app/onboarding">Dodaj znamko</Link>
         </Button>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Brands</CardTitle>
+          <CardTitle>Znamke</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Brand</TH>
-                <TH>Organization</TH>
+                <TH>Znamka</TH>
+                <TH>Organizacija</TH>
                 <TH>Score</TH>
-                <TH>Last scan</TH>
+                <TH>Zadnji scan</TH>
                 <TH>Status</TH>
               </TR>
             </THead>
@@ -61,7 +61,7 @@ export default async function AppDashboardPage() {
                   <TD>{brand.scoreSnapshots[0]?.visibilityScore ?? "-"}</TD>
                   <TD>{brand.scanRuns[0]?.createdAt.toLocaleString("sl-SI") ?? "-"}</TD>
                   <TD>
-                    <Badge variant="secondary">{brand.scanRuns[0]?.status ?? "no scan"}</Badge>
+                    <Badge variant="secondary">{brand.scanRuns[0]?.status ?? "brez scana"}</Badge>
                   </TD>
                 </TR>
               ))}

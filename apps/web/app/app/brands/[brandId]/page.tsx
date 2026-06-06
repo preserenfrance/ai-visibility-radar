@@ -85,44 +85,44 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
         <div className="flex flex-wrap gap-2">
           <form action={refreshCrawlAndPrompts}>
             <input type="hidden" name="brandId" value={brand.id} />
-            <Button type="submit" variant="outline">Refresh crawl + prompts</Button>
+            <Button type="submit" variant="outline">Osveži crawl in prompte</Button>
           </form>
           <form action={startMockScan}>
             <input type="hidden" name="brandId" value={brand.id} />
-            <Button type="submit">Run mock scan</Button>
+            <Button type="submit">Zaženi testni scan</Button>
           </form>
           <form action={queueProviderScan}>
             <input type="hidden" name="brandId" value={brand.id} />
-            <Button type="submit" variant="secondary">Queue provider scan</Button>
+            <Button type="submit" variant="secondary">Dodaj produkcijski scan v vrsto</Button>
           </form>
         </div>
       </div>
       <div className="mb-5 flex flex-wrap gap-2 text-sm">
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/prompts`}>Prompts</Link>
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/competitors`}>Competitors</Link>
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/citations`}>Citations</Link>
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/actions`}>Action Center</Link>
+        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/prompts`}>Prompti</Link>
+        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/competitors`}>Konkurenti</Link>
+        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/citations`}>Citati</Link>
+        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/actions`}>Akcijski center</Link>
       </div>
       <div className="grid gap-4 md:grid-cols-5">
         <Metric label="AI Visibility Score" value={latestScore?.visibilityScore ?? 0} suffix="/100" />
         <Metric label="Trend" value={trend ?? 0} prefix={trend !== null && trend > 0 ? "+" : ""} />
-        <Metric label="Mention rate" value={latestScore?.mentionScore ?? 0} suffix="/100" />
-        <Metric label="Citation rate" value={latestScore?.citationScore ?? 0} suffix="/100" />
-        <Metric label="Accuracy" value={latestScore?.accuracyScore ?? 0} suffix="/100" />
+        <Metric label="Delež omemb" value={latestScore?.mentionScore ?? 0} suffix="/100" />
+        <Metric label="Delež citatov" value={latestScore?.citationScore ?? 0} suffix="/100" />
+        <Metric label="Točnost" value={latestScore?.accuracyScore ?? 0} suffix="/100" />
       </div>
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Engine breakdown</CardTitle>
+            <CardTitle>Pregled po modelih</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <THead>
                 <TR>
-                  <TH>Engine</TH>
-                  <TH>Runs</TH>
-                  <TH>Mentioned</TH>
-                  <TH>Failures</TH>
+                  <TH>Model</TH>
+                  <TH>Izvedbe</TH>
+                  <TH>Omembe</TH>
+                  <TH>Napake</TH>
                 </TR>
               </THead>
               <TBody>
@@ -140,28 +140,28 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Current setup</CardTitle>
+            <CardTitle>Trenutna nastavitev</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
-            <div className="flex justify-between"><span>Competitors</span><strong>{brand.competitors.length}</strong></div>
-            <div className="flex justify-between"><span>Crawled pages</span><strong>{brand.crawlSnapshots[0]?.pages.length ?? 0}</strong></div>
-            <div className="flex justify-between"><span>Prompts</span><strong>{promptSet?.prompts.length ?? 0}</strong></div>
-            <div className="flex justify-between"><span>Last scan</span><strong>{latestScan?.status ?? "none"}</strong></div>
+            <div className="flex justify-between"><span>Konkurenti</span><strong>{brand.competitors.length}</strong></div>
+            <div className="flex justify-between"><span>Pregledane strani</span><strong>{brand.crawlSnapshots[0]?.pages.length ?? 0}</strong></div>
+            <div className="flex justify-between"><span>Prompti</span><strong>{promptSet?.prompts.length ?? 0}</strong></div>
+            <div className="flex justify-between"><span>Zadnji scan</span><strong>{latestScan?.status ?? "brez"}</strong></div>
           </CardContent>
         </Card>
       </div>
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Recent scans</CardTitle>
+          <CardTitle>Zadnji scani</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Started</TH>
+                <TH>Začetek</TH>
                 <TH>Status</TH>
                 <TH>Score</TH>
-                <TH>Runs</TH>
+                <TH>Izvedbe</TH>
               </TR>
             </THead>
             <TBody>

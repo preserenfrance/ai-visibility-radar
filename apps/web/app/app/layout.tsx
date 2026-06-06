@@ -15,12 +15,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             AI Visibility Radar
           </Link>
           <nav className="flex flex-wrap items-center gap-1 text-sm">
-            <Nav href="/app/dashboard" icon={<BarChart3 className="h-4 w-4" />} label="Dashboard" />
-            <Nav href="/app/onboarding" icon={<Building2 className="h-4 w-4" />} label="Onboarding" />
+            <Nav href="/app/dashboard" icon={<BarChart3 className="h-4 w-4" />} label="Pregled" />
+            <Nav href="/app/onboarding" icon={<Building2 className="h-4 w-4" />} label="Dodaj znamko" />
             <Nav href="/admin/leads" icon={<ClipboardList className="h-4 w-4" />} label="Admin" />
-            <Nav href="/app/settings" icon={<Settings className="h-4 w-4" />} label="Settings" />
+            <Nav href="/app/settings" icon={<Settings className="h-4 w-4" />} label="Nastavitve" />
           </nav>
-          <div className="hidden text-sm text-muted-foreground sm:block">{user?.email ?? "Not signed in"}</div>
+          <div className="hidden text-sm text-muted-foreground sm:block">{user?.email ?? "Niste prijavljeni"}</div>
         </div>
       </div>
       {children}

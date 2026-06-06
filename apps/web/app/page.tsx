@@ -9,9 +9,9 @@ const features: Array<{
   description: string;
   Icon: typeof Activity;
 }> = [
-  { title: "Raw answers", description: "Vsak AI odgovor se shrani loceno od parser rezultata.", Icon: Activity },
-  { title: "Citations", description: "OpenAI, Gemini in Claude citacije se normalizirajo v isto tabelo.", Icon: BadgeCheck },
-  { title: "Tenant checks", description: "API poti preverijo clanstvo pred dostopom do brandov in scanov.", Icon: ShieldCheck }
+  { title: "Izvorni odgovori", description: "Vsak AI odgovor se shrani ločeno od rezultata parserja.", Icon: Activity },
+  { title: "Citirani viri", description: "Citacije iz OpenAI, Gemini in Claude se normalizirajo v isto tabelo.", Icon: BadgeCheck },
+  { title: "Varnost dostopa", description: "API poti preverijo članstvo pred dostopom do znamk in scanov.", Icon: ShieldCheck }
 ];
 
 export default function HomePage() {
@@ -35,10 +35,10 @@ export default function HomePage() {
             </Link>
             <div className="flex items-center gap-2">
               <Button asChild variant="ghost" className="text-white hover:bg-white/10">
-                <Link href="/pricing">Pricing</Link>
+                <Link href="/pricing">Cenik</Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href="/app/onboarding">Sign in</Link>
+                <Link href="/app/onboarding">Vstop</Link>
               </Button>
             </div>
           </nav>
@@ -46,19 +46,19 @@ export default function HomePage() {
             <div className="max-w-2xl">
               <p className="mb-4 inline-flex items-center gap-2 rounded-sm bg-white/10 px-3 py-1 text-sm">
                 <SearchCheck className="h-4 w-4 text-accent" />
-                Official APIs only
+                Samo uradni API-ji
               </p>
               <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
-                Preveri, ali te ChatGPT, Gemini in Claude priporocajo.
+                Preveri, ali te ChatGPT, Gemini in Claude priporočajo.
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-slate-200">
                 Vnesi domeno in dobi ponovljivo meritev testnih promptov: omembe, rang, konkurente,
-                citirane vire, sentiment in konkretne naloge za izboljsanje.
+                citirane vire, sentiment in konkretne naloge za izboljšanje.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild size="default">
                   <Link href="/ai-visibility-checker">
-                    Zazeni brezplacen audit <ArrowRight className="h-4 w-4" />
+                    Zaženi brezplačen audit <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="border-white/40 bg-white/5 text-white hover:bg-white/10">

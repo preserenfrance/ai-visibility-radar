@@ -23,7 +23,11 @@ import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
 import { enqueueJob } from "@/lib/queue";
 
-export async function crawlBrand(brandId: string, maxPages: number = MVP_LIMITS.maxPages) {
+export async function crawlBrand(
+  brandId: string,
+  maxPages: number = MVP_LIMITS.maxPages,
+  crawlOptions: { timeoutMs?: number; rateLimitMs?: number } = {}
+) {
   const brand = await prisma.brand.findUnique({ where: { id: brandId } });
   if (!brand) throw new Error("Brand not found");
   const snapshot = await prisma.crawlSnapshot.create({
@@ -33,7 +37,7 @@ export async function crawlBrand(brandId: string, maxPages: number = MVP_LIMITS.
       maxPages
     }
   });
-  const result = await crawlDomain({ domain: brand.domain, maxPages });
+  const result = await crawlDomain({ domain: brand.domain, maxPages, ...crawlOptions });
   await prisma.crawlSnapshot.update({
     where: { id: snapshot.id },
     data: {
@@ -579,7 +583,7 @@ export async function createFreeAudit(input: {
     }
   });
 
-  await crawlBrand(brand.id, FREE_AUDIT_LIMITS.maxPages).catch(() => null);
+  await crawlBrand(brand.id, FREE_AUDIT_LIMITS.maxPages, { timeoutMs: 2500, rateLimitMs: 100 }).catch(() => null);
   await generatePromptsForBrand(brand.id, FREE_AUDIT_LIMITS.promptCount);
   const scan = await createScanForBrand(brand.id, {
     triggerType: "free_audit",

@@ -36,32 +36,32 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold">Scan run</h1>
+          <h1 className="text-3xl font-semibold">Izvedba scana</h1>
           <p className="text-muted-foreground">{scan.brand.name} · {scan.id}</p>
         </div>
         <Badge variant="secondary">{scan.status}</Badge>
       </div>
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <Metric label="Visibility" value={scan.scoreSnapshot?.visibilityScore ?? 0} />
-        <Metric label="Mention" value={scan.scoreSnapshot?.mentionScore ?? 0} />
-        <Metric label="Share of voice" value={scan.scoreSnapshot?.shareOfVoiceScore ?? 0} />
-        <Metric label="Accuracy" value={scan.scoreSnapshot?.accuracyScore ?? 0} />
+        <Metric label="Vidnost" value={scan.scoreSnapshot?.visibilityScore ?? 0} />
+        <Metric label="Omembe" value={scan.scoreSnapshot?.mentionScore ?? 0} />
+        <Metric label="Delež glasu" value={scan.scoreSnapshot?.shareOfVoiceScore ?? 0} />
+        <Metric label="Točnost" value={scan.scoreSnapshot?.accuracyScore ?? 0} />
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Prompt runs</CardTitle>
+          <CardTitle>Izvedbe promptov</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Prompt</TH>
-                <TH>Engine</TH>
+                <TH>Model</TH>
                 <TH>Status</TH>
-                <TH>Brand</TH>
-                <TH>Rank</TH>
+                <TH>Znamka</TH>
+                <TH>Rang</TH>
                 <TH>Sentiment</TH>
-                <TH>Confidence</TH>
+                <TH>Zaupanje</TH>
               </TR>
             </THead>
             <TBody>
@@ -73,19 +73,19 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
                       <details>
                         <summary className="cursor-pointer font-medium">{run.prompt.text}</summary>
                         <div className="mt-3 space-y-3 rounded-md border bg-secondary/30 p-3">
-                          <div className="text-sm font-semibold">Raw answer</div>
+                          <div className="text-sm font-semibold">Izvorni odgovor</div>
                           <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
-                            {run.aiResponse?.rawText ?? run.errorMessage ?? "No response"}
+                            {run.aiResponse?.rawText ?? run.errorMessage ?? "Ni odgovora"}
                           </pre>
-                          <div className="text-sm font-semibold">Parsed result</div>
+                          <div className="text-sm font-semibold">Razčlenjen rezultat</div>
                           <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-white p-3 text-xs">
                             {JSON.stringify(parsed ?? {}, null, 2)}
                           </pre>
                           <div className="text-sm">
-                            Citations: {run.aiResponse?.citations.map((citation) => citation.domain).join(", ") || "-"}
+                            Citati: {run.aiResponse?.citations.map((citation) => citation.domain).join(", ") || "-"}
                           </div>
                           <div className="text-sm">
-                            Competitors: {run.aiResponse?.mentions
+                            Konkurenti: {run.aiResponse?.mentions
                               .filter((mention) => mention.entityType === "competitor")
                               .map((mention) => mention.entityName)
                               .join(", ") || "-"}
@@ -95,7 +95,7 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
                     </TD>
                     <TD>{run.engine.engineName}</TD>
                     <TD><Badge variant={run.status === "failed" ? "danger" : "secondary"}>{run.status}</Badge></TD>
-                    <TD>{parsed?.brandMentioned ? "mentioned" : "not mentioned"}</TD>
+                    <TD>{parsed?.brandMentioned ? "omenjena" : "ni omenjena"}</TD>
                     <TD>{parsed?.brandRank ?? "-"}</TD>
                     <TD>{parsed?.sentiment ?? "-"}</TD>
                     <TD>{parsed?.confidence ?? "-"}</TD>

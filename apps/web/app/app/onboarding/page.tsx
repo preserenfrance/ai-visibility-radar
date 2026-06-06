@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const steps: Array<{ step: string; label: string; Icon: typeof Globe }> = [
   { step: "1", label: "Vnos domene", Icon: Globe },
   { step: "2", label: "Analiza domene", Icon: ScanSearch },
-  { step: "3", label: "Prompt set", Icon: ListChecks }
+  { step: "3", label: "Set promptov", Icon: ListChecks }
 ];
 
 async function onboard(formData: FormData) {
@@ -54,7 +54,7 @@ async function onboard(formData: FormData) {
       name: brandName,
       domain,
       industry: String(formData.get("industry") ?? ""),
-      country: String(formData.get("country") ?? "Slovenia"),
+      country: String(formData.get("country") ?? "Slovenija"),
       language: String(formData.get("language") ?? "sl"),
       aliases: []
     }
@@ -73,9 +73,9 @@ export default async function OnboardingPage() {
   return (
     <section className="mx-auto grid max-w-7xl gap-6 px-5 py-8 lg:grid-cols-[0.85fr_1.15fr]">
       <div>
-        <h1 className="text-3xl font-semibold">Brand onboarding</h1>
+        <h1 className="text-3xl font-semibold">Dodajanje znamke</h1>
         <p className="mt-3 max-w-xl text-muted-foreground">
-          V enem toku ustvari organizacijo, brand, konkurente, crawl snapshot in začetni set 25 promptov.
+          V enem toku ustvari organizacijo, znamko, konkurente, crawl posnetek in začetni set 25 promptov.
         </p>
         <div className="mt-6 grid gap-3">
           {steps.map(({ step, label, Icon }) => (
@@ -91,27 +91,27 @@ export default async function OnboardingPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>{user ? "Dodaj nov brand" : "Registracija in prvi brand"}</CardTitle>
+          <CardTitle>{user ? "Dodaj novo znamko" : "Registracija in prva znamka"}</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={onboard} className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Input name="email" type="email" placeholder="you@company.com" defaultValue={user?.email} required />
+              <Input name="email" type="email" placeholder="ime@podjetje.si" defaultValue={user?.email} required />
               <Input name="name" placeholder="Ime" defaultValue={user?.name ?? ""} />
             </div>
-            <Input name="organizationName" placeholder="Organization name" />
+            <Input name="organizationName" placeholder="Ime organizacije" />
             <div className="grid gap-3 sm:grid-cols-2">
-              <Input name="brandName" placeholder="Brand name" required />
+              <Input name="brandName" placeholder="Ime znamke" required />
               <Input name="domain" placeholder="domain.com" required />
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <Input name="country" defaultValue="Slovenia" />
+              <Input name="country" defaultValue="Slovenija" />
               <Input name="language" defaultValue="sl" />
-              <Input name="industry" placeholder="Industry" />
+              <Input name="industry" placeholder="Panoga" />
             </div>
-            <Textarea name="competitors" placeholder="Competitor A, Competitor B" />
+            <Textarea name="competitors" placeholder="Konkurent A, Konkurent B" />
             <Button type="submit">
-              Ustvari brand in prompte <ArrowRight className="h-4 w-4" />
+              Ustvari znamko in prompte <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
         </CardContent>

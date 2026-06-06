@@ -13,7 +13,7 @@ async function updatePrompt(formData: FormData) {
   "use server";
   const promptId = String(formData.get("promptId"));
   const prompt = await prisma.prompt.findUnique({ where: { id: promptId }, include: { promptSet: true } });
-  if (!prompt) throw new Error("Prompt not found");
+  if (!prompt) throw new Error("Prompt ni najden");
   await requireBrandAccess(prompt.promptSet.brandId);
   await prisma.prompt.update({
     where: { id: promptId },
@@ -55,26 +55,26 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Prompt results</h1>
+        <h1 className="text-3xl font-semibold">Rezultati promptov</h1>
         <p className="text-muted-foreground">{brand?.name} · {promptSet?.prompts.length ?? 0} promptov</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Prompt table</CardTitle>
+          <CardTitle>Tabela promptov</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Prompt</TH>
-                <TH>Category</TH>
-                <TH>ChatGPT result</TH>
-                <TH>Gemini result</TH>
-                <TH>Claude result</TH>
-                <TH>Brand rank</TH>
-                <TH>Brand mentioned</TH>
-                <TH>Top competitor</TH>
-                <TH>Last run</TH>
+                <TH>Kategorija</TH>
+                <TH>Rezultat ChatGPT</TH>
+                <TH>Rezultat Gemini</TH>
+                <TH>Rezultat Claude</TH>
+                <TH>Rang znamke</TH>
+                <TH>Znamka omenjena</TH>
+                <TH>Glavni konkurent</TH>
+                <TH>Zadnja izvedba</TH>
                 <TH>Status</TH>
               </TR>
             </THead>
@@ -96,9 +96,9 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                             <Textarea name="text" defaultValue={prompt.text} />
                             <label className="flex items-center gap-2 text-sm">
                               <input type="checkbox" name="isActive" defaultChecked={prompt.isActive} />
-                              Active
+                              Aktiven
                             </label>
-                            <Button size="sm" type="submit">Save prompt</Button>
+                            <Button size="sm" type="submit">Shrani prompt</Button>
                           </form>
                           {prompt.promptRuns.slice(0, 3).map((run) => {
                             const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
@@ -106,19 +106,19 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                               <div key={run.id} className="rounded-md border bg-white p-3">
                                 <div className="mb-2 flex flex-wrap items-center gap-2">
                                   <Badge variant="secondary">{run.engine.engineName}</Badge>
-                                  <span className="text-xs text-muted-foreground">confidence {parsed?.confidence ?? "-"}</span>
+                                  <span className="text-xs text-muted-foreground">zaupanje {parsed?.confidence ?? "-"}</span>
                                 </div>
-                                <div className="text-sm font-medium">Raw answer</div>
+                                <div className="text-sm font-medium">Izvorni odgovor</div>
                                 <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
-                                  {run.aiResponse?.rawText ?? run.errorMessage ?? "No response"}
+                                  {run.aiResponse?.rawText ?? run.errorMessage ?? "Ni odgovora"}
                                 </pre>
                                 <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
-                                  <div>Rank: {parsed?.brandRank ?? "-"}</div>
+                                  <div>Rang: {parsed?.brandRank ?? "-"}</div>
                                   <div>Sentiment: {parsed?.sentiment ?? "-"}</div>
-                                  <div>Accuracy: {parsed?.accuracyScore ?? "-"}</div>
+                                  <div>Točnost: {parsed?.accuracyScore ?? "-"}</div>
                                 </div>
                                 <div className="mt-2 text-xs text-muted-foreground">
-                                  Citations: {run.aiResponse?.citations.map((citation) => citation.domain).join(", ") || "-"}
+                                  Citati: {run.aiResponse?.citations.map((citation) => citation.domain).join(", ") || "-"}
                                 </div>
                               </div>
                             );
@@ -131,10 +131,10 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                     <TD>{engineCell(latestRuns.Gemini)}</TD>
                     <TD>{engineCell(latestRuns.Claude)}</TD>
                     <TD>{firstParsed?.brandRank ?? "-"}</TD>
-                    <TD>{firstParsed?.brandMentioned ? "yes" : "no"}</TD>
+                    <TD>{firstParsed?.brandMentioned ? "da" : "ne"}</TD>
                     <TD>{firstParsed?.competitorsMentioned?.[0]?.name ?? "-"}</TD>
                     <TD>{prompt.promptRuns[0]?.createdAt.toLocaleString("sl-SI") ?? "-"}</TD>
-                    <TD><Badge variant={prompt.isActive ? "default" : "secondary"}>{prompt.isActive ? "active" : "inactive"}</Badge></TD>
+                    <TD><Badge variant={prompt.isActive ? "default" : "secondary"}>{prompt.isActive ? "aktiven" : "neaktiven"}</Badge></TD>
                   </TR>
                 );
               })}
@@ -157,7 +157,7 @@ function latestByEngine(promptRuns: Array<any>) {
 function engineCell(run?: any) {
   if (!run) return "-";
   const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
-  if (run.status === "failed") return "failed";
+  if (run.status === "failed") return "napaka";
   if (!parsed) return run.status;
-  return parsed.brandMentioned ? `rank ${parsed.brandRank ?? "-"}` : "not mentioned";
+  return parsed.brandMentioned ? `rang ${parsed.brandRank ?? "-"}` : "ni omenjeno";
 }

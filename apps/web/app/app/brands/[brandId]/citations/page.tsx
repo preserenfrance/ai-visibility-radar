@@ -35,26 +35,26 @@ export default async function CitationsPage({ params }: { params: Promise<{ bran
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Citation table</h1>
+        <h1 className="text-3xl font-semibold">Tabela citatov</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Sources cited by AI providers</CardTitle>
+          <CardTitle>Viri, ki jih citirajo AI modeli</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>URL</TH>
-                <TH>Domain</TH>
-                <TH>Title</TH>
-                <TH>Provider</TH>
+                <TH>Domena</TH>
+                <TH>Naslov</TH>
+                <TH>Model</TH>
                 <TH>Prompt</TH>
-                <TH>Owned</TH>
-                <TH>Competitor</TH>
-                <TH>Supports brand</TH>
-                <TH>Supports competitor</TH>
+                <TH>Lastna domena</TH>
+                <TH>Konkurent</TH>
+                <TH>Podpira znamko</TH>
+                <TH>Podpira konkurenta</TH>
               </TR>
             </THead>
             <TBody>
@@ -84,5 +84,5 @@ export default async function CitationsPage({ params }: { params: Promise<{ bran
 }
 
 function Flag({ value }: { value: boolean }) {
-  return <Badge variant={value ? "default" : "secondary"}>{value ? "true" : "false"}</Badge>;
+  return <Badge variant={value ? "default" : "secondary"}>{value ? "da" : "ne"}</Badge>;
 }
