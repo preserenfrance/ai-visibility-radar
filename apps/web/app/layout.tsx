@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AI Visibility Radar",
-  description: "Measure repeatable brand visibility in ChatGPT, Gemini, and Claude."
+  description: "Merjenje ponovljive vidnosti znamke v ChatGPT, Gemini in Claude."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

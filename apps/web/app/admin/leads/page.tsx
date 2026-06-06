@@ -4,14 +4,15 @@ import { prisma } from "@ai-radar/db";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { requireCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { topCompetitorForScan } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLeadsPage() {
-  const user = await requireCurrentUser().catch(() => null);
-  if (!user) redirect("/app/onboarding");
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/admin/leads");
+  if (!isAdminUser(user)) return <main className="p-8">Nimate dostopa do admin strani.</main>;
   const leads = await prisma.lead.findMany({
     orderBy: { createdAt: "desc" },
     include: {

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireCurrentUser().catch(() => null);
-  if (!user) redirect("/app/onboarding");
+  if (!user) redirect("/login?next=/app/settings");
   const organizations = await prisma.organization.findMany({
     where: { memberships: { some: { userId: user.id } } },
     include: {

@@ -110,13 +110,18 @@ enum AuditAction {
 }
 
 model User {
-  id          String       @id @default(cuid())
-  email       String       @unique
-  name        String?
-  memberships Membership[]
-  auditLogs   AuditLog[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                     String       @id @default(cuid())
+  email                  String       @unique
+  name                   String?
+  passwordHash           String?
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
+  memberships            Membership[]
+  auditLogs              AuditLog[]
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  @@index([passwordResetTokenHash])
 }
 
 model Organization {

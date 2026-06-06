@@ -38,7 +38,7 @@ export default function HomePage() {
                 <Link href="/pricing">Cenik</Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href="/app/onboarding">Vstop</Link>
+                <Link href="/login">Vstop</Link>
               </Button>
             </div>
           </nav>
@@ -62,7 +62,7 @@ export default function HomePage() {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="border-white/40 bg-white/5 text-white hover:bg-white/10">
-                  <Link href="/app/onboarding">Odpri aplikacijo</Link>
+                  <Link href="/login">Odpri aplikacijo</Link>
                 </Button>
               </div>
             </div>

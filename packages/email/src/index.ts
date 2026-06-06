@@ -19,7 +19,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ id?: string; s
   const { Resend } = await import("resend");
   const resend = new Resend(config.RESEND_API_KEY);
   const response = await resend.emails.send({
-    from: "AI Visibility Radar <reports@ai-visibility-radar.local>",
+    from: config.RESEND_FROM_EMAIL ?? "AI Visibility Radar <onboarding@resend.dev>",
     to: input.to,
     subject: input.subject,
     html: input.html

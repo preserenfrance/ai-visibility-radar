@@ -4,6 +4,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().optional(),
+  AUTH_SECRET: z.string().optional(),
+  ADMIN_EMAILS: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
@@ -21,6 +23,7 @@ const envSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_BUCKET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   POSTHOG_KEY: z.string().optional()
 });

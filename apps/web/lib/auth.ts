@@ -1,11 +1,13 @@
 import { cookies } from "next/headers";
 import { prisma } from "@ai-radar/db";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
-const COOKIE_NAME = "air_user_id";
+const COOKIE_NAME = "air_session";
+const LEGACY_COOKIE_NAME = "air_user_id";
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
-  const userId = cookieStore.get(COOKIE_NAME)?.value;
+  const userId = readSignedSession(cookieStore.get(COOKIE_NAME)?.value);
   if (!userId) return null;
   return prisma.user.findUnique({
     where: { id: userId },
@@ -27,18 +29,38 @@ export async function requireCurrentUser() {
 
 export async function setUserSession(userId: string) {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, userId, {
+  cookieStore.set(COOKIE_NAME, signSession(userId), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 24 * 30
   });
+  cookieStore.delete(LEGACY_COOKIE_NAME);
 }
 
 export async function clearUserSession() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(LEGACY_COOKIE_NAME);
+}
+
+export function isAdminEmail(email: string) {
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  return adminEmails.includes(email.trim().toLowerCase());
+}
+
+export function isAdminUser(user: { email: string } | null | undefined) {
+  return Boolean(user && isAdminEmail(user.email));
+}
+
+export async function requireAdminUser() {
+  const user = await requireCurrentUser();
+  if (!isAdminUser(user)) throw new Error("Forbidden: admin access required");
+  return user;
 }
 
 export async function requireOrganizationAccess(organizationId: string) {
@@ -76,4 +98,25 @@ export async function requireScanAccess(scanRunId: string) {
   const membership = user.memberships.find((item) => item.organizationId === scan.brand.organizationId);
   if (!membership) throw new Error("Forbidden: organization membership required");
   return { user, membership, scan };
+}
+
+function signSession(userId: string) {
+  const signature = createHmac("sha256", sessionSecret()).update(userId).digest("base64url");
+  return `${userId}.${signature}`;
+}
+
+function readSignedSession(value?: string) {
+  if (!value) return null;
+  const [userId, signature] = value.split(".");
+  if (!userId || !signature) return null;
+
+  const expected = createHmac("sha256", sessionSecret()).update(userId).digest("base64url");
+  const expectedBuffer = Buffer.from(expected);
+  const signatureBuffer = Buffer.from(signature);
+  if (expectedBuffer.length !== signatureBuffer.length) return null;
+  return timingSafeEqual(expectedBuffer, signatureBuffer) ? userId : null;
+}
+
+function sessionSecret() {
+  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? process.env.DATABASE_URL ?? "ai-radar-dev-secret";
 }

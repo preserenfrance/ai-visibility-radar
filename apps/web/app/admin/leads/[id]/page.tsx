@@ -2,14 +2,15 @@ import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { requireCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { buildAdminLeadDetail } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireCurrentUser().catch(() => null);
-  if (!user) redirect("/app/onboarding");
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/admin/leads");
+  if (!isAdminUser(user)) return <main className="p-8">Nimate dostopa do admin strani.</main>;
   const { id } = await params;
   const { lead, salesBrief } = await buildAdminLeadDetail(id);
   if (!lead) return <main className="p-8">Lead ni najden.</main>;

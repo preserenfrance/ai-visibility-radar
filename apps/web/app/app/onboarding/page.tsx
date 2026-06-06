@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getCurrentUser, setUserSession } from "@/lib/auth";
+import { getCurrentUser, requireCurrentUser } from "@/lib/auth";
 import { crawlBrand, generatePromptsForBrand } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +19,7 @@ const steps: Array<{ step: string; label: string; Icon: typeof Globe }> = [
 
 async function onboard(formData: FormData) {
   "use server";
-  const email = String(formData.get("email") ?? "").toLowerCase();
-  const name = String(formData.get("name") ?? "");
+  const user = await requireCurrentUser();
   const organizationName = String(formData.get("organizationName") ?? "");
   const brandName = String(formData.get("brandName") ?? "");
   const domain = normalizeDomain(String(formData.get("domain") ?? ""));
@@ -30,24 +29,21 @@ async function onboard(formData: FormData) {
     .filter(Boolean)
     .slice(0, 10);
 
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { name },
-    create: { email, name }
-  });
-  await setUserSession(user.id);
+  const organization =
+    organizationName || user.memberships.length === 0
+      ? await prisma.organization.create({
+          data: {
+            name: organizationName || brandName,
+            memberships: {
+              create: {
+                userId: user.id,
+                role: "owner"
+              }
+            }
+          }
+        })
+      : user.memberships[0]!.organization;
 
-  const organization = await prisma.organization.create({
-    data: {
-      name: organizationName || brandName,
-      memberships: {
-        create: {
-          userId: user.id,
-          role: "owner"
-        }
-      }
-    }
-  });
   const brand = await prisma.brand.create({
     data: {
       organizationId: organization.id,
@@ -70,6 +66,7 @@ async function onboard(formData: FormData) {
 
 export default async function OnboardingPage() {
   const user = await getCurrentUser();
+  if (!user) redirect("/signup?next=/app/onboarding");
   return (
     <section className="mx-auto grid max-w-7xl gap-6 px-5 py-8 lg:grid-cols-[0.85fr_1.15fr]">
       <div>
@@ -91,14 +88,10 @@ export default async function OnboardingPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>{user ? "Dodaj novo znamko" : "Registracija in prva znamka"}</CardTitle>
+          <CardTitle>Dodaj novo znamko</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={onboard} className="grid gap-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Input name="email" type="email" placeholder="ime@podjetje.si" defaultValue={user?.email} required />
-              <Input name="name" placeholder="Ime" defaultValue={user?.name ?? ""} />
-            </div>
             <Input name="organizationName" placeholder="Ime organizacije" />
             <div className="grid gap-3 sm:grid-cols-2">
               <Input name="brandName" placeholder="Ime znamke" required />
