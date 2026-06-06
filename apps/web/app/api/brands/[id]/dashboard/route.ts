@@ -36,12 +36,12 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
         (acc, run) => {
           const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
           const engine = run.engine.engineName;
-          acc[engine] ??= { total: 0, mentioned: 0, rankSum: 0, ranked: 0 };
-          acc[engine].total += 1;
-          if (parsed?.brandMentioned) acc[engine].mentioned += 1;
+          const bucket = (acc[engine] ??= { total: 0, mentioned: 0, rankSum: 0, ranked: 0 });
+          bucket.total += 1;
+          if (parsed?.brandMentioned) bucket.mentioned += 1;
           if (typeof parsed?.brandRank === "number") {
-            acc[engine].rankSum += parsed.brandRank;
-            acc[engine].ranked += 1;
+            bucket.rankSum += parsed.brandRank;
+            bucket.ranked += 1;
           }
           return acc;
         },

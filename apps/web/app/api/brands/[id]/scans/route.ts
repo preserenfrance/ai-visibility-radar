@@ -4,6 +4,8 @@ import { createScanForBrand } from "@/lib/services";
 import { requireBrandAccess } from "@/lib/auth";
 import { ok, parseBody, route } from "@/lib/http";
 
+export const maxDuration = 60;
+
 const schema = z.object({
   providers: z.array(z.enum(["openai", "google", "anthropic", "mock"])).default(["mock"]),
   promptLimit: z.number().int().min(1).max(100).optional(),

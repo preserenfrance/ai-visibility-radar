@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage() {
   const user = await requireCurrentUser().catch(() => null);
   if (!user) redirect("/app/onboarding");

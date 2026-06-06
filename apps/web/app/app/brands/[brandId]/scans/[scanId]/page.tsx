@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireScanAccess } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function ScanPage({ params }: { params: Promise<{ brandId: string; scanId: string }> }) {
   const { scanId } = await params;
   await requireScanAccess(scanId);
@@ -24,7 +26,7 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
             }
           }
         },
-        orderBy: [{ prompt: { priority: "asc" } }, { engine: { engineName: "asc" } }]
+        orderBy: { createdAt: "asc" }
       }
     }
   });

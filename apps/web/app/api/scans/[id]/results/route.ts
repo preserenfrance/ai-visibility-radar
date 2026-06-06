@@ -19,7 +19,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
           }
         }
       },
-      orderBy: [{ prompt: { priority: "asc" } }, { engine: { engineName: "asc" } }]
+      orderBy: { createdAt: "asc" }
     });
     return ok({ results });
   });

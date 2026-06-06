@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 
+export const dynamic = "force-dynamic";
+
 export default async function AuditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const lead = await prisma.lead.findUnique({

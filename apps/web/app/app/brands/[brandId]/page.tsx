@@ -8,6 +8,9 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
 import { createScanForBrand, crawlBrand, generatePromptsForBrand } from "@/lib/services";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 async function startMockScan(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));

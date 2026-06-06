@@ -2,6 +2,8 @@ import { z } from "zod";
 import { createFreeAudit } from "@/lib/services";
 import { ok, parseBody, route } from "@/lib/http";
 
+export const maxDuration = 60;
+
 const schema = z.object({
   email: z.string().email(),
   domain: z.string().min(3),

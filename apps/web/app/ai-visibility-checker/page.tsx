@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createFreeAudit } from "@/lib/services";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 async function startAudit(formData: FormData) {
   "use server";
   const lead = await createFreeAudit({

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { BarChart3, Building2, ClipboardList, Radar, Settings } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   return (

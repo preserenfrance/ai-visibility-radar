@@ -3,6 +3,7 @@
   "compilerOptions": {
     "allowJs": true,
     "baseUrl": ".",
+    "incremental": true,
     "jsx": "preserve",
     "noEmit": true,
     "plugins": [{ "name": "next" }],

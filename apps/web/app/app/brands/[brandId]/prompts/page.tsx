@@ -7,6 +7,8 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { requireBrandAccess } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 async function updatePrompt(formData: FormData) {
   "use server";
   const promptId = String(formData.get("promptId"));
@@ -146,7 +148,8 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
 
 function latestByEngine(promptRuns: Array<any>) {
   return promptRuns.reduce<Record<string, any>>((acc, run) => {
-    acc[run.engine.engineName] ??= run;
+    const engineName = run.engine.engineName;
+    if (!acc[engineName]) acc[engineName] = run;
     return acc;
   }, {});
 }

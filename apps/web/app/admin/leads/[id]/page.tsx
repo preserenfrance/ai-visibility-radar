@@ -5,6 +5,8 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
 import { buildAdminLeadDetail } from "@/lib/services";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireCurrentUser().catch(() => null);
   if (!user) redirect("/app/onboarding");

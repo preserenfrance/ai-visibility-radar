@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { getCurrentUser, setUserSession } from "@/lib/auth";
 import { crawlBrand, generatePromptsForBrand } from "@/lib/services";
 
+export const dynamic = "force-dynamic";
+
 const steps: Array<{ step: string; label: string; Icon: typeof Globe }> = [
   { step: "1", label: "Vnos domene", Icon: Globe },
   { step: "2", label: "Analiza domene", Icon: ScanSearch },

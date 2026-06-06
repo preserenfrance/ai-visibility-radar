@@ -24,7 +24,7 @@ import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
 import { enqueueJob } from "@/lib/queue";
 
-export async function crawlBrand(brandId: string, maxPages = MVP_LIMITS.maxPages) {
+export async function crawlBrand(brandId: string, maxPages: number = MVP_LIMITS.maxPages) {
   const brand = await prisma.brand.findUnique({ where: { id: brandId } });
   if (!brand) throw new Error("Brand not found");
   const snapshot = await prisma.crawlSnapshot.create({
@@ -65,7 +65,7 @@ export async function crawlBrand(brandId: string, maxPages = MVP_LIMITS.maxPages
   });
 }
 
-export async function generatePromptsForBrand(brandId: string, count = MVP_LIMITS.promptCount) {
+export async function generatePromptsForBrand(brandId: string, count: number = MVP_LIMITS.promptCount) {
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
     include: {
