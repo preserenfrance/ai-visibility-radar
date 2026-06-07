@@ -44,7 +44,7 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold">Izvedba scana</h1>
-          <p className="text-muted-foreground">{scan.brand.name} · {scan.id}</p>
+          <p className="text-muted-foreground">{scan.brand.name}</p>
         </div>
         <Badge variant="secondary">{scan.status}</Badge>
       </div>

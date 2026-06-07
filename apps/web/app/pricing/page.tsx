@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const plans = [
-  { name: "Brezplačno", price: "0", items: ["1 brezplačen audit", "5 promptov", "Testni AI scan"] },
-  { name: "Starter", price: "49", items: ["1 znamka", "25 promptov", "Tedenski scan", "Stripe plačilo"] },
-  { name: "Growth", price: "149", items: ["3 znamke", "100 promptov na znamko", "Dnevni scan", "Akcijski center"] }
+  { name: "Brezplačno", price: "0", items: ["1 brezplačen audit", "5 promptov", "Ročni AI scan"] },
+  { name: "Starter", price: "49", items: ["1 znamka", "25 promptov", "Tedenski reden scan", "Stripe naročnina"] },
+  { name: "Growth", price: "149", items: ["3 znamke", "100 promptov na znamko", "Dnevni reden scan", "Akcijski center"] }
 ];
 
 export default function PricingPage() {
@@ -15,7 +15,7 @@ export default function PricingPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">Cenik</h1>
-          <p className="text-muted-foreground">Pripravljena je osnova za plačila paketov Starter in Growth.</p>
+          <p className="text-muted-foreground">Plačljivi paketi vključujejo samodejne redne scane in Stripe upravljanje naročnine.</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/">Domov</Link>

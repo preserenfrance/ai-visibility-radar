@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { Badge } from "@/components/ui/badge";
+import { BillingActions } from "@/components/billing-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
@@ -39,6 +40,7 @@ export default async function SettingsPage() {
                 <TH>Limit promptov</TH>
                 <TH>Pogostost scanov</TH>
                 <TH>Plačila</TH>
+                <TH>Upravljanje</TH>
               </TR>
             </THead>
             <TBody>
@@ -50,8 +52,14 @@ export default async function SettingsPage() {
                     <TD><Badge>{organization.plan}</Badge></TD>
                     <TD>{organization.brands.length}/{limits.brandCount}</TD>
                     <TD>{limits.promptsPerBrand} na znamko</TD>
-                    <TD>{limits.scanCadence}</TD>
+                    <TD>{cadenceLabel(limits.scanCadence)}</TD>
                     <TD>{organization.billingSubscription?.status ?? "ni aktivno"}</TD>
+                    <TD>
+                      <BillingActions
+                        organizationId={organization.id}
+                        hasStripeCustomer={Boolean(organization.stripeCustomerId)}
+                      />
+                    </TD>
                   </TR>
                 );
               })}
@@ -61,4 +69,10 @@ export default async function SettingsPage() {
       </Card>
     </section>
   );
+}
+
+function cadenceLabel(value: "manual" | "weekly" | "daily") {
+  if (value === "daily") return "dnevno";
+  if (value === "weekly") return "tedensko";
+  return "ročno";
 }

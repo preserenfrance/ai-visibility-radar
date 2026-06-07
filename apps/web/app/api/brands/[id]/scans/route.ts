@@ -6,8 +6,18 @@ import { ok, parseBody, route } from "@/lib/http";
 
 export const maxDuration = 60;
 
+const providerSchema = z.enum(["openai", "google", "anthropic"]);
+
 const schema = z.object({
-  providers: z.array(z.enum(["openai", "google", "anthropic"])).default(["openai"]),
+  providers: z.array(providerSchema).optional(),
+  engineVariants: z
+    .array(
+      z.object({
+        provider: providerSchema,
+        searchEnabled: z.boolean().default(false)
+      })
+    )
+    .optional(),
   promptLimit: z.number().int().min(1).max(100).optional(),
   repeatCount: z.number().int().min(1).max(3).default(1),
   runNow: z.boolean().default(false),
@@ -20,7 +30,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await requireBrandAccess(id);
     const input = await parseBody(request, schema);
     const scan = await createScanForBrand(id, {
-      providers: input.providers,
+      providers: input.providers?.length ? input.providers : ["openai"],
+      engineVariants: input.engineVariants,
       promptLimit: input.promptLimit,
       repeatCount: input.repeatCount,
       runNow: input.runNow,

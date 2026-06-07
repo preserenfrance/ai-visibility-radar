@@ -19,6 +19,7 @@ import {
   type CrawledPageSnapshot,
   type GeneratedPrompt,
   type ParsedAiResult,
+  type Plan,
   type PromptCategory
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
@@ -297,6 +298,23 @@ export async function ensureEngines(
   providers: AiEngineProvider[] = ENGINE_PROVIDERS,
   options: { searchEnabled?: boolean } = {}
 ) {
+  return ensureEngineVariants(
+    providers.map((provider) => ({
+      provider,
+      searchEnabled: options.searchEnabled
+    }))
+  );
+}
+
+export type EngineSelection = {
+  provider: AiEngineProvider;
+  searchEnabled?: boolean;
+};
+
+export type PaidPlan = Exclude<Plan, "free">;
+export type RecurringScanCadence = "weekly" | "daily";
+
+export async function ensureEngineVariants(selections: EngineSelection[]) {
   const config = getConfig();
   const models: Record<AiEngineProvider, string | undefined> = {
     openai: config.OPENAI_MODEL,
@@ -306,31 +324,29 @@ export async function ensureEngines(
   };
 
   return Promise.all(
-    providers.map((provider) => {
-      const searchEnabled = options.searchEnabled ?? provider !== "mock";
-      return (
-      prisma.engine.upsert({
-        where: {
-          provider_model_searchEnabled: {
+    uniqueEngineSelections(selections.length ? selections : ENGINE_PROVIDERS.map((provider) => ({ provider }))).map(
+      ({ provider, searchEnabled }) =>
+        prisma.engine.upsert({
+          where: {
+            provider_model_searchEnabled: {
+              provider,
+              model: models[provider] ?? `env:${provider}`,
+              searchEnabled
+            }
+          },
+          update: {
+            engineName: engineName(provider, searchEnabled),
+            isActive: true
+          },
+          create: {
             provider,
             model: models[provider] ?? `env:${provider}`,
-            searchEnabled
+            engineName: engineName(provider, searchEnabled),
+            searchEnabled,
+            isActive: true
           }
-        },
-        update: {
-          engineName: engineName(provider),
-          isActive: true
-        },
-        create: {
-          provider,
-          engineName: engineName(provider),
-          model: models[provider] ?? `env:${provider}`,
-          searchEnabled,
-          isActive: true
-        }
-      })
-      );
-    })
+        })
+    )
   );
 }
 
@@ -340,6 +356,7 @@ export async function createScanForBrand(
     triggerType?: "manual" | "free_audit" | "scheduled";
     promptLimit?: number;
     providers?: AiEngineProvider[];
+    engineVariants?: EngineSelection[];
     repeatCount?: number;
     runNow?: boolean;
     searchEnabled?: boolean;
@@ -361,9 +378,11 @@ export async function createScanForBrand(
   const promptSet =
     brand.promptSets[0] ?? (await generatePromptsForBrand(brandId, options.promptLimit ?? MVP_LIMITS.promptCount));
   const prompts = promptSet.prompts.slice(0, options.promptLimit ?? MVP_LIMITS.promptCount);
-  const engines = await ensureEngines(options.providers ?? ENGINE_PROVIDERS, {
-    searchEnabled: options.searchEnabled
-  });
+  const engines = options.engineVariants?.length
+    ? await ensureEngineVariants(options.engineVariants)
+    : await ensureEngines(options.providers ?? ENGINE_PROVIDERS, {
+        searchEnabled: options.searchEnabled
+      });
   const repeatCount = options.repeatCount ?? MVP_LIMITS.repeatCount;
   const totalPromptRuns = prompts.length * engines.length * repeatCount;
 
@@ -408,6 +427,71 @@ export async function createScanForBrand(
   return prisma.scanRun.findUnique({
     where: { id: scan.id },
     include: { promptRuns: true, scoreSnapshot: true }
+  });
+}
+
+export function recurringScanCadenceForPlan(plan: Plan): RecurringScanCadence | null {
+  if (plan === "growth") return "daily";
+  if (plan === "starter") return "weekly";
+  return null;
+}
+
+export function nextRecurringScanDate(cadence: RecurringScanCadence, from = new Date()) {
+  const next = new Date(from);
+  next.setDate(next.getDate() + (cadence === "daily" ? 1 : 7));
+  return next;
+}
+
+export function defaultRecurringScanEngineVariants(): EngineSelection[] {
+  return [{ provider: "openai", searchEnabled: true }];
+}
+
+export function recurringScanEngineVariantsFromJson(value: unknown): EngineSelection[] {
+  if (!Array.isArray(value)) return defaultRecurringScanEngineVariants();
+  const variants: EngineSelection[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const candidate = item as Record<string, unknown>;
+    if (
+      (candidate.provider === "openai" || candidate.provider === "google" || candidate.provider === "anthropic") &&
+      typeof candidate.searchEnabled === "boolean"
+    ) {
+      variants.push({
+        provider: candidate.provider,
+        searchEnabled: candidate.searchEnabled
+      });
+    }
+  }
+
+  return variants.length ? variants : defaultRecurringScanEngineVariants();
+}
+
+export async function activateRecurringScanForBrand(brandId: string, plan: PaidPlan) {
+  const cadence = recurringScanCadenceForPlan(plan);
+  if (!cadence) throw new Error("Bad Request: recurring scan requires a paid plan");
+  const now = new Date();
+
+  return prisma.brand.update({
+    where: { id: brandId },
+    data: {
+      recurringScanActive: true,
+      recurringScanCadence: cadence,
+      recurringScanPlan: plan,
+      recurringScanActivatedAt: now,
+      recurringScanNextRunAt: now,
+      recurringScanProviderVariants: defaultRecurringScanEngineVariants()
+    }
+  });
+}
+
+export async function deactivateRecurringScanForBrand(brandId: string) {
+  return prisma.brand.update({
+    where: { id: brandId },
+    data: {
+      recurringScanActive: false,
+      recurringScanNextRunAt: null
+    }
   });
 }
 
@@ -970,14 +1054,29 @@ export async function topCompetitorForScan(scanRunId: string) {
   return mentions[0]?.entityName;
 }
 
-function engineName(provider: AiEngineProvider) {
+function uniqueEngineSelections(selections: EngineSelection[]): Array<Required<EngineSelection>> {
+  const seen = new Set<string>();
+  const unique: Array<Required<EngineSelection>> = [];
+
+  for (const selection of selections) {
+    const searchEnabled = selection.searchEnabled ?? selection.provider !== "mock";
+    const key = `${selection.provider}:${searchEnabled}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ provider: selection.provider, searchEnabled });
+  }
+
+  return unique;
+}
+
+function engineName(provider: AiEngineProvider, searchEnabled = false) {
   switch (provider) {
     case "openai":
-      return "ChatGPT";
+      return searchEnabled ? "ChatGPT + search" : "ChatGPT";
     case "google":
-      return "Gemini";
+      return searchEnabled ? "Gemini + search" : "Gemini";
     case "anthropic":
-      return "Claude";
+      return searchEnabled ? "Claude + search" : "Claude";
     case "mock":
       return "Mock";
   }

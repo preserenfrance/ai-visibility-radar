@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { BrandMenu } from "@/components/brand-menu";
+import { PaidFeaturePaywall } from "@/components/paid-feature-paywall";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
+import { hasActivePaidPlan } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,8 @@ async function updateStatus(formData: FormData) {
   const status = String(formData.get("status")) as "open" | "in_progress" | "done" | "dismissed";
   const recommendation = await prisma.recommendation.findUnique({ where: { id } });
   if (!recommendation) throw new Error("Priporočilo ni najdeno");
-  await requireBrandAccess(recommendation.brandId);
+  const { brand } = await requireBrandAccess(recommendation.brandId);
+  if (!hasActivePaidPlan(brand.organization)) throw new Error("Forbidden: paid plan required");
   await prisma.recommendation.update({ where: { id }, data: { status } });
   redirect(`/app/brands/${recommendation.brandId}/actions`);
 }
@@ -23,6 +26,18 @@ async function updateStatus(formData: FormData) {
 export default async function ActionsPage({ params }: { params: Promise<{ brandId: string }> }) {
   const { brandId } = await params;
   const { brand } = await requireBrandAccess(brandId);
+  if (!hasActivePaidPlan(brand.organization)) {
+    return (
+      <section className="mx-auto max-w-7xl px-5 py-8">
+        <div className="mb-6">
+          <h1 className="text-3xl font-semibold">Akcijski center</h1>
+          <p className="text-muted-foreground">{brand.name}</p>
+        </div>
+        <BrandMenu brandId={brandId} active="actions" />
+        <PaidFeaturePaywall brandId={brandId} organizationId={brand.organizationId} feature="actions" />
+      </section>
+    );
+  }
   const recommendations = await prisma.recommendation.findMany({
     where: { brandId },
     orderBy: [{ status: "asc" }, { impactScore: "desc" }, { createdAt: "desc" }]

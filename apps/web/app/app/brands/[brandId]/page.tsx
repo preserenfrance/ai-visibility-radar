@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { BrandMenu } from "@/components/brand-menu";
 import { ProviderScanForm } from "@/components/provider-scan-form";
+import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
-import { selectedProvidersFromFormData } from "@/lib/ai-providers";
+import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
 import { createScanForBrand, crawlBrand, generatePromptsForBrand } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +20,9 @@ async function startProviderScan(formData: FormData) {
   const brandId = String(formData.get("brandId"));
   await requireBrandAccess(brandId);
   const scan = await createScanForBrand(brandId, {
-    providers: selectedProvidersFromFormData(formData),
+    engineVariants: selectedEngineVariantsFromFormData(formData),
     promptLimit: 5,
-    runNow: false,
-    searchEnabled: false
+    runNow: false
   });
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
 }
@@ -42,6 +42,7 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
     include: {
+      organization: { include: { billingSubscription: true } },
       competitors: true,
       scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 2 },
       crawlSnapshots: { orderBy: { createdAt: "desc" }, take: 1, include: { pages: true } },
@@ -80,6 +81,27 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
             <Button type="submit" variant="outline">Osveži crawl in prompte</Button>
           </form>
           <ProviderScanForm brandId={brand.id} action={startProviderScan} />
+          <div className="grid gap-2 rounded-lg border bg-white p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="font-semibold">Reden scan</div>
+                <p className="text-muted-foreground">
+                  {brand.recurringScanActive
+                    ? `Aktiven ${cadenceLabel(brand.recurringScanCadence)}.`
+                    : "Aktiviraj plačljiv paket in samodejno spremljanje znamke."}
+                </p>
+              </div>
+              {brand.recurringScanActive && <Badge>aktiven</Badge>}
+            </div>
+            <RegularScanControls
+              brandId={brand.id}
+              organizationId={brand.organizationId}
+              organizationPlan={brand.organization.plan}
+              billingStatus={brand.organization.billingSubscription?.status}
+              recurringScanActive={brand.recurringScanActive}
+              hasStripeCustomer={Boolean(brand.organization.stripeCustomerId)}
+            />
+          </div>
         </div>
       </div>
       <BrandMenu brandId={brand.id} />
@@ -188,4 +210,10 @@ function engineBreakdown(promptRuns: Array<any>) {
     if (run.status === "failed") bucket.failed += 1;
     return acc;
   }, {});
+}
+
+function cadenceLabel(value: "weekly" | "daily" | null) {
+  if (value === "daily") return "dnevno";
+  if (value === "weekly") return "tedensko";
+  return "po urniku";
 }

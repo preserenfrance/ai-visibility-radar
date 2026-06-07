@@ -3,5 +3,11 @@
   "framework": "nextjs",
   "installCommand": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --legacy-peer-deps",
   "buildCommand": "npm run vercel:build",
-  "outputDirectory": "apps/web/.next"
+  "outputDirectory": "apps/web/.next",
+  "crons": [
+    {
+      "path": "/api/cron/regular-scans",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

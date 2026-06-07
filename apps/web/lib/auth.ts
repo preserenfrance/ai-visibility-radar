@@ -75,7 +75,7 @@ export async function requireBrandAccess(brandId: string) {
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
     include: {
-      organization: true,
+      organization: { include: { billingSubscription: true } },
       competitors: true
     }
   });

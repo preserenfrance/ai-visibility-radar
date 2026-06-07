@@ -18,6 +18,7 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_STARTER_PRICE_ID: z.string().optional(),
   STRIPE_GROWTH_PRICE_ID: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
   S3_ENDPOINT: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),

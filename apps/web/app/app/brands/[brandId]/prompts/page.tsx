@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
+import { PromptActiveToggle } from "@/components/prompt-active-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,10 +86,34 @@ async function updatePrompt(formData: FormData) {
   await prisma.prompt.update({
     where: { id: promptId },
     data: {
-      text: String(formData.get("text") ?? prompt.text),
-      isActive: formData.get("isActive") === "on"
+      text: String(formData.get("text") ?? prompt.text)
     }
   });
+  redirect(`/app/brands/${prompt.promptSet.brandId}/prompts`);
+}
+
+async function deletePrompt(formData: FormData) {
+  "use server";
+  const promptId = String(formData.get("promptId"));
+  const prompt = await prisma.prompt.findUnique({
+    where: { id: promptId },
+    include: {
+      promptSet: true,
+      _count: { select: { promptRuns: true } }
+    }
+  });
+  if (!prompt) throw new Error("Prompt ni najden");
+  await requireBrandAccess(prompt.promptSet.brandId);
+
+  if (prompt._count.promptRuns > 0) {
+    await prisma.prompt.update({
+      where: { id: promptId },
+      data: { isActive: false }
+    });
+  } else {
+    await prisma.prompt.delete({ where: { id: promptId } });
+  }
+
   redirect(`/app/brands/${prompt.promptSet.brandId}/prompts`);
 }
 
@@ -174,7 +199,8 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                 <TH>Znamka omenjena</TH>
                 <TH>Glavni konkurent</TH>
                 <TH>Zadnja izvedba</TH>
-                <TH>Status</TH>
+                <TH>Aktiven</TH>
+                <TH>Upravljanje</TH>
               </TR>
             </THead>
             <TBody>
@@ -193,10 +219,6 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                           <form action={updatePrompt} className="space-y-2">
                             <input type="hidden" name="promptId" value={prompt.id} />
                             <Textarea name="text" defaultValue={prompt.text} />
-                            <label className="flex items-center gap-2 text-sm">
-                              <input type="checkbox" name="isActive" defaultChecked={prompt.isActive} />
-                              Aktiven
-                            </label>
                             <Button size="sm" type="submit">Shrani prompt</Button>
                           </form>
                           {prompt.promptRuns.slice(0, 3).map((run) => {
@@ -233,7 +255,16 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                     <TD>{firstParsed?.brandMentioned ? "da" : "ne"}</TD>
                     <TD>{firstParsed?.competitorsMentioned?.[0]?.name ?? "-"}</TD>
                     <TD>{prompt.promptRuns[0]?.createdAt.toLocaleString("sl-SI") ?? "-"}</TD>
-                    <TD><Badge variant={prompt.isActive ? "default" : "secondary"}>{prompt.isActive ? "aktiven" : "neaktiven"}</Badge></TD>
+                    <TD><PromptActiveToggle promptId={prompt.id} isActive={prompt.isActive} /></TD>
+                    <TD>
+                      <form action={deletePrompt}>
+                        <input type="hidden" name="promptId" value={prompt.id} />
+                        <Button size="sm" variant="destructive" type="submit">
+                          <Trash2 className="h-4 w-4" />
+                          Izbriši
+                        </Button>
+                      </form>
+                    </TD>
                   </TR>
                 );
               })}

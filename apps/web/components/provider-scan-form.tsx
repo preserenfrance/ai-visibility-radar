@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { Loader2, PlayCircle } from "lucide-react";
+import { Loader2, PlayCircle, Search } from "lucide-react";
 import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
 import { Button } from "@/components/ui/button";
 
@@ -18,28 +18,72 @@ export function ProviderScanForm({
       <div>
         <div className="text-sm font-semibold">Zaženi AI scan</div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Izberi modele, ki naj preverijo znamko. Testni način ni več uporabniška možnost.
+          Izberi navadne modele za hiter pregled ali modele s searchom, kadar želiš vire in citate.
         </p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        {AI_PROVIDER_OPTIONS.map((provider) => (
-          <label key={provider.id} className="flex cursor-pointer items-start gap-2 rounded-md border bg-secondary/30 p-3 text-sm">
-            <input
-              className="mt-1"
-              type="checkbox"
-              name="providers"
-              value={provider.id}
-              defaultChecked={provider.id === "openai"}
-            />
-            <span>
-              <span className="block font-medium">{provider.label}</span>
-              <span className="text-xs text-muted-foreground">{provider.description}</span>
-            </span>
-          </label>
-        ))}
+
+      <div className="grid gap-3">
+        <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
+          <legend className="px-1 text-sm font-medium">Modeli brez searcha</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {AI_PROVIDER_OPTIONS.map((provider) => (
+              <ProviderCheckbox
+                key={provider.id}
+                name="providers"
+                value={provider.id}
+                label={provider.label}
+                description={provider.description}
+                defaultChecked={provider.id === "openai"}
+              />
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
+          <legend className="flex items-center gap-1 px-1 text-sm font-medium">
+            <Search className="h-4 w-4" />
+            Modeli s searchom in citati
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {AI_PROVIDER_OPTIONS.map((provider) => (
+              <ProviderCheckbox
+                key={`${provider.id}-search`}
+                name="providersWithSearch"
+                value={provider.id}
+                label={`${provider.label} + search`}
+                description="Počasneje, vendar zbira vire za tabelo citatov."
+              />
+            ))}
+          </div>
+        </fieldset>
       </div>
+
       <SubmitButton />
     </form>
+  );
+}
+
+function ProviderCheckbox({
+  name,
+  value,
+  label,
+  description,
+  defaultChecked = false
+}: {
+  name: string;
+  value: string;
+  label: string;
+  description: string;
+  defaultChecked?: boolean;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2 rounded-md border bg-white p-3 text-sm">
+      <input className="mt-1" type="checkbox" name={name} value={value} defaultChecked={defaultChecked} />
+      <span>
+        <span className="block font-medium">{label}</span>
+        <span className="text-xs text-muted-foreground">{description}</span>
+      </span>
+    </label>
   );
 }
 

@@ -4,6 +4,7 @@ import { prisma } from "@ai-radar/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
 
@@ -15,7 +16,7 @@ export default async function AppDashboardPage() {
   const brands = await prisma.brand.findMany({
     where: { organization: { memberships: { some: { userId: user.id } } } },
     include: {
-      organization: true,
+      organization: { include: { billingSubscription: true } },
       scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
       scanRuns: { orderBy: { createdAt: "desc" }, take: 1 }
     },
@@ -46,6 +47,8 @@ export default async function AppDashboardPage() {
                 <TH>Score</TH>
                 <TH>Zadnji scan</TH>
                 <TH>Status</TH>
+                <TH>Reden scan</TH>
+                <TH>Plačilo</TH>
               </TR>
             </THead>
             <TBody>
@@ -63,6 +66,29 @@ export default async function AppDashboardPage() {
                   <TD>
                     <Badge variant="secondary">{brand.scanRuns[0]?.status ?? "brez scana"}</Badge>
                   </TD>
+                  <TD>
+                    {brand.recurringScanActive ? (
+                      <div className="grid gap-1">
+                        <Badge>aktiven</Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {cadenceLabel(brand.recurringScanCadence)}
+                          {brand.recurringScanNextRunAt ? ` · naslednji ${brand.recurringScanNextRunAt.toLocaleDateString("sl-SI")}` : ""}
+                        </span>
+                      </div>
+                    ) : (
+                      <Badge variant="secondary">ni aktiven</Badge>
+                    )}
+                  </TD>
+                  <TD>
+                    <RegularScanControls
+                      brandId={brand.id}
+                      organizationId={brand.organizationId}
+                      organizationPlan={brand.organization.plan}
+                      billingStatus={brand.organization.billingSubscription?.status}
+                      recurringScanActive={brand.recurringScanActive}
+                      hasStripeCustomer={Boolean(brand.organization.stripeCustomerId)}
+                    />
+                  </TD>
                 </TR>
               ))}
             </TBody>
@@ -71,4 +97,10 @@ export default async function AppDashboardPage() {
       </Card>
     </section>
   );
+}
+
+function cadenceLabel(value: "weekly" | "daily" | null) {
+  if (value === "daily") return "dnevno";
+  if (value === "weekly") return "tedensko";
+  return "po urniku";
 }
