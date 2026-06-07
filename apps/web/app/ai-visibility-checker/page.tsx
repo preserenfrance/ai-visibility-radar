@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { ArrowRight, Radar } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Radar } from "lucide-react";
+import { FreeAuditForm } from "@/components/free-audit-form";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectedProvidersFromFormData } from "@/lib/ai-providers";
 import { createFreeAudit } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,8 @@ async function startAudit(formData: FormData) {
       email: String(formData.get("email") ?? ""),
       country: String(formData.get("country") ?? "Slovenija"),
       language: String(formData.get("language") ?? "sl"),
-      competitors: String(formData.get("competitors") ?? "")
+      competitors: String(formData.get("competitors") ?? ""),
+      providers: selectedProvidersFromFormData(formData)
     });
     leadId = lead?.id;
   } catch (error) {
@@ -48,37 +49,18 @@ export default async function CheckerPage({
             AI Visibility Radar
           </div>
           <h1 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Preveri, ali te ChatGPT priporoča.
+            Preveri, ali te ChatGPT, Gemini in Claude priporočajo.
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 3 realne prompte na OpenAI API
-            in pokaže začetni rezultat tvoje AI vidnosti.
+            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 3 realne prompte na izbrane AI API-je
+            in pokaže začetni rezultat tvoje AI vidnosti. Privzeto je izbran ChatGPT.
           </p>
         </div>
         <Card>
           <CardHeader>
             <CardTitle>Zaženi brezplačen audit</CardTitle>
           </CardHeader>
-          <CardContent>
-            {errorMessage && (
-              <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                {errorMessage}
-              </div>
-            )}
-            <form action={startAudit} className="grid gap-3">
-              <Input name="domain" placeholder="domain.com" required />
-              <Input name="brandName" placeholder="Ime znamke" required />
-              <Input name="email" type="email" placeholder="ime@podjetje.si" required />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input name="country" defaultValue="Slovenija" />
-                <Input name="language" defaultValue="sl" />
-              </div>
-              <Input name="competitors" placeholder="Konkurent A, Konkurent B" />
-              <Button type="submit">
-                Zaženi brezplačen audit <ArrowRight className="h-4 w-4" />
-              </Button>
-            </form>
-          </CardContent>
+          <FreeAuditForm action={startAudit} errorMessage={errorMessage} />
         </Card>
       </section>
     </main>

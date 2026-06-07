@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@ai-radar/db";
+import { Activity } from "lucide-react";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,9 +29,12 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
 
   if (!lead) return <main className="p-8">Audit ni najden.</main>;
   const score = lead.auditScanRun?.scoreSnapshot;
+  const reportPending =
+    !score || lead.auditScanRun?.status === "queued" || lead.auditScanRun?.status === "running";
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-8">
+      {reportPending && <AutoRefresh />}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Badge variant="secondary">Brezplačen audit</Badge>
@@ -45,6 +50,20 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
           </Button>
         </div>
       </div>
+      {reportPending && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 animate-pulse text-primary" />
+              Pripravljamo prvi report
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Audit teče v ozadju: pripravljamo prompte, pošiljamo izbrane AI modele in računamo rezultat.
+            Stran se bo samodejno osvežila.
+          </CardContent>
+        </Card>
+      )}
       <div className="grid gap-4 md:grid-cols-4">
         <Metric label="AI Visibility Score" value={score?.visibilityScore ?? 0} />
         <Metric label="Delež omemb" value={score?.mentionScore ?? 0} />

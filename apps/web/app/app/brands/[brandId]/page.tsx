@@ -1,38 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { ProviderScanForm } from "@/components/provider-scan-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
+import { selectedProvidersFromFormData } from "@/lib/ai-providers";
 import { createScanForBrand, crawlBrand, generatePromptsForBrand } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-async function startMockScan(formData: FormData) {
+async function startProviderScan(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
   await requireBrandAccess(brandId);
   const scan = await createScanForBrand(brandId, {
-    providers: ["mock"],
-    promptLimit: 25,
-    runNow: true
+    providers: selectedProvidersFromFormData(formData),
+    promptLimit: 5,
+    runNow: true,
+    searchEnabled: false
   });
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
-}
-
-async function queueProviderScan(formData: FormData) {
-  "use server";
-  const brandId = String(formData.get("brandId"));
-  await requireBrandAccess(brandId);
-  await createScanForBrand(brandId, {
-    providers: ["openai", "google", "anthropic"],
-    promptLimit: 25,
-    runNow: false
-  });
-  redirect(`/app/brands/${brandId}`);
 }
 
 async function refreshCrawlAndPrompts(formData: FormData) {
@@ -82,19 +73,12 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
             {brand.industry && <Badge>{brand.industry}</Badge>}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-3 sm:min-w-[24rem]">
           <form action={refreshCrawlAndPrompts}>
             <input type="hidden" name="brandId" value={brand.id} />
             <Button type="submit" variant="outline">Osveži crawl in prompte</Button>
           </form>
-          <form action={startMockScan}>
-            <input type="hidden" name="brandId" value={brand.id} />
-            <Button type="submit">Zaženi testni scan</Button>
-          </form>
-          <form action={queueProviderScan}>
-            <input type="hidden" name="brandId" value={brand.id} />
-            <Button type="submit" variant="secondary">Dodaj produkcijski scan v vrsto</Button>
-          </form>
+          <ProviderScanForm brandId={brand.id} action={startProviderScan} />
         </div>
       </div>
       <div className="mb-5 flex flex-wrap gap-2 text-sm">

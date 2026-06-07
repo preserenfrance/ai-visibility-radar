@@ -7,10 +7,11 @@ import { ok, parseBody, route } from "@/lib/http";
 export const maxDuration = 60;
 
 const schema = z.object({
-  providers: z.array(z.enum(["openai", "google", "anthropic", "mock"])).default(["mock"]),
+  providers: z.array(z.enum(["openai", "google", "anthropic"])).default(["openai"]),
   promptLimit: z.number().int().min(1).max(100).optional(),
   repeatCount: z.number().int().min(1).max(3).default(1),
-  runNow: z.boolean().default(true)
+  runNow: z.boolean().default(true),
+  searchEnabled: z.boolean().default(false)
 });
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       providers: input.providers,
       promptLimit: input.promptLimit,
       repeatCount: input.repeatCount,
-      runNow: input.runNow
+      runNow: input.runNow,
+      searchEnabled: input.searchEnabled
     });
     return ok({ scan }, 201);
   });

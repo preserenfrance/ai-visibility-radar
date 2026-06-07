@@ -136,7 +136,7 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
 }
 
 export async function ensureEngines(
-  providers: AiEngineProvider[] = [...ENGINE_PROVIDERS, "mock"],
+  providers: AiEngineProvider[] = ENGINE_PROVIDERS,
   options: { searchEnabled?: boolean } = {}
 ) {
   const config = getConfig();
@@ -548,6 +548,7 @@ export async function createFreeAudit(input: {
   brandName: string;
   country: string;
   language: string;
+  providers?: AiEngineProvider[];
   competitors?: string;
   utmSource?: string;
   utmCampaign?: string;
@@ -606,7 +607,7 @@ export async function createFreeAudit(input: {
   const scan = await createScanForBrand(brand.id, {
     triggerType: "free_audit",
     promptLimit: FREE_AUDIT_LIMITS.promptCount,
-    providers: ["openai"],
+    providers: input.providers?.length ? input.providers : ["openai"],
     repeatCount: FREE_AUDIT_LIMITS.repeatCount,
     runNow: true,
     searchEnabled: false

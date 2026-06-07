@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ClipboardList,
   MessageSquareQuote,
-  Radar,
   SearchCheck,
   ShieldCheck,
   Sparkles,
@@ -121,20 +120,6 @@ export default function HomePage() {
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-slate-950/15" />
         <div className="relative z-10 mx-auto flex min-h-[92vh] max-w-7xl flex-col px-5 py-5">
-          <nav className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-2 text-sm font-semibold">
-              <Radar className="h-5 w-5 text-accent" />
-              AI Visibility Radar
-            </Link>
-            <div className="flex items-center gap-2">
-              <Button asChild variant="ghost" className="hidden text-white hover:bg-white/10 sm:inline-flex">
-                <Link href="/pricing">Cenik</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link href="/login">Vstop</Link>
-              </Button>
-            </div>
-          </nav>
           <div className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="max-w-2xl">
               <p className="mb-4 inline-flex items-center gap-2 rounded-sm bg-white/10 px-3 py-1 text-sm">

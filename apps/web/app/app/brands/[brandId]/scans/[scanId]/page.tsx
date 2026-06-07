@@ -1,4 +1,6 @@
 import { prisma } from "@ai-radar/db";
+import { Activity } from "lucide-react";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -31,9 +33,11 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
     }
   });
   if (!scan) return null;
+  const scanPending = scan.status === "queued" || scan.status === "running";
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
+      {scanPending && <AutoRefresh />}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold">Izvedba scana</h1>
@@ -41,6 +45,20 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
         </div>
         <Badge variant="secondary">{scan.status}</Badge>
       </div>
+      {scanPending && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 animate-pulse text-primary" />
+              Scan se izvaja
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            AI modeli odgovarjajo na prompte in rezultat se bo prikazal takoj, ko bo obdelava končana.
+            Stran se samodejno osvežuje.
+          </CardContent>
+        </Card>
+      )}
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <Metric label="Vidnost" value={scan.scoreSnapshot?.visibilityScore ?? 0} />
         <Metric label="Omembe" value={scan.scoreSnapshot?.mentionScore ?? 0} />
