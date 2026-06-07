@@ -14,7 +14,7 @@ export function SiteFooter() {
           <Link href="/pricing" className="hover:text-foreground">Cenik</Link>
           <Link href="/login" className="hover:text-foreground">Vstop</Link>
         </div>
-        <div>© 2026 AI Visibility Radar. Vse pravice pridržane.</div>
+        <div>© 2026 AI Visibility Radar. Portal je v lasti SEOS group d.o.o. Vse pravice pridržane.</div>
       </div>
     </footer>
   );

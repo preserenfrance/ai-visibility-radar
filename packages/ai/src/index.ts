@@ -32,17 +32,11 @@ export function createAiAdapter(
 }
 
 export function buildProviderPrompt(input: RunPromptInput): string {
-  const competitors = input.competitors
-    .map((competitor) => `${competitor.name}${competitor.domain ? ` (${competitor.domain})` : ""}`)
-    .join(", ");
-
   return [
     `Answer in ${input.language}.`,
-    `User country/market: ${input.country}.`,
-    `Brand under test: ${input.brandName} (${input.brandDomain}).`,
-    `Known competitors: ${competitors || "none provided"}.`,
+    `Use ${input.country} as the buyer's market when the question depends on location.`,
     "Answer naturally as an AI assistant would to a buyer. If you use sources, cite them in the provider-native way.",
-    "Do not optimize for the brand; give the honest answer you would normally give.",
+    "Do not assume any hidden brand, competitor, or evaluation context beyond the user's question.",
     "",
     input.prompt
   ].join("\n");

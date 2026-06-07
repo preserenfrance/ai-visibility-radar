@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { BrandMenu } from "@/components/brand-menu";
 import { ProviderScanForm } from "@/components/provider-scan-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,12 +82,7 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
           <ProviderScanForm brandId={brand.id} action={startProviderScan} />
         </div>
       </div>
-      <div className="mb-5 flex flex-wrap gap-2 text-sm">
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/prompts`}>Prompti</Link>
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/competitors`}>Konkurenti</Link>
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/citations`}>Citati</Link>
-        <Link className="rounded-md border bg-white px-3 py-2" href={`/app/brands/${brand.id}/actions`}>Akcijski center</Link>
-      </div>
+      <BrandMenu brandId={brand.id} />
       <div className="grid gap-4 md:grid-cols-5">
         <Metric label="AI Visibility Score" value={latestScore?.visibilityScore ?? 0} suffix="/100" />
         <Metric label="Trend" value={trend ?? 0} prefix={trend !== null && trend > 0 ? "+" : ""} />

@@ -1,4 +1,5 @@
 import { prisma } from "@ai-radar/db";
+import { BrandMenu } from "@/components/brand-menu";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -41,6 +42,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ br
         <h1 className="text-3xl font-semibold">Pregled konkurentov</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
+      <BrandMenu brandId={brandId} active="competitors" />
       <Card>
         <CardHeader>
           <CardTitle>Konkurenti</CardTitle>

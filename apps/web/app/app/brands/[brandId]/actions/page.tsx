@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { BrandMenu } from "@/components/brand-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ export default async function ActionsPage({ params }: { params: Promise<{ brandI
         <h1 className="text-3xl font-semibold">Akcijski center</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
+      <BrandMenu brandId={brandId} active="actions" />
       <Card>
         <CardHeader>
           <CardTitle>Priporočene naloge</CardTitle>

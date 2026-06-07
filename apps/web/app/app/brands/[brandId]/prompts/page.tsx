@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { Plus } from "lucide-react";
+import { BrandMenu } from "@/components/brand-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +10,71 @@ import { Textarea } from "@/components/ui/textarea";
 import { requireBrandAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+
+const promptCategories = [
+  { value: "category", label: "Kategorija" },
+  { value: "problem", label: "Problem" },
+  { value: "comparison", label: "Primerjava" },
+  { value: "best_for", label: "Najboljše za" },
+  { value: "local", label: "Lokalno" },
+  { value: "branded", label: "Znamčno" },
+  { value: "competitor_alternative", label: "Alternativa konkurentu" }
+] as const;
+
+const funnelStages = [
+  { value: "awareness", label: "Zavedanje" },
+  { value: "consideration", label: "Premislek" },
+  { value: "decision", label: "Odločitev" }
+] as const;
+
+async function addPrompt(formData: FormData) {
+  "use server";
+  const brandId = String(formData.get("brandId"));
+  const text = String(formData.get("text") ?? "").trim();
+  const category = categoryFromForm(formData.get("category"));
+  const funnelStage = funnelStageFromForm(formData.get("funnelStage"));
+
+  if (text.length < 3) throw new Error("Prompt mora imeti vsaj 3 znake");
+
+  const { brand } = await requireBrandAccess(brandId);
+  let promptSet = await prisma.promptSet.findFirst({
+    where: { brandId, status: "active" },
+    orderBy: { createdAt: "desc" }
+  });
+
+  if (!promptSet) {
+    promptSet = await prisma.promptSet.create({
+      data: {
+        brandId,
+        name: `${brand.name} ročni prompti`,
+        language: brand.language,
+        country: brand.country,
+        status: "active"
+      }
+    });
+  }
+
+  const lastPrompt = await prisma.prompt.findFirst({
+    where: { promptSetId: promptSet.id },
+    orderBy: { priority: "desc" },
+    select: { priority: true }
+  });
+
+  await prisma.prompt.create({
+    data: {
+      promptSetId: promptSet.id,
+      text,
+      category,
+      intent: "custom prompt",
+      persona: "buyer",
+      funnelStage,
+      priority: (lastPrompt?.priority ?? 0) + 1,
+      isActive: true
+    }
+  });
+
+  redirect(`/app/brands/${brandId}/prompts`);
+}
 
 async function updatePrompt(formData: FormData) {
   "use server";
@@ -58,6 +125,38 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
         <h1 className="text-3xl font-semibold">Rezultati promptov</h1>
         <p className="text-muted-foreground">{brand?.name} · {promptSet?.prompts.length ?? 0} promptov</p>
       </div>
+      <BrandMenu brandId={brandId} active="prompts" />
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Dodaj nov prompt</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={addPrompt} className="grid gap-3">
+            <input type="hidden" name="brandId" value={brandId} />
+            <Textarea
+              name="text"
+              placeholder="Npr. Kateri ponudniki so najboljša izbira za tehnični SEO v Sloveniji?"
+              required
+            />
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+              <select name="category" defaultValue="category" className="h-10 rounded-md border bg-background px-3 text-sm">
+                {promptCategories.map((category) => (
+                  <option key={category.value} value={category.value}>{category.label}</option>
+                ))}
+              </select>
+              <select name="funnelStage" defaultValue="consideration" className="h-10 rounded-md border bg-background px-3 text-sm">
+                {funnelStages.map((stage) => (
+                  <option key={stage.value} value={stage.value}>{stage.label}</option>
+                ))}
+              </select>
+              <Button type="submit">
+                <Plus className="h-4 w-4" />
+                Dodaj prompt
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Tabela promptov</CardTitle>
@@ -160,4 +259,12 @@ function engineCell(run?: any) {
   if (run.status === "failed") return "napaka";
   if (!parsed) return run.status;
   return parsed.brandMentioned ? `rang ${parsed.brandRank ?? "-"}` : "ni omenjeno";
+}
+
+function categoryFromForm(value: FormDataEntryValue | null) {
+  return promptCategories.some((category) => category.value === value) ? String(value) : "category";
+}
+
+function funnelStageFromForm(value: FormDataEntryValue | null) {
+  return funnelStages.some((stage) => stage.value === value) ? String(value) : "consideration";
 }

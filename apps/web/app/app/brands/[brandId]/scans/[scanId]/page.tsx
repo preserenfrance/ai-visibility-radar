@@ -1,6 +1,8 @@
+import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { Activity } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { BrandMenu } from "@/components/brand-menu";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -9,8 +11,9 @@ import { requireScanAccess } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export default async function ScanPage({ params }: { params: Promise<{ brandId: string; scanId: string }> }) {
-  const { scanId } = await params;
-  await requireScanAccess(scanId);
+  const { brandId, scanId } = await params;
+  const access = await requireScanAccess(scanId);
+  if (access.scan.brandId !== brandId) notFound();
   const scan = await prisma.scanRun.findUnique({
     where: { id: scanId },
     include: {
@@ -45,6 +48,7 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
         </div>
         <Badge variant="secondary">{scan.status}</Badge>
       </div>
+      <BrandMenu brandId={brandId} />
       {scanPending && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
           <CardHeader>
