@@ -49,7 +49,6 @@ async function onboard(formData: FormData) {
       organizationId: organization.id,
       name: brandName,
       domain,
-      industry: String(formData.get("industry") ?? ""),
       country: String(formData.get("country") ?? "Slovenija"),
       language: String(formData.get("language") ?? "sl"),
       aliases: []
@@ -92,17 +91,37 @@ export default async function OnboardingPage() {
         </CardHeader>
         <CardContent>
           <form action={onboard} className="grid gap-3">
-            <Input name="organizationName" placeholder="Ime organizacije" />
+            <div className="grid gap-2">
+              <label htmlFor="organizationName" className="text-sm font-medium">Ime organizacije</label>
+              <Input id="organizationName" name="organizationName" placeholder="Npr. SEOS group d.o.o." />
+              <p className="text-xs text-muted-foreground">Če polje pustiš prazno, bo uporabljeno ime znamke.</p>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Input name="brandName" placeholder="Ime znamke" required />
-              <Input name="domain" placeholder="domain.com" required />
+              <div className="grid gap-2">
+                <label htmlFor="brandName" className="text-sm font-medium">Ime znamke</label>
+                <Input id="brandName" name="brandName" placeholder="Npr. AI Visibility Radar" required />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="domain" className="text-sm font-medium">Domena znamke</label>
+                <Input id="domain" name="domain" placeholder="domain.com" required />
+              </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Input name="country" defaultValue="Slovenija" />
-              <Input name="language" defaultValue="sl" />
-              <Input name="industry" placeholder="Panoga" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <label htmlFor="country" className="text-sm font-medium">Trg oziroma država</label>
+                <Input id="country" name="country" defaultValue="Slovenija" />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="language" className="text-sm font-medium">Jezik promptov in poročil</label>
+                <Input id="language" name="language" defaultValue="sl" />
+                <p className="text-xs text-muted-foreground">Uporabi npr. sl za slovenščino ali en za angleščino.</p>
+              </div>
             </div>
-            <Textarea name="competitors" placeholder="Konkurent A, Konkurent B" />
+            <div className="grid gap-2">
+              <label htmlFor="competitors" className="text-sm font-medium">Konkurenti</label>
+              <Textarea id="competitors" name="competitors" placeholder="Konkurent A, Konkurent B" />
+              <p className="text-xs text-muted-foreground">Vnesi jih ločeno z vejico, podpičjem ali vsakega v svojo vrstico.</p>
+            </div>
             <Button type="submit">
               Ustvari znamko in prompte <ArrowRight className="h-4 w-4" />
             </Button>
