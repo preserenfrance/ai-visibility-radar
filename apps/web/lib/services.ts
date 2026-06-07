@@ -2,8 +2,7 @@ import { crawlDomain } from "@ai-radar/crawler";
 import { prisma } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { createAiAdapter } from "@ai-radar/ai";
-import { parseAiResponse } from "@ai-radar/parser";
-import { generatePromptSet } from "@ai-radar/prompts";
+import { parseAiResponse, parseJsonObject } from "@ai-radar/parser";
 import {
   calculateLeadScore,
   calculateVisibilityScore,
@@ -14,10 +13,13 @@ import {
   FREE_AUDIT_LIMITS,
   JOB_NAMES,
   MVP_LIMITS,
+  domainFromUrl,
   normalizeDomain,
   type AiEngineProvider,
   type CrawledPageSnapshot,
-  type ParsedAiResult
+  type GeneratedPrompt,
+  type ParsedAiResult,
+  type PromptCategory
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
@@ -82,8 +84,10 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
   });
   if (!brand) throw new Error("Brand not found");
 
-  const pages: CrawledPageSnapshot[] =
-    brand.crawlSnapshots[0]?.pages.map((page) => ({
+  const brandDomain = normalizeDomain(brand.domain);
+  const crawledPages = brand.crawlSnapshots[0]?.pages ?? [];
+  const pages: CrawledPageSnapshot[] = crawledPages
+    .map((page) => ({
       url: page.url,
       title: page.title ?? undefined,
       metaDescription: page.metaDescription ?? undefined,
@@ -94,12 +98,12 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
       statusCode: page.statusCode,
       canonicalUrl: page.canonicalUrl ?? undefined,
       discoveredAt: page.discoveredAt.toISOString()
-    })) ?? [];
+    }))
+    .filter((page) => isPageFromDomain(page.url, brandDomain));
 
-  const generated = generatePromptSet({
+  const generated = await generatePromptSetWithChatGpt({
     brandName: brand.name,
-    domain: brand.domain,
-    industry: brand.industry,
+    domain: brandDomain,
     country: brand.country,
     language: brand.language,
     competitors: brand.competitors,
@@ -133,6 +137,160 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
     },
     include: { prompts: true }
   });
+}
+
+const PROMPT_CATEGORIES: PromptCategory[] = [
+  "category",
+  "problem",
+  "comparison",
+  "best_for",
+  "local",
+  "branded",
+  "competitor_alternative"
+];
+
+const FUNNEL_STAGES: GeneratedPrompt["funnelStage"][] = ["awareness", "consideration", "decision"];
+
+async function generatePromptSetWithChatGpt(input: {
+  brandName: string;
+  domain: string;
+  country: string;
+  language: string;
+  competitors: Array<{ name: string; domain?: string | null }>;
+  pages: CrawledPageSnapshot[];
+  count: number;
+}): Promise<GeneratedPrompt[]> {
+  const config = getConfig();
+  if (!config.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is required for ChatGPT prompt generation");
+  }
+
+  const adapter = createAiAdapter("openai", {
+    modelOverride: config.OPENAI_MODEL,
+    searchEnabled: false
+  });
+
+  const output = await adapter.runPrompt({
+    prompt: buildPromptGenerationPrompt(input),
+    language: input.language,
+    country: input.country,
+    brandName: input.brandName,
+    brandDomain: input.domain,
+    competitors: input.competitors.map((competitor) => ({
+      name: competitor.name,
+      domain: competitor.domain ?? undefined
+    })),
+    searchEnabled: false
+  });
+
+  const parsed = parseJsonObject(output.rawText);
+  const generated = normalizeChatGptPrompts(parsed, input);
+  if (generated.length < input.count) {
+    throw new Error(`ChatGPT returned ${generated.length} valid prompts, expected ${input.count}`);
+  }
+  return generated.slice(0, input.count);
+}
+
+function buildPromptGenerationPrompt(input: {
+  brandName: string;
+  domain: string;
+  country: string;
+  language: string;
+  competitors: Array<{ name: string; domain?: string | null }>;
+  pages: CrawledPageSnapshot[];
+  count: number;
+}) {
+  return [
+    "You generate AI visibility test prompts for one specific website.",
+    "Return only strict JSON. Do not wrap it in markdown.",
+    "",
+    `Website under analysis: ${input.brandName} (${input.domain})`,
+    `Target market: ${input.country}`,
+    `Prompt language: ${input.language}`,
+    `Known competitors: ${input.competitors.map((competitor) => competitor.name).join(", ") || "none"}`,
+    "",
+    "Use only the website context below. Do not use SEOS, seos.si, AI Visibility Radar, or marketing/SEO topics unless they are clearly present in this website context.",
+    "Create prompts that real buyers would ask ChatGPT, Gemini, or Claude when looking for a provider, product, service, alternative, comparison, or solution like this website.",
+    "Most prompts should be discovery/comparison/problem prompts and should not mention the measured brand by name. Include at most two branded prompts.",
+    `Generate exactly ${input.count} prompts.`,
+    "",
+    "Every prompt must be an object with:",
+    `text: string, category: one of ${PROMPT_CATEGORIES.join(", ")}, intent: string, persona: string, funnelStage: one of ${FUNNEL_STAGES.join(", ")}`,
+    "",
+    "Return JSON in this exact shape:",
+    `{"prompts":[{"text":"...","category":"category","intent":"...","persona":"...","funnelStage":"awareness"}]}`,
+    "",
+    "Website context:",
+    JSON.stringify(buildWebsiteContext(input.pages), null, 2)
+  ].join("\n");
+}
+
+function buildWebsiteContext(pages: CrawledPageSnapshot[]) {
+  return pages.slice(0, 10).map((page) => ({
+    url: page.url,
+    title: page.title,
+    metaDescription: page.metaDescription,
+    h1: page.h1,
+    h2: page.h2.slice(0, 8),
+    textSample: page.mainText?.replace(/\s+/g, " ").trim().slice(0, 1200)
+  }));
+}
+
+function normalizeChatGptPrompts(
+  parsed: unknown,
+  input: {
+    country: string;
+    language: string;
+    count: number;
+  }
+): GeneratedPrompt[] {
+  const value = parsed as { prompts?: unknown };
+  const rawPrompts = Array.isArray(value.prompts) ? value.prompts : Array.isArray(parsed) ? parsed : [];
+
+  return rawPrompts
+    .map((item, index) => normalizeChatGptPrompt(item, index, input))
+    .filter((prompt): prompt is GeneratedPrompt => Boolean(prompt));
+}
+
+function normalizeChatGptPrompt(
+  item: unknown,
+  index: number,
+  input: {
+    country: string;
+    language: string;
+  }
+): GeneratedPrompt | null {
+  if (!item || typeof item !== "object") return null;
+  const draft = item as Record<string, unknown>;
+  const text = typeof draft.text === "string" ? draft.text.trim() : "";
+  if (text.length < 8) return null;
+
+  return {
+    text,
+    category: promptCategory(draft.category),
+    intent: typeof draft.intent === "string" && draft.intent.trim() ? draft.intent.trim() : "buyer discovery",
+    persona: typeof draft.persona === "string" && draft.persona.trim() ? draft.persona.trim() : "buyer",
+    funnelStage: funnelStage(draft.funnelStage),
+    priority: index + 1,
+    language: input.language,
+    country: input.country
+  };
+}
+
+function promptCategory(value: unknown): PromptCategory {
+  return PROMPT_CATEGORIES.includes(value as PromptCategory) ? (value as PromptCategory) : "category";
+}
+
+function funnelStage(value: unknown): GeneratedPrompt["funnelStage"] {
+  return FUNNEL_STAGES.includes(value as GeneratedPrompt["funnelStage"])
+    ? (value as GeneratedPrompt["funnelStage"])
+    : "consideration";
+}
+
+function isPageFromDomain(url: string, domain: string) {
+  const pageDomain = domainFromUrl(url);
+  if (!pageDomain) return false;
+  return pageDomain === domain || pageDomain.endsWith(`.${domain}`);
 }
 
 export async function ensureEngines(
