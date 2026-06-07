@@ -439,6 +439,66 @@ export async function runScanNow(scanRunId: string) {
   return scoreScan(scanRunId);
 }
 
+export async function runNextScanStep(scanRunId: string) {
+  const scan = await prisma.scanRun.findUnique({
+    where: { id: scanRunId },
+    include: { scoreSnapshot: true }
+  });
+  if (!scan) throw new Error("Scan not found");
+  if (scan.status === "completed" || scan.status === "failed" || scan.status === "canceled") {
+    return scan;
+  }
+
+  const staleCutoff = new Date(Date.now() - 1000 * 60 * 2);
+  await prisma.promptRun.updateMany({
+    where: {
+      scanRunId,
+      status: "running",
+      startedAt: { lt: staleCutoff }
+    },
+    data: {
+      status: "queued",
+      errorMessage: "Ponovni poskus po preteku časa izvajanja."
+    }
+  });
+
+  if (scan.status === "queued") {
+    await prisma.scanRun.update({
+      where: { id: scanRunId },
+      data: {
+        status: "running",
+        startedAt: scan.startedAt ?? new Date()
+      }
+    });
+  }
+
+  const nextPromptRun = await prisma.promptRun.findFirst({
+    where: { scanRunId, status: "queued" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true }
+  });
+
+  if (nextPromptRun) {
+    await runPromptRun(nextPromptRun.id).catch(() => null);
+  }
+
+  const remainingPromptRuns = await prisma.promptRun.count({
+    where: {
+      scanRunId,
+      status: { in: ["queued", "running"] }
+    }
+  });
+
+  if (remainingPromptRuns === 0) {
+    await scoreScan(scanRunId);
+  }
+
+  return prisma.scanRun.findUnique({
+    where: { id: scanRunId },
+    include: { scoreSnapshot: true }
+  });
+}
+
 export async function runPromptRun(promptRunId: string) {
   const promptRun = await prisma.promptRun.findUnique({
     where: { id: promptRunId },

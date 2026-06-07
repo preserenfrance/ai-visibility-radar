@@ -21,7 +21,7 @@ async function startProviderScan(formData: FormData) {
   const scan = await createScanForBrand(brandId, {
     providers: selectedProvidersFromFormData(formData),
     promptLimit: 5,
-    runNow: true,
+    runNow: false,
     searchEnabled: false
   });
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);

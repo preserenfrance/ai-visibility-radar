@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { Activity } from "lucide-react";
-import { AutoRefresh } from "@/components/auto-refresh";
 import { BrandMenu } from "@/components/brand-menu";
+import { ScanRunner } from "@/components/scan-runner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -40,7 +40,7 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
-      {scanPending && <AutoRefresh />}
+      {scanPending && <ScanRunner scanId={scan.id} />}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold">Izvedba scana</h1>
