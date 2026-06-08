@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/cron/regular-scans",
-      "schedule": "0 * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }
