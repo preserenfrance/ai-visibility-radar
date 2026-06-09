@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, Building2, ClipboardList, LogOut, Radar, Settings } from "lucide-react";
+import { BarChart3, Building2, ClipboardList, LogOut, Radar, Settings, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearUserSession, getCurrentUser, isAdminUser } from "@/lib/auth";
 
@@ -27,6 +27,9 @@ export async function SiteHeader() {
               <Nav href="/app/dashboard" icon={<BarChart3 className="h-4 w-4" />} label="Pregled" />
               <Nav href="/app/onboarding" icon={<Building2 className="h-4 w-4" />} label="Dodaj znamko" />
               {admin && <Nav href="/admin/leads" icon={<ClipboardList className="h-4 w-4" />} label="Admin" />}
+              {admin && (
+                <Nav href="/admin/system-prompts" icon={<SlidersHorizontal className="h-4 w-4" />} label="Prompti" />
+              )}
               <Nav href="/app/settings" icon={<Settings className="h-4 w-4" />} label="Nastavitve" />
               <span className="hidden px-2 text-muted-foreground lg:inline">{user.email}</span>
               <form action={logout}>

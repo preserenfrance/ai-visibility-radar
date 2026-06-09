@@ -26,6 +26,7 @@ import {
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
 import { enqueueJob } from "@/lib/queue";
+import { systemPromptContent } from "@/lib/system-prompts";
 
 export async function crawlBrand(
   brandId: string,
@@ -103,15 +104,49 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
     }))
     .filter((page) => isPageFromDomain(page.url, brandDomain));
 
+  const industry = brand.industry ?? inferPromptIndustry(pages);
+  const promptSettings = await promptControlSettings();
+  const blueprintPrompts = renderQuestionBlueprintPrompts(
+    {
+      brandName: brand.name,
+      domain: brandDomain,
+      industry,
+      country: brand.country,
+      language: brand.language,
+      competitors: brand.competitors,
+      pages,
+      count
+    },
+    promptSettings.questionBlueprint,
+    count
+  );
   const generated = await generatePromptSetWithChatGpt({
     brandName: brand.name,
     domain: brandDomain,
+    industry,
     country: brand.country,
     language: brand.language,
     competitors: brand.competitors,
     pages,
     count
-  });
+  }, promptSettings);
+  const prompts = mergeGeneratedPrompts(
+    [
+      ...blueprintPrompts,
+      ...generated,
+      ...generatePromptSet({
+        brandName: brand.name,
+        domain: brandDomain,
+        industry,
+        country: brand.country,
+        language: brand.language,
+        competitors: brand.competitors,
+        pages,
+        count
+      })
+    ],
+    count
+  );
 
   await prisma.promptSet.updateMany({
     where: { brandId, status: "active" },
@@ -126,7 +161,7 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
       country: brand.country,
       status: "active",
       prompts: {
-        create: generated.map((prompt) => ({
+        create: prompts.map((prompt) => ({
           text: prompt.text,
           category: prompt.category,
           intent: prompt.intent,
@@ -178,16 +213,25 @@ async function generateFastPromptsForBrand(brandId: string, count: number) {
       }))
       .filter((page) => isPageFromDomain(page.url, brandDomain)) ?? [];
 
-  const generated = generatePromptSet({
+  const industry = brand.industry ?? inferPromptIndustry(pages);
+  const promptSettings = await promptControlSettings();
+  const input = {
     brandName: brand.name,
     domain: brandDomain,
-    industry: brand.industry,
+    industry,
     country: brand.country,
     language: brand.language,
     competitors: brand.competitors,
     pages,
     count
-  });
+  };
+  const generated = mergeGeneratedPrompts(
+    [
+      ...renderQuestionBlueprintPrompts(input, promptSettings.questionBlueprint, count),
+      ...generatePromptSet(input)
+    ],
+    count
+  );
 
   await prisma.promptSet.updateMany({
     where: { brandId, status: "active" },
@@ -217,6 +261,143 @@ async function generateFastPromptsForBrand(brandId: string, count: number) {
   });
 }
 
+type PromptControlSettings = {
+  websiteAnalysisInstructions: string;
+  promptGenerationInstructions: string;
+  questionBlueprint: string;
+};
+
+async function promptControlSettings(): Promise<PromptControlSettings> {
+  const [websiteAnalysisInstructions, promptGenerationInstructions, questionBlueprint] = await Promise.all([
+    systemPromptContent("website_analysis"),
+    systemPromptContent("prompt_generation"),
+    systemPromptContent("question_blueprint")
+  ]);
+
+  return {
+    websiteAnalysisInstructions,
+    promptGenerationInstructions,
+    questionBlueprint
+  };
+}
+
+function renderQuestionBlueprintPrompts(
+  input: {
+    brandName: string;
+    domain: string;
+    industry?: string;
+    country: string;
+    language: string;
+    competitors: Array<{ name: string; domain?: string | null }>;
+    pages: CrawledPageSnapshot[];
+    count: number;
+  },
+  blueprint: string,
+  count: number
+): GeneratedPrompt[] {
+  const templates = blueprint
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+
+  return templates
+    .map((template, index) => {
+      const text = renderQuestionTemplate(template, input);
+      if (!text) return null;
+      const category = inferBlueprintCategory(text, input.brandName);
+      return {
+        text,
+        category,
+        intent: "admin prompt blueprint",
+        persona: "buyer",
+        funnelStage: funnelStageForCategory(category),
+        priority: index + 1,
+        language: input.language,
+        country: input.country
+      };
+    })
+    .filter((prompt): prompt is GeneratedPrompt => Boolean(prompt))
+    .slice(0, count);
+}
+
+function renderQuestionTemplate(
+  template: string,
+  input: {
+    brandName: string;
+    industry?: string;
+    country: string;
+    language: string;
+    competitors: Array<{ name: string; domain?: string | null }>;
+  }
+) {
+  const competitors = input.competitors.map((competitor) => competitor.name).filter(Boolean);
+  const firstCompetitor = competitors[0] ?? "najpogosteje omenjenega konkurenta";
+  const industry = input.industry || "to kategorijo";
+  return template
+    .replaceAll("{brandName}", input.brandName)
+    .replaceAll("{industry}", industry)
+    .replaceAll("{country}", input.country)
+    .replaceAll("{localMarket}", localMarketLabelForPrompt(input.country))
+    .replaceAll("{language}", input.language)
+    .replaceAll("{competitors}", firstCompetitor)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mergeGeneratedPrompts(prompts: GeneratedPrompt[], count: number) {
+  const seen = new Set<string>();
+  const merged: GeneratedPrompt[] = [];
+
+  for (const prompt of prompts) {
+    const key = normalizePromptText(prompt.text);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(prompt);
+    if (merged.length >= count) break;
+  }
+
+  return merged.map((prompt, index) => ({
+    ...prompt,
+    priority: index + 1
+  }));
+}
+
+function normalizePromptText(text: string) {
+  return text.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function inferPromptIndustry(pages: CrawledPageSnapshot[]) {
+  const pageText = pages
+    .slice(0, 6)
+    .map((page) => [page.title, page.h1, page.metaDescription].filter(Boolean).join(" "))
+    .join(" ")
+    .trim();
+  return pageText ? pageText.slice(0, 80) : undefined;
+}
+
+function inferBlueprintCategory(text: string, brandName: string): PromptCategory {
+  const lower = text.toLowerCase();
+  if (brandName && lower.includes(brandName.toLowerCase())) return "branded";
+  if (lower.includes("alternativ")) return "competitor_alternative";
+  if (lower.includes("primerj") || lower.includes("compare")) return "comparison";
+  if (lower.includes("najbolj") || lower.includes("best")) return "best_for";
+  if (lower.includes("sloven") || lower.includes("lokal") || lower.includes("local")) return "local";
+  if (lower.includes("kako") || lower.includes("kaj mora") || lower.includes("problem")) return "problem";
+  return "category";
+}
+
+function funnelStageForCategory(category: PromptCategory): GeneratedPrompt["funnelStage"] {
+  if (category === "branded" || category === "comparison") return "decision";
+  if (category === "best_for" || category === "competitor_alternative" || category === "local") return "consideration";
+  return "awareness";
+}
+
+function localMarketLabelForPrompt(country: string) {
+  const lower = country.toLowerCase();
+  if (lower === "slovenia" || lower === "slovenija" || lower === "si") return "Sloveniji";
+  return country;
+}
+
 const PROMPT_CATEGORIES: PromptCategory[] = [
   "category",
   "problem",
@@ -232,12 +413,13 @@ const FUNNEL_STAGES: GeneratedPrompt["funnelStage"][] = ["awareness", "considera
 async function generatePromptSetWithChatGpt(input: {
   brandName: string;
   domain: string;
+  industry?: string;
   country: string;
   language: string;
   competitors: Array<{ name: string; domain?: string | null }>;
   pages: CrawledPageSnapshot[];
   count: number;
-}): Promise<GeneratedPrompt[]> {
+}, settings: PromptControlSettings): Promise<GeneratedPrompt[]> {
   const config = getConfig();
   if (!config.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is required for ChatGPT prompt generation");
@@ -249,7 +431,7 @@ async function generatePromptSetWithChatGpt(input: {
   });
 
   const output = await adapter.runPrompt({
-    prompt: buildPromptGenerationPrompt(input),
+    prompt: buildPromptGenerationPrompt(input, settings),
     language: input.language,
     country: input.country,
     brandName: input.brandName,
@@ -263,8 +445,8 @@ async function generatePromptSetWithChatGpt(input: {
 
   const parsed = parseJsonObject(output.rawText);
   const generated = normalizeChatGptPrompts(parsed, input);
-  if (generated.length < input.count) {
-    throw new Error(`ChatGPT returned ${generated.length} valid prompts, expected ${input.count}`);
+  if (generated.length === 0) {
+    throw new Error("ChatGPT returned no valid prompts");
   }
   return generated.slice(0, input.count);
 }
@@ -272,13 +454,20 @@ async function generatePromptSetWithChatGpt(input: {
 function buildPromptGenerationPrompt(input: {
   brandName: string;
   domain: string;
+  industry?: string;
   country: string;
   language: string;
   competitors: Array<{ name: string; domain?: string | null }>;
   pages: CrawledPageSnapshot[];
   count: number;
-}) {
+}, settings: PromptControlSettings) {
   return [
+    "Website analysis instructions:",
+    settings.websiteAnalysisInstructions,
+    "",
+    "AI question generation instructions:",
+    settings.promptGenerationInstructions,
+    "",
     "You generate AI visibility test prompts for one specific website.",
     "Return only strict JSON. Do not wrap it in markdown.",
     "",
@@ -291,12 +480,16 @@ function buildPromptGenerationPrompt(input: {
     "Create prompts that real buyers would ask ChatGPT, Gemini, or Claude when looking for a provider, product, service, alternative, comparison, or solution like this website.",
     "Most prompts should be discovery/comparison/problem prompts and should not mention the measured brand by name. Include at most two branded prompts.",
     `Generate exactly ${input.count} prompts.`,
+    input.industry ? `Detected industry/category: ${input.industry}` : "",
     "",
     "Every prompt must be an object with:",
     `text: string, category: one of ${PROMPT_CATEGORIES.join(", ")}, intent: string, persona: string, funnelStage: one of ${FUNNEL_STAGES.join(", ")}`,
     "",
     "Return JSON in this exact shape:",
     `{"prompts":[{"text":"...","category":"category","intent":"...","persona":"...","funnelStage":"awareness"}]}`,
+    "",
+    "Admin question blueprint. Use these patterns as priority examples and adapt them to the website context:",
+    settings.questionBlueprint,
     "",
     "Website context:",
     JSON.stringify(buildWebsiteContext(input.pages), null, 2)
