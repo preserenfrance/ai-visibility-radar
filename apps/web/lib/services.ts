@@ -3,6 +3,7 @@ import { prisma } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { createAiAdapter } from "@ai-radar/ai";
 import { parseAiResponse, parseJsonObject } from "@ai-radar/parser";
+import { generatePromptSet } from "@ai-radar/prompts";
 import {
   calculateLeadScore,
   calculateVisibilityScore,
@@ -121,6 +122,82 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
     data: {
       brandId,
       name: `${brand.name} MVP prompts`,
+      language: brand.language,
+      country: brand.country,
+      status: "active",
+      prompts: {
+        create: generated.map((prompt) => ({
+          text: prompt.text,
+          category: prompt.category,
+          intent: prompt.intent,
+          persona: prompt.persona,
+          funnelStage: prompt.funnelStage,
+          priority: prompt.priority,
+          isActive: true
+        }))
+      }
+    },
+    include: { prompts: true }
+  });
+}
+
+async function generateFastPromptsForBrand(brandId: string, count: number) {
+  const existing = await prisma.promptSet.findFirst({
+    where: { brandId, status: "active" },
+    include: { prompts: true }
+  });
+  if (existing && existing.prompts.length >= count) return existing;
+
+  const brand = await prisma.brand.findUnique({
+    where: { id: brandId },
+    include: {
+      competitors: true,
+      crawlSnapshots: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        include: { pages: true }
+      }
+    }
+  });
+  if (!brand) throw new Error("Brand not found");
+
+  const brandDomain = normalizeDomain(brand.domain);
+  const pages: CrawledPageSnapshot[] =
+    brand.crawlSnapshots[0]?.pages
+      .map((page) => ({
+        url: page.url,
+        title: page.title ?? undefined,
+        metaDescription: page.metaDescription ?? undefined,
+        h1: page.h1 ?? undefined,
+        h2: Array.isArray(page.h2) ? (page.h2 as string[]) : [],
+        mainText: page.mainText ?? undefined,
+        schemaJson: page.schemaJson,
+        statusCode: page.statusCode,
+        canonicalUrl: page.canonicalUrl ?? undefined,
+        discoveredAt: page.discoveredAt.toISOString()
+      }))
+      .filter((page) => isPageFromDomain(page.url, brandDomain)) ?? [];
+
+  const generated = generatePromptSet({
+    brandName: brand.name,
+    domain: brandDomain,
+    industry: brand.industry,
+    country: brand.country,
+    language: brand.language,
+    competitors: brand.competitors,
+    pages,
+    count
+  });
+
+  await prisma.promptSet.updateMany({
+    where: { brandId, status: "active" },
+    data: { status: "archived" }
+  });
+
+  return prisma.promptSet.create({
+    data: {
+      brandId,
+      name: `${brand.name} free audit prompts`,
       language: brand.language,
       country: brand.country,
       status: "active",
@@ -901,17 +978,15 @@ export async function createFreeAudit(input: {
     }
   });
 
-  auditStep = "crawl";
-  await crawlBrand(brand.id, FREE_AUDIT_LIMITS.maxPages, { timeoutMs: 2500, rateLimitMs: 100 }).catch(() => null);
   auditStep = "prompts";
-  await generatePromptsForBrand(brand.id, FREE_AUDIT_LIMITS.promptCount);
+  await generateFastPromptsForBrand(brand.id, FREE_AUDIT_LIMITS.promptCount);
   auditStep = "scan";
   const scan = await createScanForBrand(brand.id, {
     triggerType: "free_audit",
     promptLimit: FREE_AUDIT_LIMITS.promptCount,
     providers: input.providers?.length ? input.providers : ["openai"],
     repeatCount: FREE_AUDIT_LIMITS.repeatCount,
-    runNow: true,
+    runNow: false,
     searchEnabled: false
   });
 

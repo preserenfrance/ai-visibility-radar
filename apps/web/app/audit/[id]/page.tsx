@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@ai-radar/db";
 import { Activity } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { ScanRunner } from "@/components/scan-runner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,10 +32,12 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
   const score = lead.auditScanRun?.scoreSnapshot;
   const reportPending =
     !score || lead.auditScanRun?.status === "queued" || lead.auditScanRun?.status === "running";
+  const runFromBrowser = reportPending && lead.auditScanRunId && !process.env.REDIS_URL;
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-8">
-      {reportPending && <AutoRefresh />}
+      {reportPending &&
+        (runFromBrowser ? <ScanRunner endpoint={`/api/public/audit/${lead.id}/run-next`} /> : <AutoRefresh />)}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Badge variant="secondary">Brezplačen audit</Badge>
