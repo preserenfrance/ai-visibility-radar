@@ -129,7 +129,10 @@ export async function generatePromptsForBrand(brandId: string, count: number = M
     competitors: brand.competitors,
     pages,
     count
-  }, promptSettings);
+  }, promptSettings).catch((error) => {
+    console.warn("ChatGPT prompt generation failed; using deterministic prompt fallback.", error);
+    return [];
+  });
   const prompts = mergeGeneratedPrompts(
     [
       ...blueprintPrompts,
@@ -302,8 +305,9 @@ function renderQuestionBlueprintPrompts(
 
   return templates
     .map((template, index) => {
-      const text = renderQuestionTemplate(template, input);
-      if (!text) return null;
+      const text = ensureQuestionText(renderQuestionTemplate(template, input));
+      if (!text || hasMojibake(text)) return null;
+      if (isSlovenianLanguage(input.language) && !looksLikeSlovenianQuestion(text)) return null;
       const category = inferBlueprintCategory(text, input.brandName);
       return {
         text,
@@ -332,7 +336,7 @@ function renderQuestionTemplate(
 ) {
   const competitors = input.competitors.map((competitor) => competitor.name).filter(Boolean);
   const firstCompetitor = competitors[0] ?? "najpogosteje omenjenega konkurenta";
-  const industry = input.industry || "to kategorijo";
+  const industry = input.industry || "ustrezen produkt ali rešitev";
   return template
     .replaceAll("{brandName}", input.brandName)
     .replaceAll("{industry}", industry)
@@ -367,12 +371,13 @@ function normalizePromptText(text: string) {
 }
 
 function inferPromptIndustry(pages: CrawledPageSnapshot[]) {
-  const pageText = pages
-    .slice(0, 6)
-    .map((page) => [page.title, page.h1, page.metaDescription].filter(Boolean).join(" "))
-    .join(" ")
-    .trim();
-  return pageText ? pageText.slice(0, 80) : undefined;
+  const candidates = pages
+    .slice(0, 8)
+    .flatMap((page) => [page.h1, ...page.h2.slice(0, 8), page.title, page.metaDescription])
+    .map(cleanIndustryCandidate)
+    .filter((candidate): candidate is string => Boolean(candidate));
+  const unique = uniqueStrings(candidates);
+  return unique.find(containsProductCue) ?? unique[0];
 }
 
 function inferBlueprintCategory(text: string, brandName: string): PromptCategory {
@@ -396,6 +401,102 @@ function localMarketLabelForPrompt(country: string) {
   const lower = country.toLowerCase();
   if (lower === "slovenia" || lower === "slovenija" || lower === "si") return "Sloveniji";
   return country;
+}
+
+function promptLanguageName(language: string) {
+  return isSlovenianLanguage(language) ? "lepa, naravna slovenščina" : language;
+}
+
+function isSlovenianLanguage(language: string) {
+  const lower = language.toLowerCase();
+  return lower === "sl" || lower.includes("sloven");
+}
+
+function ensureQuestionText(value: string) {
+  const text = value.replace(/\s+/g, " ").trim().replace(/[.。]+$/, "");
+  return text.endsWith("?") ? text : `${text}?`;
+}
+
+function hasMojibake(value: string) {
+  return /[�]|Ä|Ĺ|Å|Â|Ã/.test(value);
+}
+
+function looksLikeSlovenianQuestion(value: string) {
+  const lower = value.toLowerCase();
+  return /^(kateri|katere|katero|kakšen|kaksen|kakšna|kaksna|kako|kaj|kdo|kje|kdaj|zakaj|koliko|ali|na kaj|za katere|primerjaj)\b/.test(
+    lower
+  );
+}
+
+function cleanIndustryCandidate(value: string | null | undefined) {
+  if (!value) return undefined;
+  const cleaned = value
+    .replace(/\s+/g, " ")
+    .split(/\s[|–—]\s/)[0]!
+    .replace(/^[\s:;,.!?-]+|[\s:;,.!?-]+$/g, "")
+    .trim();
+  if (cleaned.length < 5 || cleaned.length > 100) return undefined;
+  if (hasMojibake(cleaned)) return undefined;
+  if (isGenericIndustryCandidate(cleaned)) return undefined;
+  return /^[A-ZČŠŽ][a-zčšž]/.test(cleaned) ? cleaned.charAt(0).toLowerCase() + cleaned.slice(1) : cleaned;
+}
+
+function isGenericIndustryCandidate(value: string) {
+  const lower = value.toLowerCase();
+  const genericTerms = [
+    "domov",
+    "home",
+    "o nas",
+    "about",
+    "kontakt",
+    "contact",
+    "blog",
+    "novice",
+    "faq",
+    "cenik",
+    "pricing",
+    "prijava",
+    "login",
+    "zasebnost",
+    "privacy",
+    "pogoji",
+    "terms",
+    "piškotki",
+    "cookie"
+  ];
+  return genericTerms.some((term) => lower === term || lower.startsWith(`${term} `));
+}
+
+function containsProductCue(value: string) {
+  const lower = value.toLowerCase();
+  return [
+    "produkt",
+    "izdelek",
+    "rešitev",
+    "storitev",
+    "platforma",
+    "programska oprema",
+    "aplikacija",
+    "orodje",
+    "software",
+    "product",
+    "solution",
+    "service",
+    "platform",
+    "tool"
+  ].some((term) => lower.includes(term));
+}
+
+function uniqueStrings(values: string[]) {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const value of values) {
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(value);
+  }
+  return unique;
 }
 
 const PROMPT_CATEGORIES: PromptCategory[] = [
@@ -473,12 +574,17 @@ function buildPromptGenerationPrompt(input: {
     "",
     `Website under analysis: ${input.brandName} (${input.domain})`,
     `Target market: ${input.country}`,
-    `Prompt language: ${input.language}`,
+    `Prompt language: ${promptLanguageName(input.language)}`,
     `Known competitors: ${input.competitors.map((competitor) => competitor.name).join(", ") || "none"}`,
     "",
     "Use only the website context below. Do not use SEOS, seos.si, AI Visibility Radar, or marketing/SEO topics unless they are clearly present in this website context.",
-    "Create prompts that real buyers would ask ChatGPT, Gemini, or Claude when looking for a provider, product, service, alternative, comparison, or solution like this website.",
+    "Create practical product-oriented prompts that real buyers would ask ChatGPT, Gemini, or Claude when looking for a provider, product, service, alternative, comparison, or solution like this website.",
+    "Prioritize product choice, features, price, support, implementation, proof, local fit, limitations, and alternatives.",
     "Most prompts should be discovery/comparison/problem prompts and should not mention the measured brand by name. Include at most two branded prompts.",
+    isSlovenianLanguage(input.language)
+      ? "All prompt text values must be in natural Slovenian with correct č, š and ž. Do not return English questions."
+      : "",
+    "Every text value must be a question a buyer could actually ask. Avoid SEO keyword fragments and internal company slogans.",
     `Generate exactly ${input.count} prompts.`,
     input.industry ? `Detected industry/category: ${input.industry}` : "",
     "",
@@ -533,8 +639,10 @@ function normalizeChatGptPrompt(
 ): GeneratedPrompt | null {
   if (!item || typeof item !== "object") return null;
   const draft = item as Record<string, unknown>;
-  const text = typeof draft.text === "string" ? draft.text.trim() : "";
+  const text = ensureQuestionText(typeof draft.text === "string" ? draft.text.trim() : "");
   if (text.length < 8) return null;
+  if (hasMojibake(text)) return null;
+  if (isSlovenianLanguage(input.language) && !looksLikeSlovenianQuestion(text)) return null;
 
   return {
     text,

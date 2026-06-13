@@ -14,15 +14,38 @@ export type CrawlDomainInput = {
   userAgent?: string;
 };
 
-const PRIORITY_KEYWORDS = [
-  "about",
-  "services",
-  "products",
-  "pricing",
-  "faq",
-  "blog",
-  "case",
-  "contact"
+const PRIORITY_KEYWORDS: Array<[string, number]> = [
+  ["product", 18],
+  ["products", 18],
+  ["produkt", 18],
+  ["produkti", 18],
+  ["izdelek", 18],
+  ["izdelki", 18],
+  ["solution", 16],
+  ["solutions", 16],
+  ["resitve", 16],
+  ["rešitve", 16],
+  ["service", 14],
+  ["services", 14],
+  ["storitev", 14],
+  ["storitve", 14],
+  ["platform", 12],
+  ["software", 12],
+  ["pricing", 10],
+  ["cenik", 10],
+  ["case", 10],
+  ["reference", 10],
+  ["primeri", 10],
+  ["industries", 8],
+  ["panoge", 8],
+  ["integrations", 8],
+  ["integracije", 8],
+  ["faq", 6],
+  ["about", 4],
+  ["o-nas", 4],
+  ["contact", 2],
+  ["kontakt", 2],
+  ["blog", 1]
 ];
 
 export async function crawlDomain(input: CrawlDomainInput): Promise<CrawlResult> {
@@ -193,7 +216,7 @@ function prioritizeUrls(urls: string[]): string[] {
 
 function scoreUrl(url: string): number {
   const lower = url.toLowerCase();
-  return PRIORITY_KEYWORDS.reduce((score, keyword) => (lower.includes(keyword) ? score + 10 : score), 0);
+  return PRIORITY_KEYWORDS.reduce((score, [keyword, weight]) => (lower.includes(keyword) ? score + weight : score), 0);
 }
 
 function isInternalUrl(url: string, domain: string): boolean {

@@ -33,13 +33,21 @@ export function createAiAdapter(
 
 export function buildProviderPrompt(input: RunPromptInput): string {
   return [
-    `Answer in ${input.language}.`,
+    answerLanguageInstruction(input.language),
     `Use ${input.country} as the buyer's market when the question depends on location.`,
     "Answer naturally as an AI assistant would to a buyer. If you use sources, cite them in the provider-native way.",
     "Do not assume any hidden brand, competitor, or evaluation context beyond the user's question.",
     "",
     input.prompt
   ].join("\n");
+}
+
+function answerLanguageInstruction(language: string) {
+  const lower = language.toLowerCase();
+  if (lower === "sl" || lower.includes("sloven")) {
+    return "Answer in natural Slovenian with correct č, š and ž.";
+  }
+  return `Answer in ${language}.`;
 }
 
 class OpenAiResponsesAdapter implements AiEngineAdapter {
