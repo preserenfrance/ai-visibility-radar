@@ -21,11 +21,11 @@ export const SYSTEM_PROMPT_DEFINITIONS: SystemPromptDefinition[] = [
     title: "Analiza spletne strani",
     description: "Kako sistem prebere domeno, izbere pomembne strani in razume ponudbo, kupce ter dokazila.",
     defaultContent: [
-      "Understand the website as a buyer would, not as a generic SEO crawler.",
-      "Extract the concrete offer, ideal customer profile, use cases, buying triggers, proof points, geography, language, and category.",
-      "Prefer pages that explain services, product value, industries, case studies, pricing, references, integrations, and comparisons.",
-      "Ignore navigation noise, cookie text, legal boilerplate, generic blog fluff, and duplicated layout copy.",
-      "When the page context is thin, generate questions from the domain, brand name, competitors, and declared country/language instead of inventing facts."
+      "Spletno stran razumi kot kupec, ne kot splošen SEO crawler.",
+      "Izlušči konkretno ponudbo: produkte, storitve, glavne funkcionalnosti, idealnega kupca, primere uporabe, nakupne sprožilce, dokazila, geografski trg, jezik in kategorijo.",
+      "Prednost daj stranem, ki razlagajo produkt, vrednost, panoge, primere uporabe, reference, cene, integracije, primerjave, podporo in dokazljive rezultate.",
+      "Prezri navigacijski šum, piškotke, pravna besedila, generične blog zapise, podvojene elemente postavitve in prazne marketinške fraze.",
+      "Če je kontekst strani tanek, oblikuj vprašanja iz domene, imena znamke, konkurentov, države in jezika, vendar ne izmišljaj dejstev."
     ].join("\n")
   },
   {
@@ -33,12 +33,13 @@ export const SYSTEM_PROMPT_DEFINITIONS: SystemPromptDefinition[] = [
     title: "Generiranje AI vprašanj",
     description: "Sistemska navodila za vprašanja, ki jih bomo poslali ChatGPT, Gemini in Claude.",
     defaultContent: [
-      "Generate prompts that a real buyer would ask before choosing a vendor, product, service, agency, tool, or expert.",
-      "Most prompts must be blind discovery, comparison, problem, local, or best-fit questions and must not mention the measured brand.",
-      "Include only a small number of branded prompts to test whether the AI can explain the measured brand accurately.",
-      "Prompts must be specific enough to reveal competitors, citations, ranking, and buying intent.",
-      "Avoid vanity questions, generic SEO keywords, internal company phrasing, and questions where the measured brand is obviously forced into the answer.",
-      "Use the requested language and local market context."
+      "Ustvari vprašanja, ki bi jih realen kupec zastavil pred izbiro produkta, rešitve, storitve, agencije, orodja ali strokovnjaka.",
+      "Vprašanja naj bodo praktična, kupčeva in produktno naravnana: izbor, primerjava, funkcionalnosti, cena, podpora, dokazila, uvedba, omejitve in alternative.",
+      "Večina vprašanj naj bo slepih discovery, primerjalnih, problemskih, lokalnih ali best-fit vprašanj in naj ne omenja merjene znamke.",
+      "Vključi samo malo branded vprašanj, da preverimo, ali AI pravilno razloži merjeno znamko.",
+      "Vsako vprašanje mora biti dovolj konkretno, da razkrije konkurente, citacije, rangiranje in nakupni namen.",
+      "Izogibaj se vanity vprašanjem, generičnim SEO ključnim besedam, internemu žargonu podjetja in vprašanjem, kjer je merjena znamka očitno vsiljena v odgovor.",
+      "Če je jezik sl ali slovenščina, morajo biti vprašanja v lepi, naravni slovenščini s pravilnimi znaki č, š in ž."
     ].join("\n")
   },
   {
@@ -46,13 +47,13 @@ export const SYSTEM_PROMPT_DEFINITIONS: SystemPromptDefinition[] = [
     title: "Predloge testnih vprašanj",
     description: "Ena predloga na vrstico. Spremenljivke: {brandName}, {industry}, {country}, {localMarket}, {language}, {competitors}.",
     defaultContent: [
-      "Katera podjetja v {localMarket} so najbolj primerna za {industry}?",
-      "Katere rešitve bi priporočil podjetju, ki išče pomoč pri {industry}?",
-      "Kako naj kupec primerja ponudnike za {industry}?",
-      "Kateri ponudniki za {industry} imajo najbolj jasne reference in dokazila?",
+      "Katere produkte ali rešitve naj preveri podjetje v {localMarket}, če išče rešitev za področje \"{industry}\"?",
+      "Katere rešitve bi priporočil podjetju, ki potrebuje praktično pomoč na področju \"{industry}\"?",
+      "Kako naj kupec primerja ponudnike za področje \"{industry}\" glede funkcionalnosti, cene, podpore in dokazil?",
+      "Kateri ponudniki za področje \"{industry}\" imajo najbolj jasne reference, primere uporabe in dokazljive rezultate?",
       "Katere so najboljše alternative za {competitors}?",
-      "Ali je {brandName} verodostojen ponudnik za {industry}?",
-      "Kaj mora podjetje vprašati ponudnika za {industry}, preden ga izbere?"
+      "Ali je {brandName} verodostojen ponudnik za področje \"{industry}\"?",
+      "Kaj mora podjetje vprašati ponudnika za področje \"{industry}\", preden izbere produkt ali rešitev?"
     ].join("\n")
   }
 ];

@@ -14,6 +14,7 @@ describe("AI provider prompt", () => {
     });
 
     expect(prompt).toContain("Katera podjetja v Sloveniji");
+    expect(prompt).toContain("Answer in natural Slovenian");
     expect(prompt).not.toContain("Skrita Znamka");
     expect(prompt).not.toContain("skrita-znamka.si");
     expect(prompt).not.toContain("Glavni Konkurent");
