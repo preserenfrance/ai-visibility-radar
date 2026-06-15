@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-export function FreeAuditForm({ action, errorMessage }: { action: (formData: FormData) => Promise<void>; errorMessage: string | null }) {
+export function FreeAuditForm({
+  action,
+  errorMessage
+}: {
+  action: (formData: FormData) => Promise<void>;
+  errorMessage: string | null;
+}) {
   return (
     <CardContent>
       {errorMessage && (
@@ -27,21 +33,38 @@ export function FreeAuditForm({ action, errorMessage }: { action: (formData: For
         <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">Izberi AI modele za test</legend>
           <div className="grid gap-2 sm:grid-cols-3">
-            {AI_PROVIDER_OPTIONS.map((provider) => (
-              <label key={provider.id} className="flex cursor-pointer items-start gap-2 rounded-md border bg-white p-3 text-sm">
-                <input
-                  className="mt-1"
-                  type="checkbox"
-                  name="providers"
-                  value={provider.id}
-                  defaultChecked={provider.id === "openai"}
-                />
-                <span>
-                  <span className="block font-medium">{provider.label}</span>
-                  <span className="text-xs text-muted-foreground">{provider.description}</span>
-                </span>
-              </label>
-            ))}
+            {AI_PROVIDER_OPTIONS.map((provider) => {
+              const isPaid = provider.id !== "openai";
+
+              return (
+                <label
+                  key={provider.id}
+                  className={`flex items-start gap-2 rounded-md border bg-white p-3 text-sm ${
+                    isPaid ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                  }`}
+                >
+                  <input
+                    className="mt-1"
+                    type="checkbox"
+                    name="providers"
+                    value={provider.id}
+                    defaultChecked={provider.id === "openai"}
+                    disabled={isPaid}
+                  />
+                  <span>
+                    <span className="flex items-center gap-2 font-medium">
+                      {provider.label}
+                      {isPaid && (
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                          Plačljivo
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{provider.description}</span>
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </fieldset>
         <SubmitArea />

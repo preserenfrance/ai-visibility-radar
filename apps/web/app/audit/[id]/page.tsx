@@ -48,9 +48,6 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
           <Button asChild>
             <Link href="/app/onboarding">Ustvari račun za celoten monitoring</Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link href="/pricing">Rezerviraj demo</Link>
-          </Button>
         </div>
       </div>
       {reportPending && (

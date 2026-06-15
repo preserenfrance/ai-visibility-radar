@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { Radar } from "lucide-react";
 import { FreeAuditForm } from "@/components/free-audit-form";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { selectedProvidersFromFormData } from "@/lib/ai-providers";
 import { createFreeAudit } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +19,7 @@ async function startAudit(formData: FormData) {
       country: String(formData.get("country") ?? "Slovenija"),
       language: String(formData.get("language") ?? "sl"),
       competitors: String(formData.get("competitors") ?? ""),
-      providers: selectedProvidersFromFormData(formData)
+      providers: ["openai"]
     });
     leadId = lead?.id;
   } catch (error) {
@@ -49,11 +48,11 @@ export default async function CheckerPage({
             AI Visibility Radar
           </div>
           <h1 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Preveri, ali te ChatGPT, Gemini in Claude priporočajo.
+            Preveri, ali te ChatGPT priporoča.
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 3 realne prompte na izbrane AI API-je
-            in pokaže začetni rezultat tvoje AI vidnosti. Privzeto je izbran ChatGPT.
+            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 3 realne prompte na ChatGPT
+            in pokaže začetni rezultat tvoje AI vidnosti. Gemini in Claude sta na voljo v plačljivih paketih.
           </p>
         </div>
         <Card>
