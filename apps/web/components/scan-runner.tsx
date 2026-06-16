@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 const DONE_STATUSES = new Set(["completed", "failed", "canceled"]);
 
 type ScanRunnerProps =
-  | { scanId: string; endpoint?: never; intervalMs?: number }
-  | { endpoint: string; scanId?: never; intervalMs?: number };
+  | { scanId: string; endpoint?: never; intervalMs?: number; refreshOnStep?: boolean }
+  | { endpoint: string; scanId?: never; intervalMs?: number; refreshOnStep?: boolean };
 
 export function ScanRunner(props: ScanRunnerProps) {
   const router = useRouter();
   const endpoint = props.endpoint ?? `/api/scans/${props.scanId}/run-next`;
   const intervalMs = props.intervalMs ?? 1200;
+  const refreshOnStep = props.refreshOnStep ?? true;
 
   useEffect(() => {
     let cancelled = false;
@@ -27,7 +28,9 @@ export function ScanRunner(props: ScanRunnerProps) {
         const data = await response.json().catch(() => ({}));
         if (cancelled) return;
 
-        router.refresh();
+        if (refreshOnStep) {
+          router.refresh();
+        }
         const status = data?.scan?.status;
         if (!DONE_STATUSES.has(status)) {
           timer = window.setTimeout(runNextStep, intervalMs);
@@ -44,7 +47,7 @@ export function ScanRunner(props: ScanRunnerProps) {
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [endpoint, intervalMs, router]);
+  }, [endpoint, intervalMs, refreshOnStep, router]);
 
   return null;
 }

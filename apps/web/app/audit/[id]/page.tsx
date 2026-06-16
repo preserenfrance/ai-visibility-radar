@@ -1,38 +1,158 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
-import { Activity } from "lucide-react";
+import { Activity, LockKeyhole, UserPlus } from "lucide-react";
+import { normalizeEmail } from "@/lib/accounts";
+import { getCurrentUser, setUserSession } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ScanRunner } from "@/components/scan-runner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
-export default async function AuditPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+async function createAuditAccount(formData: FormData) {
+  "use server";
+
+  const leadId = String(formData.get("leadId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const passwordRepeat = String(formData.get("passwordRepeat") ?? "");
+
   const lead = await prisma.lead.findUnique({
-    where: { id },
-    include: {
-      auditScanRun: {
-        include: {
-          scoreSnapshot: true,
-          recommendations: true,
-          promptRuns: {
-            include: { prompt: true, engine: true, aiResponse: { include: { parsedResult: true } } },
-            take: 15
+    where: { id: leadId },
+    include: { organization: true }
+  });
+  if (!lead) redirect("/ai-visibility-checker?error=unknown");
+
+  if (password.length < 8) {
+    redirect(`/audit/${leadId}?accountError=short`);
+  }
+  if (password !== passwordRepeat) {
+    redirect(`/audit/${leadId}?accountError=mismatch`);
+  }
+
+  const email = normalizeEmail(lead.email);
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser?.passwordHash) {
+    redirect(`/audit/${leadId}?accountError=exists`);
+  }
+
+  const organizationId =
+    lead.organizationId ??
+    (
+      await prisma.organization.create({
+        data: {
+          name: lead.companyName || lead.brandName || email.split("@")[0] || "Moja organizacija"
+        }
+      })
+    ).id;
+
+  const user = existingUser
+    ? await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          name: name || existingUser.name,
+          passwordHash: await hashPassword(password)
+        }
+      })
+    : await prisma.user.create({
+        data: {
+          email,
+          name: name || undefined,
+          passwordHash: await hashPassword(password)
+        }
+      });
+
+  await prisma.membership.upsert({
+    where: {
+      userId_organizationId: {
+        userId: user.id,
+        organizationId
+      }
+    },
+    update: { role: "owner" },
+    create: {
+      userId: user.id,
+      organizationId,
+      role: "owner"
+    }
+  });
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      organizationId,
+      status: "converted"
+    }
+  });
+  await setUserSession(user.id);
+  await prisma.auditLog.create({
+    data: {
+      userId: user.id,
+      organizationId,
+      action: "login"
+    }
+  });
+
+  redirect(`/audit/${leadId}`);
+}
+
+export default async function AuditPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ accountError?: string }>;
+}) {
+  const { id } = await params;
+  const [lead, user, query] = await Promise.all([
+    prisma.lead.findUnique({
+      where: { id },
+      include: {
+        auditScanRun: {
+          include: {
+            scoreSnapshot: true,
+            recommendations: true,
+            promptRuns: {
+              include: { prompt: true, engine: true, aiResponse: { include: { parsedResult: true } } },
+              take: 15
+            }
           }
         }
       }
-    }
-  });
+    }),
+    getCurrentUser(),
+    searchParams
+  ]);
 
   if (!lead) return <main className="p-8">Audit ni najden.</main>;
   const score = lead.auditScanRun?.scoreSnapshot;
   const reportPending =
     !score || lead.auditScanRun?.status === "queued" || lead.auditScanRun?.status === "running";
   const runFromBrowser = reportPending && lead.auditScanRunId && !process.env.REDIS_URL;
+  const canViewResult =
+    user &&
+    (normalizeEmail(user.email) === normalizeEmail(lead.email) ||
+      Boolean(
+        lead.organizationId &&
+          user.memberships.some((membership) => membership.organizationId === lead.organizationId)
+      ));
+
+  if (!canViewResult) {
+    return (
+      <AuditAccountGate
+        lead={lead}
+        reportPending={reportPending}
+        runFromBrowser={Boolean(runFromBrowser)}
+        accountError={query?.accountError}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-8">
@@ -117,6 +237,101 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
       </div>
     </main>
   );
+}
+
+function AuditAccountGate({
+  lead,
+  reportPending,
+  runFromBrowser,
+  accountError
+}: {
+  lead: { id: string; email: string; brandName: string; domain: string; companyName?: string | null };
+  reportPending: boolean;
+  runFromBrowser: boolean;
+  accountError?: string;
+}) {
+  const next = `/audit/${lead.id}`;
+  return (
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-5 py-10">
+      {runFromBrowser && <ScanRunner endpoint={`/api/public/audit/${lead.id}/run-next`} refreshOnStep={false} />}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.08),transparent_32%)]" />
+      <div className="relative grid w-full max-w-5xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <section className="flex flex-col justify-center">
+          <Badge className="mb-4 w-fit" variant="secondary">
+            Brezplačen audit
+          </Badge>
+          <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+            {reportPending ? "Pregledujemo tvoje prompte." : "Tvoj rezultat je pripravljen."}
+          </h1>
+          <p className="mt-4 max-w-xl text-muted-foreground">
+            Za ogled rezultatov najprej ustvari račun. Tako rezultat povežemo s tvojo organizacijo in ga lahko
+            varno pokažemo samo tebi.
+          </p>
+          <div className="mt-6 rounded-md border bg-white/80 p-4 text-sm shadow-sm">
+            <div className="flex items-center gap-2 font-medium">
+              <Activity className="h-4 w-4 animate-pulse text-primary" />
+              {reportPending ? "Audit še teče v ozadju" : "Audit je zaključen"}
+            </div>
+            <p className="mt-2 text-muted-foreground">
+              {lead.brandName} · {lead.domain}
+            </p>
+          </div>
+        </section>
+
+        <Card className="w-full shadow-lg">
+          <CardHeader>
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <LockKeyhole className="h-5 w-5" />
+            </div>
+            <CardTitle>Ustvari račun za ogled rezultata</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {accountError && (
+              <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {accountGateError(accountError)}
+              </div>
+            )}
+            <form action={createAuditAccount} className="grid gap-3">
+              <input type="hidden" name="leadId" value={lead.id} />
+              <Input name="email" type="email" value={lead.email} readOnly />
+              <Input name="name" placeholder="Ime in priimek" />
+              <Input
+                name="organizationName"
+                placeholder="Ime organizacije"
+                defaultValue={lead.companyName || lead.brandName}
+                readOnly
+              />
+              <Input name="password" type="password" placeholder="Geslo" required />
+              <Input name="passwordRepeat" type="password" placeholder="Ponovi geslo" required />
+              <Button type="submit">
+                <UserPlus className="h-4 w-4" />
+                Ustvari račun in pokaži rezultat
+              </Button>
+            </form>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Že imaš račun?{" "}
+              <Link className="text-primary" href={`/login?next=${encodeURIComponent(next)}`}>
+                Prijavi se za ogled rezultata
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </main>
+  );
+}
+
+function accountGateError(error: string) {
+  switch (error) {
+    case "short":
+      return "Geslo mora imeti vsaj 8 znakov.";
+    case "mismatch":
+      return "Gesli se ne ujemata.";
+    case "exists":
+      return "Račun s tem emailom že obstaja. Prijavi se in rezultat se bo odklenil.";
+    default:
+      return "Računa trenutno ni bilo mogoče ustvariti. Poskusi ponovno.";
+  }
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
