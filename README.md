@@ -11,12 +11,12 @@ The implementation keeps provider calls on official APIs:
 
 ## Workspace
 
-- `apps/web`: Next.js app, API routes, dashboard, onboarding, public audit, admin leads.
-- `apps/worker`: BullMQ worker for crawl, prompt generation, scans, parsing, scoring, recommendations, and email reports.
+- `apps/web`: Next.js app, API routes, dashboard, public audit, admin leads.
+- `apps/worker`: BullMQ worker for scans, parsing, scoring, recommendations, and email reports.
 - `packages/db`: Prisma schema and database client.
 - `packages/ai`: Provider adapters for OpenAI, Gemini, Claude, and mock.
-- `packages/crawler`: MVP crawler with robots, sitemap, page extraction, rate limit, and timeout.
-- `packages/prompts`: 25-prompt generator.
+- `packages/crawler`: Legacy crawler package, currently disabled in the product flow.
+- `packages/prompts`: Legacy prompt generator package, currently disabled in the product flow.
 - `packages/parser`: Strict parser schema and extraction helpers.
 - `packages/scoring`: AI Visibility Score formulas.
 - `packages/email`: Email sender abstraction.

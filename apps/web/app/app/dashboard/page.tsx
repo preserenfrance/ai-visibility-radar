@@ -31,7 +31,7 @@ export default async function AppDashboardPage() {
           <p className="text-muted-foreground">Pregled znamk, zadnjih rezultatov in statusov scanov.</p>
         </div>
         <Button asChild>
-          <Link href="/app/onboarding">Dodaj znamko</Link>
+          <Link href="/ai-visibility-checker">Nov audit</Link>
         </Button>
       </div>
       <Card>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, Building2, ClipboardList, LogOut, Radar, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { BarChart3, ClipboardList, LogOut, Radar, SearchCheck, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearUserSession, getCurrentUser, isAdminUser } from "@/lib/auth";
 
@@ -25,7 +25,7 @@ export async function SiteHeader() {
           {user ? (
             <>
               <Nav href="/app/dashboard" icon={<BarChart3 className="h-4 w-4" />} label="Pregled" />
-              <Nav href="/app/onboarding" icon={<Building2 className="h-4 w-4" />} label="Dodaj znamko" />
+              <Nav href="/ai-visibility-checker" icon={<SearchCheck className="h-4 w-4" />} label="Nov audit" />
               {admin && <Nav href="/admin/leads" icon={<ClipboardList className="h-4 w-4" />} label="Admin" />}
               {admin && <Nav href="/admin/users" icon={<Users className="h-4 w-4" />} label="Uporabniki" />}
               {admin && (

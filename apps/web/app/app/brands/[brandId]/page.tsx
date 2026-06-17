@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
 import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
-import { createScanForBrand, crawlBrand, generatePromptsForBrand } from "@/lib/services";
+import { createScanForBrand } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,15 +27,6 @@ async function startProviderScan(formData: FormData) {
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
 }
 
-async function refreshCrawlAndPrompts(formData: FormData) {
-  "use server";
-  const brandId = String(formData.get("brandId"));
-  await requireBrandAccess(brandId);
-  await crawlBrand(brandId, 50).catch(() => null);
-  await generatePromptsForBrand(brandId, 25);
-  redirect(`/app/brands/${brandId}/prompts`);
-}
-
 export default async function BrandPage({ params }: { params: Promise<{ brandId: string }> }) {
   const { brandId } = await params;
   await requireBrandAccess(brandId);
@@ -45,7 +36,6 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
       organization: { include: { billingSubscription: true } },
       competitors: true,
       scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 2 },
-      crawlSnapshots: { orderBy: { createdAt: "desc" }, take: 1, include: { pages: true } },
       promptSets: { where: { status: "active" }, orderBy: { createdAt: "desc" }, take: 1, include: { prompts: true } },
       scanRuns: {
         orderBy: { createdAt: "desc" },
@@ -76,10 +66,6 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
           </div>
         </div>
         <div className="grid gap-3 sm:min-w-[24rem]">
-          <form action={refreshCrawlAndPrompts}>
-            <input type="hidden" name="brandId" value={brand.id} />
-            <Button type="submit" variant="outline">Osveži crawl in prompte</Button>
-          </form>
           <ProviderScanForm brandId={brand.id} action={startProviderScan} />
           <div className="grid gap-2 rounded-lg border bg-white p-4 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -146,7 +132,6 @@ export default async function BrandPage({ params }: { params: Promise<{ brandId:
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
             <div className="flex justify-between"><span>Konkurenti</span><strong>{brand.competitors.length}</strong></div>
-            <div className="flex justify-between"><span>Pregledane strani</span><strong>{brand.crawlSnapshots[0]?.pages.length ?? 0}</strong></div>
             <div className="flex justify-between"><span>Prompti</span><strong>{promptSet?.prompts.length ?? 0}</strong></div>
             <div className="flex justify-between"><span>Zadnji scan</span><strong>{latestScan?.status ?? "brez"}</strong></div>
           </CardContent>

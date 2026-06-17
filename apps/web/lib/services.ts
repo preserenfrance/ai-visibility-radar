@@ -33,235 +33,15 @@ export async function crawlBrand(
   maxPages: number = MVP_LIMITS.maxPages,
   crawlOptions: { timeoutMs?: number; rateLimitMs?: number } = {}
 ) {
-  const brand = await prisma.brand.findUnique({ where: { id: brandId } });
-  if (!brand) throw new Error("Brand not found");
-  const snapshot = await prisma.crawlSnapshot.create({
-    data: {
-      brandId,
-      status: "running",
-      maxPages
-    }
-  });
-  const result = await crawlDomain({ domain: brand.domain, maxPages, ...crawlOptions });
-  await prisma.crawlSnapshot.update({
-    where: { id: snapshot.id },
-    data: {
-      status: result.failed ? "failed" : "completed",
-      robotsTxt: result.robotsTxt,
-      sitemapUrl: result.sitemapUrl,
-      errorMessage: result.errorMessage,
-      completedAt: new Date(),
-      pages: {
-        create: result.pages.map((page) => ({
-          url: page.url,
-          title: page.title,
-          metaDescription: page.metaDescription,
-          h1: page.h1,
-          h2: page.h2,
-          mainText: page.mainText,
-          schemaJson: page.schemaJson === undefined ? undefined : JSON.parse(JSON.stringify(page.schemaJson)),
-          statusCode: page.statusCode,
-          canonicalUrl: page.canonicalUrl,
-          discoveredAt: new Date(page.discoveredAt)
-        }))
-      }
-    }
-  });
-  return prisma.crawlSnapshot.findUnique({
-    where: { id: snapshot.id },
-    include: { pages: true }
-  });
+  throw new Error("Bad Request: analiza spletne strani je izklopljena");
 }
 
 export async function generatePromptsForBrand(brandId: string, count: number = MVP_LIMITS.promptCount) {
-  const brand = await prisma.brand.findUnique({
-    where: { id: brandId },
-    include: {
-      competitors: true,
-      crawlSnapshots: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        include: { pages: true }
-      }
-    }
-  });
-  if (!brand) throw new Error("Brand not found");
-
-  const brandDomain = normalizeDomain(brand.domain);
-  const crawledPages = brand.crawlSnapshots[0]?.pages ?? [];
-  const pages: CrawledPageSnapshot[] = crawledPages
-    .map((page) => ({
-      url: page.url,
-      title: page.title ?? undefined,
-      metaDescription: page.metaDescription ?? undefined,
-      h1: page.h1 ?? undefined,
-      h2: Array.isArray(page.h2) ? (page.h2 as string[]) : [],
-      mainText: page.mainText ?? undefined,
-      schemaJson: page.schemaJson,
-      statusCode: page.statusCode,
-      canonicalUrl: page.canonicalUrl ?? undefined,
-      discoveredAt: page.discoveredAt.toISOString()
-    }))
-    .filter((page) => isPageFromDomain(page.url, brandDomain));
-
-  const industry = brand.industry ?? inferPromptIndustry(pages);
-  const promptSettings = await promptControlSettings();
-  const blueprintPrompts = renderQuestionBlueprintPrompts(
-    {
-      brandName: brand.name,
-      domain: brandDomain,
-      industry,
-      country: brand.country,
-      language: brand.language,
-      competitors: brand.competitors,
-      pages,
-      count
-    },
-    promptSettings.questionBlueprint,
-    count
-  );
-  const generated = await generatePromptSetWithChatGpt({
-    brandName: brand.name,
-    domain: brandDomain,
-    industry,
-    country: brand.country,
-    language: brand.language,
-    competitors: brand.competitors,
-    pages,
-    count
-  }, promptSettings).catch((error) => {
-    console.warn("ChatGPT prompt generation failed; using deterministic prompt fallback.", error);
-    return [];
-  });
-  const prompts = mergeGeneratedPrompts(
-    [
-      ...blueprintPrompts,
-      ...generated,
-      ...generatePromptSet({
-        brandName: brand.name,
-        domain: brandDomain,
-        industry,
-        country: brand.country,
-        language: brand.language,
-        competitors: brand.competitors,
-        pages,
-        count
-      })
-    ],
-    count
-  );
-
-  await prisma.promptSet.updateMany({
-    where: { brandId, status: "active" },
-    data: { status: "archived" }
-  });
-
-  return prisma.promptSet.create({
-    data: {
-      brandId,
-      name: `${brand.name} MVP prompts`,
-      language: brand.language,
-      country: brand.country,
-      status: "active",
-      prompts: {
-        create: prompts.map((prompt) => ({
-          text: prompt.text,
-          category: prompt.category,
-          intent: prompt.intent,
-          persona: prompt.persona,
-          funnelStage: prompt.funnelStage,
-          priority: prompt.priority,
-          isActive: true
-        }))
-      }
-    },
-    include: { prompts: true }
-  });
+  throw new Error("Bad Request: samodejno generiranje promptov je izklopljeno");
 }
 
 async function generateFastPromptsForBrand(brandId: string, count: number) {
-  const existing = await prisma.promptSet.findFirst({
-    where: { brandId, status: "active" },
-    include: { prompts: true }
-  });
-  if (existing && existing.prompts.length >= count) return existing;
-
-  const brand = await prisma.brand.findUnique({
-    where: { id: brandId },
-    include: {
-      competitors: true,
-      crawlSnapshots: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        include: { pages: true }
-      }
-    }
-  });
-  if (!brand) throw new Error("Brand not found");
-
-  const brandDomain = normalizeDomain(brand.domain);
-  const pages: CrawledPageSnapshot[] =
-    brand.crawlSnapshots[0]?.pages
-      .map((page) => ({
-        url: page.url,
-        title: page.title ?? undefined,
-        metaDescription: page.metaDescription ?? undefined,
-        h1: page.h1 ?? undefined,
-        h2: Array.isArray(page.h2) ? (page.h2 as string[]) : [],
-        mainText: page.mainText ?? undefined,
-        schemaJson: page.schemaJson,
-        statusCode: page.statusCode,
-        canonicalUrl: page.canonicalUrl ?? undefined,
-        discoveredAt: page.discoveredAt.toISOString()
-      }))
-      .filter((page) => isPageFromDomain(page.url, brandDomain)) ?? [];
-
-  const industry = brand.industry ?? inferPromptIndustry(pages);
-  const promptSettings = await promptControlSettings();
-  const input = {
-    brandName: brand.name,
-    domain: brandDomain,
-    industry,
-    country: brand.country,
-    language: brand.language,
-    competitors: brand.competitors,
-    pages,
-    count
-  };
-  const generated = mergeGeneratedPrompts(
-    [
-      ...renderQuestionBlueprintPrompts(input, promptSettings.questionBlueprint, count),
-      ...generatePromptSet(input)
-    ],
-    count
-  );
-
-  await prisma.promptSet.updateMany({
-    where: { brandId, status: "active" },
-    data: { status: "archived" }
-  });
-
-  return prisma.promptSet.create({
-    data: {
-      brandId,
-      name: `${brand.name} free audit prompts`,
-      language: brand.language,
-      country: brand.country,
-      status: "active",
-      prompts: {
-        create: generated.map((prompt) => ({
-          text: prompt.text,
-          category: prompt.category,
-          intent: prompt.intent,
-          persona: prompt.persona,
-          funnelStage: prompt.funnelStage,
-          priority: prompt.priority,
-          isActive: true
-        }))
-      }
-    },
-    include: { prompts: true }
-  });
+  throw new Error("Bad Request: samodejno generiranje promptov je izklopljeno");
 }
 
 type PromptControlSettings = {
@@ -269,6 +49,61 @@ type PromptControlSettings = {
   promptGenerationInstructions: string;
   questionBlueprint: string;
 };
+
+const USER_PROMPT_COUNT = 5;
+const USER_PROMPT_CATEGORY: PromptCategory = "category";
+const USER_PROMPT_FUNNEL_STAGE: GeneratedPrompt["funnelStage"] = "consideration";
+
+function normalizeUserPrompts(prompts: string[]) {
+  const normalized = prompts
+    .map((prompt) => prompt.trim().replace(/\s+/g, " "))
+    .filter(Boolean);
+
+  if (normalized.length !== USER_PROMPT_COUNT) {
+    throw new Error(`Bad Request: vnesite točno ${USER_PROMPT_COUNT} promptov`);
+  }
+
+  if (new Set(normalized.map((prompt) => prompt.toLowerCase())).size !== normalized.length) {
+    throw new Error("Bad Request: prompti se ne smejo podvajati");
+  }
+
+  if (normalized.some((prompt) => prompt.length < 3)) {
+    throw new Error("Bad Request: vsak prompt mora imeti vsaj 3 znake");
+  }
+
+  return normalized;
+}
+
+async function createUserPromptSet(brand: { id: string; name: string; language: string; country: string }, prompts: string[]) {
+  const normalized = normalizeUserPrompts(prompts);
+
+  await prisma.promptSet.updateMany({
+    where: { brandId: brand.id, status: "active" },
+    data: { status: "archived" }
+  });
+
+  return prisma.promptSet.create({
+    data: {
+      brandId: brand.id,
+      name: `${brand.name} uporabniški prompti`,
+      language: brand.language,
+      country: brand.country,
+      status: "active",
+      prompts: {
+        create: normalized.map((text, index) => ({
+          text,
+          category: USER_PROMPT_CATEGORY,
+          intent: "user supplied prompt",
+          persona: "buyer",
+          funnelStage: USER_PROMPT_FUNNEL_STAGE,
+          priority: index + 1,
+          isActive: true
+        }))
+      }
+    },
+    include: { prompts: true }
+  });
+}
 
 async function promptControlSettings(): Promise<PromptControlSettings> {
   const [websiteAnalysisInstructions, promptGenerationInstructions, questionBlueprint] = await Promise.all([
@@ -753,8 +588,10 @@ export async function createScanForBrand(
   });
   if (!brand) throw new Error("Brand not found");
 
-  const promptSet =
-    brand.promptSets[0] ?? (await generatePromptsForBrand(brandId, options.promptLimit ?? MVP_LIMITS.promptCount));
+  const promptSet = brand.promptSets[0];
+  if (!promptSet || promptSet.prompts.length === 0) {
+    throw new Error("Bad Request: za scan najprej vnesite uporabniške prompte");
+  }
   const prompts = promptSet.prompts.slice(0, options.promptLimit ?? MVP_LIMITS.promptCount);
   const engines = options.engineVariants?.length
     ? await ensureEngineVariants(options.engineVariants)
@@ -1228,6 +1065,7 @@ export async function createFreeAudit(input: {
   brandName: string;
   country: string;
   language: string;
+  prompts: string[];
   providers?: AiEngineProvider[];
   competitors?: string;
   utmSource?: string;
@@ -1280,11 +1118,11 @@ export async function createFreeAudit(input: {
   });
 
   auditStep = "prompts";
-  await generateFastPromptsForBrand(brand.id, FREE_AUDIT_LIMITS.promptCount);
+  const promptSet = await createUserPromptSet(brand, input.prompts);
   auditStep = "scan";
   const scan = await createScanForBrand(brand.id, {
     triggerType: "free_audit",
-    promptLimit: FREE_AUDIT_LIMITS.promptCount,
+    promptLimit: promptSet.prompts.length,
     providers: input.providers?.length ? input.providers : ["openai"],
     repeatCount: FREE_AUDIT_LIMITS.repeatCount,
     runNow: false,
@@ -1299,9 +1137,7 @@ export async function createFreeAudit(input: {
       leadScore: calculateLeadScore({
         email: input.email,
         competitorCount: competitorNames.length,
-        crawledPageCount: await prisma.crawledPage.count({
-          where: { crawlSnapshot: { brandId: brand.id } }
-        }),
+        crawledPageCount: 0,
         visibilityScore: scan?.scoreSnapshot?.visibilityScore
       })
     }

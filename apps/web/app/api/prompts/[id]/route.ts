@@ -5,7 +5,6 @@ import { ok, parseBody, route } from "@/lib/http";
 
 const schema = z.object({
   text: z.string().min(3).optional(),
-  category: z.string().optional(),
   intent: z.string().optional(),
   persona: z.string().optional(),
   funnelStage: z.string().optional(),

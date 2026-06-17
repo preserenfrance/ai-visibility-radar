@@ -22,7 +22,6 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
       where: { id },
       include: {
         competitors: true,
-        crawlSnapshots: { orderBy: { createdAt: "desc" }, take: 1, include: { pages: true } },
         promptSets: { orderBy: { createdAt: "desc" }, take: 1, include: { prompts: true } },
         scanRuns: { orderBy: { createdAt: "desc" }, take: 5, include: { scoreSnapshot: true } }
       }

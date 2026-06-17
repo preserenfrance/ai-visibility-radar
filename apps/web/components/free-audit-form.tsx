@@ -6,6 +6,15 @@ import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+const promptPlaceholders = [
+  "Npr. Kateri ponudniki so najboljša izbira za tehnični SEO v Sloveniji?",
+  "Npr. Primerjaj najboljše agencije za B2B marketing v Sloveniji.",
+  "Npr. Katero podjetje priporočate za izboljšanje vidnosti v ChatGPT?",
+  "Npr. Katere rešitve so primerne za podjetje, ki želi več povpraševanj iz iskalnikov?",
+  "Npr. Kdo ima največ izkušenj z optimizacijo vsebine za AI odgovore?"
+];
 
 export function FreeAuditForm({
   action,
@@ -30,6 +39,19 @@ export function FreeAuditForm({
           <Input name="language" defaultValue="sl" />
         </div>
         <Input name="competitors" placeholder="Konkurent A, Konkurent B" />
+        <fieldset className="grid gap-3 rounded-md border bg-secondary/30 p-3">
+          <legend className="px-1 text-sm font-medium">Vnesi 5 promptov za test</legend>
+          {promptPlaceholders.map((placeholder, index) => (
+            <Textarea
+              key={index}
+              name="prompts"
+              placeholder={placeholder}
+              required
+              minLength={3}
+              className="min-h-20 bg-white"
+            />
+          ))}
+        </fieldset>
         <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">Izberi AI modele za test</legend>
           <div className="grid gap-2 sm:grid-cols-3">
@@ -97,7 +119,7 @@ function SubmitArea() {
             Audit teče v ozadju
           </div>
           <p className="mt-2 text-muted-foreground">
-            Beremo domeno, pripravljamo prompte in pošiljamo izbrane modele na API. To lahko traja nekaj trenutkov.
+            Pošiljamo tvojih 5 promptov na izbrane AI modele in računamo rezultat. To lahko traja nekaj trenutkov.
           </p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-primary" />

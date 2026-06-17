@@ -58,12 +58,12 @@ const features: Array<{
 
 const steps = [
   {
-    title: "Vneseš domeno",
-    description: "Radar prebere tvojo spletno stran, znamko, panogo, konkurente in osnovne signale zaupanja."
+    title: "Vneseš 5 promptov",
+    description: "Sam določiš vprašanja, ki jih želiš meriti za svojo znamko, trg in konkurente."
   },
   {
-    title: "Modeli dobijo realna vprašanja",
-    description: "Ustvarijo se prompti, ki posnemajo kupce, ko iščejo priporočila, primerjave ali najboljšo rešitev."
+    title: "Modeli dobijo tvoja vprašanja",
+    description: "Radar ista vprašanja pošlje izbranim AI modelom, zato meriš natanko tiste scenarije, ki so pomembni zate."
   },
   {
     title: "Dobiš rezultat in prioritete",
@@ -101,7 +101,7 @@ const reviews = [
 
 const metrics = [
   { label: "AI Visibility Score", value: "0-100" },
-  { label: "Testni prompti", value: "25+" },
+  { label: "Testni prompti", value: "5" },
   { label: "Primerjava modelov", value: "3 AI" },
   { label: "Poročilo", value: "takoj" }
 ];
@@ -202,7 +202,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-5 py-16">
         <div className="max-w-2xl">
           <Badge variant="secondary">Kako deluje</Badge>
-          <h2 className="mt-4 text-3xl font-semibold">Od domene do jasnega načrta izboljšav.</h2>
+          <h2 className="mt-4 text-3xl font-semibold">Od tvojih promptov do jasnega načrta izboljšav.</h2>
           <p className="mt-4 leading-7 text-muted-foreground">
             Audit je narejen tako, da ga razume marketing, prodaja in vodstvo. Ne dobiš samo številke,
             ampak razlago, zakaj je rezultat takšen in kje je najhitrejši napredek.
@@ -267,7 +267,7 @@ export default function HomePage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/ai-visibility-checker">Preveri svojo domeno</Link>
+              <Link href="/ai-visibility-checker">Preveri svoje prompte</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/pricing">Poglej cenik</Link>
@@ -334,7 +334,7 @@ export default function HomePage() {
             </div>
             <h2 className="text-3xl font-semibold">Poglej, kako te AI modeli vidijo danes.</h2>
             <p className="mt-3 max-w-2xl leading-7 text-slate-300">
-              Vnesi domeno, prejmi osnovni AI Visibility Score in odkrij, katere vsebine, citacije
+              Vnesi domeno in 5 promptov, prejmi osnovni AI Visibility Score in odkrij, katere vsebine, citacije
               in primerjave najprej izboljšati.
             </p>
           </div>

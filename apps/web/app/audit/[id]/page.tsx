@@ -15,6 +15,61 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
+type ClaimableLead = {
+  id: string;
+  organizationId: string | null;
+  auditScanRunId: string | null;
+  companyName: string | null;
+  brandName: string;
+};
+
+async function ensureLeadMembership(lead: ClaimableLead, userId: string) {
+  let organizationId = lead.organizationId;
+
+  if (!organizationId && lead.auditScanRunId) {
+    const scan = await prisma.scanRun.findUnique({
+      where: { id: lead.auditScanRunId },
+      select: { brand: { select: { organizationId: true } } }
+    });
+    organizationId = scan?.brand.organizationId ?? null;
+  }
+
+  if (!organizationId) {
+    organizationId = (
+      await prisma.organization.create({
+        data: {
+          name: lead.companyName || lead.brandName || "Moja organizacija"
+        }
+      })
+    ).id;
+  }
+
+  await prisma.membership.upsert({
+    where: {
+      userId_organizationId: {
+        userId,
+        organizationId
+      }
+    },
+    update: { role: "owner" },
+    create: {
+      userId,
+      organizationId,
+      role: "owner"
+    }
+  });
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      organizationId,
+      status: "converted"
+    }
+  });
+
+  return organizationId;
+}
+
 async function createAuditAccount(formData: FormData) {
   "use server";
 
@@ -42,16 +97,6 @@ async function createAuditAccount(formData: FormData) {
     redirect(`/audit/${leadId}?accountError=exists`);
   }
 
-  const organizationId =
-    lead.organizationId ??
-    (
-      await prisma.organization.create({
-        data: {
-          name: lead.companyName || lead.brandName || email.split("@")[0] || "Moja organizacija"
-        }
-      })
-    ).id;
-
   const user = existingUser
     ? await prisma.user.update({
         where: { id: existingUser.id },
@@ -68,28 +113,7 @@ async function createAuditAccount(formData: FormData) {
         }
       });
 
-  await prisma.membership.upsert({
-    where: {
-      userId_organizationId: {
-        userId: user.id,
-        organizationId
-      }
-    },
-    update: { role: "owner" },
-    create: {
-      userId: user.id,
-      organizationId,
-      role: "owner"
-    }
-  });
-
-  await prisma.lead.update({
-    where: { id: lead.id },
-    data: {
-      organizationId,
-      status: "converted"
-    }
-  });
+  const organizationId = await ensureLeadMembership(lead, user.id);
   await setUserSession(user.id);
   await prisma.auditLog.create({
     data: {
@@ -100,6 +124,34 @@ async function createAuditAccount(formData: FormData) {
   });
 
   redirect(`/audit/${leadId}`);
+}
+
+async function openMonitoring(formData: FormData) {
+  "use server";
+
+  const leadId = String(formData.get("leadId") ?? "");
+  const next = `/audit/${leadId}`;
+  const user = await getCurrentUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    include: { auditScanRun: true }
+  });
+  if (!lead) redirect("/ai-visibility-checker?error=unknown");
+
+  const hasMembership = Boolean(
+    lead.organizationId && user.memberships.some((membership) => membership.organizationId === lead.organizationId)
+  );
+  const emailMatches = normalizeEmail(user.email) === normalizeEmail(lead.email);
+
+  if (!hasMembership) {
+    if (!emailMatches) redirect(next);
+    await ensureLeadMembership(lead, user.id);
+  }
+
+  const brandId = lead.auditScanRun?.brandId;
+  redirect(brandId ? `/app/brands/${brandId}` : "/app/dashboard");
 }
 
 export default async function AuditPage({
@@ -164,11 +216,12 @@ export default async function AuditPage({
           <h1 className="mt-3 text-3xl font-semibold">{lead.brandName}</h1>
           <p className="text-muted-foreground">{lead.domain}</p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild>
-            <Link href="/app/onboarding">Ustvari račun za celoten monitoring</Link>
+        <form action={openMonitoring}>
+          <input type="hidden" name="leadId" value={lead.id} />
+          <Button type="submit">
+            Odpri celoten monitoring
           </Button>
-        </div>
+        </form>
       </div>
       {reportPending && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
@@ -179,7 +232,7 @@ export default async function AuditPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Audit teče v ozadju: pripravljamo prompte, pošiljamo izbrane AI modele in računamo rezultat.
+            Audit teče v ozadju: pošiljamo tvoje prompte na izbrane AI modele in računamo rezultat.
             Stran se bo samodejno osvežila.
           </CardContent>
         </Card>

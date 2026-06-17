@@ -12,28 +12,13 @@ import { requireBrandAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const promptCategories = [
-  { value: "category", label: "Kategorija" },
-  { value: "problem", label: "Problem" },
-  { value: "comparison", label: "Primerjava" },
-  { value: "best_for", label: "Najboljše za" },
-  { value: "local", label: "Lokalno" },
-  { value: "branded", label: "Znamčno" },
-  { value: "competitor_alternative", label: "Alternativa konkurentu" }
-] as const;
-
-const funnelStages = [
-  { value: "awareness", label: "Zavedanje" },
-  { value: "consideration", label: "Premislek" },
-  { value: "decision", label: "Odločitev" }
-] as const;
+const DEFAULT_PROMPT_CATEGORY = "category";
+const DEFAULT_FUNNEL_STAGE = "consideration";
 
 async function addPrompt(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
   const text = String(formData.get("text") ?? "").trim();
-  const category = categoryFromForm(formData.get("category"));
-  const funnelStage = funnelStageFromForm(formData.get("funnelStage"));
 
   if (text.length < 3) throw new Error("Prompt mora imeti vsaj 3 znake");
 
@@ -65,10 +50,10 @@ async function addPrompt(formData: FormData) {
     data: {
       promptSetId: promptSet.id,
       text,
-      category,
+      category: DEFAULT_PROMPT_CATEGORY,
       intent: "custom prompt",
       persona: "buyer",
-      funnelStage,
+      funnelStage: DEFAULT_FUNNEL_STAGE,
       priority: (lastPrompt?.priority ?? 0) + 1,
       isActive: true
     }
@@ -163,17 +148,7 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
               placeholder="Npr. Kateri ponudniki so najboljša izbira za tehnični SEO v Sloveniji?"
               required
             />
-            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-              <select name="category" defaultValue="category" className="h-10 rounded-md border bg-background px-3 text-sm">
-                {promptCategories.map((category) => (
-                  <option key={category.value} value={category.value}>{category.label}</option>
-                ))}
-              </select>
-              <select name="funnelStage" defaultValue="consideration" className="h-10 rounded-md border bg-background px-3 text-sm">
-                {funnelStages.map((stage) => (
-                  <option key={stage.value} value={stage.value}>{stage.label}</option>
-                ))}
-              </select>
+            <div className="flex justify-end">
               <Button type="submit">
                 <Plus className="h-4 w-4" />
                 Dodaj prompt
@@ -191,7 +166,6 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
             <THead>
               <TR>
                 <TH>Prompt</TH>
-                <TH>Kategorija</TH>
                 <TH>Rezultat ChatGPT</TH>
                 <TH>Rezultat Gemini</TH>
                 <TH>Rezultat Claude</TH>
@@ -247,7 +221,6 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                         </div>
                       </details>
                     </TD>
-                    <TD><Badge variant="secondary">{prompt.category}</Badge></TD>
                     <TD>{engineCell(latestRuns.ChatGPT)}</TD>
                     <TD>{engineCell(latestRuns.Gemini)}</TD>
                     <TD>{engineCell(latestRuns.Claude)}</TD>
@@ -290,12 +263,4 @@ function engineCell(run?: any) {
   if (run.status === "failed") return "napaka";
   if (!parsed) return run.status;
   return parsed.brandMentioned ? `rang ${parsed.brandRank ?? "-"}` : "ni omenjeno";
-}
-
-function categoryFromForm(value: FormDataEntryValue | null) {
-  return promptCategories.some((category) => category.value === value) ? String(value) : "category";
-}
-
-function funnelStageFromForm(value: FormDataEntryValue | null) {
-  return funnelStages.some((stage) => stage.value === value) ? String(value) : "consideration";
 }

@@ -102,5 +102,5 @@ NEXT_PUBLIC_APP_URL=
 ## Notes
 
 - OpenAI, Gemini, and Claude adapters use official APIs only.
-- The MVP free audit route has `maxDuration: 60` because it can crawl up to 10 pages and run a mock scan.
+- The MVP free audit route has `maxDuration: 60` because it runs the user's 5 submitted prompts through the selected model flow.
 - Provider scans should be queued and processed by the external worker once Redis is configured.

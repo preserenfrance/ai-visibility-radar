@@ -213,7 +213,7 @@ Po deployu preveri:
 ```text
 /
 /ai-visibility-checker
-/app/onboarding
+/app/dashboard
 /pricing
 ```
 

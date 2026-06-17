@@ -59,7 +59,8 @@ export default async function AdminSystemPromptsPage({
           </div>
           <h1 className="text-3xl font-semibold">Sistemski prompti</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Navodila, ki vplivajo na razumevanje spletne strani in sestavo testnih vprašanj za AI modele.
+            Legacy nastavitve za prejšnji tok analize strani in generiranja vprašanj. Novi tok uporablja 5 promptov,
+            ki jih uporabnik vnese v začetnem obrazcu.
           </p>
         </div>
         {(params?.saved || params?.reset) && (

@@ -19,6 +19,7 @@ async function startAudit(formData: FormData) {
       country: String(formData.get("country") ?? "Slovenija"),
       language: String(formData.get("language") ?? "sl"),
       competitors: String(formData.get("competitors") ?? ""),
+      prompts: formData.getAll("prompts").map((prompt) => String(prompt)),
       providers: ["openai"]
     });
     leadId = lead?.id;
@@ -51,7 +52,7 @@ export default async function CheckerPage({
             Preveri, ali te ChatGPT priporoča.
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni audit ustvari lead, pregleda do 10 strani, pošlje 3 realne prompte na ChatGPT
+            Brezplačni audit uporabi 5 promptov, ki jih vneseš sam, jih pošlje na ChatGPT
             in pokaže začetni rezultat tvoje AI vidnosti. Gemini in Claude sta na voljo v plačljivih paketih.
           </p>
         </div>
@@ -76,6 +77,9 @@ function auditErrorCode(error: unknown) {
     lower.includes("insufficient_quota")
   ) {
     return "openai";
+  }
+  if (lower.includes("prompt") || lower.includes("vpra")) {
+    return "prompts";
   }
   if (
     lower.includes("prepared statement") ||
@@ -111,6 +115,8 @@ function auditErrorMessage(errorCode: string) {
   switch (errorCode) {
     case "openai":
       return "Audita trenutno ni bilo mogoče zagnati, ker OpenAI API ni pravilno nastavljen ali nima dovolj kvote. Na Vercelu preveri OPENAI_API_KEY in po želji OPENAI_MODEL.";
+    case "prompts":
+      return "Za audit moraš vnesti točno 5 promptov, vsak z vsaj 3 znaki.";
     case "database":
       return "Audita trenutno ni bilo mogoče zagnati, ker povezava z bazo ali migracije niso pripravljene. Preveri Vercel okoljske spremenljivke in produkcijsko bazo.";
     case "schema":

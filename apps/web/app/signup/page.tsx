@@ -17,7 +17,7 @@ async function signup(formData: FormData) {
   const passwordRepeat = String(formData.get("passwordRepeat") ?? "");
   const name = String(formData.get("name") ?? "");
   const organizationName = String(formData.get("organizationName") ?? "");
-  const next = safeRedirectPath(String(formData.get("next") ?? "/app/onboarding"), "/app/onboarding");
+  const next = safeRedirectPath(String(formData.get("next") ?? "/app/dashboard"), "/app/dashboard");
 
   if (password.length < 8) {
     redirect(`/signup?error=short&email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`);
@@ -43,7 +43,7 @@ export default async function SignupPage({
   searchParams?: Promise<{ error?: string; email?: string; next?: string }>;
 }) {
   const params = await searchParams;
-  const next = safeRedirectPath(params?.next, "/app/onboarding");
+  const next = safeRedirectPath(params?.next, "/app/dashboard");
 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-5 py-10">

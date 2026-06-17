@@ -146,7 +146,7 @@ Ko so env vars nastavljene:
 ```text
 /
 /ai-visibility-checker
-/app/onboarding
+/app/dashboard
 /pricing
 ```
 
