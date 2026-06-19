@@ -68,6 +68,8 @@ function buildSuggestionPrompt(input: {
     "",
     "Create exactly 5 buyer-style prompts that would be useful for testing whether ChatGPT, Gemini, or Claude recommend this brand.",
     "The prompts must reflect the actual offer, product category, buyer intent, and market context you find on the website.",
+    "Each prompt must be concrete, concise, and no longer than one sentence.",
+    "Write one direct question per prompt. Do not include explanations, follow-up questions, or multiple tasks in the same prompt.",
     "Prefer discovery, comparison, problem, alternatives, local-fit, or provider-selection questions.",
     "Use competitor names only when they make the prompt more realistic.",
     "Include at most one prompt that mentions the tested brand by name.",
@@ -122,10 +124,23 @@ function extractPromptText(value: unknown) {
 }
 
 function normalizePromptText(value: string) {
-  return value
+  const text = value
     .replace(/^\s*(?:\d+[\).:-]\s*|[-*]\s+)/, "")
     .replace(/\s+/g, " ")
     .trim();
+  return firstSentence(text);
+}
+
+function firstSentence(value: string) {
+  const questionEnd = value.indexOf("?");
+  if (questionEnd >= 0) return value.slice(0, questionEnd + 1).trim();
+
+  const exclamationEnd = value.indexOf("!");
+  if (exclamationEnd >= 0) return value.slice(0, exclamationEnd + 1).trim();
+
+  const periodMatch = value.match(/\.(?:\s|$)/);
+  if (!periodMatch?.index) return value;
+  return value.slice(0, periodMatch.index + 1).trim();
 }
 
 function splitCompetitors(value?: string) {
