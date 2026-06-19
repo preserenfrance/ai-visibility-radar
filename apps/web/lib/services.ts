@@ -25,6 +25,7 @@ import {
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
+import { promptLimitForOrganization } from "@/lib/billing";
 import { enqueueJob } from "@/lib/queue";
 import { systemPromptContent } from "@/lib/system-prompts";
 
@@ -583,7 +584,8 @@ export async function createScanForBrand(
         orderBy: { createdAt: "desc" },
         take: 1,
         include: { prompts: { where: { isActive: true }, orderBy: { priority: "asc" } } }
-      }
+      },
+      organization: { include: { billingSubscription: true } }
     }
   });
   if (!brand) throw new Error("Brand not found");
@@ -592,7 +594,11 @@ export async function createScanForBrand(
   if (!promptSet || promptSet.prompts.length === 0) {
     throw new Error("Bad Request: za scan najprej vnesite uporabniške prompte");
   }
-  const prompts = promptSet.prompts.slice(0, options.promptLimit ?? MVP_LIMITS.promptCount);
+  const promptLimit = Math.min(
+    options.promptLimit ?? MVP_LIMITS.promptCount,
+    promptLimitForOrganization(brand.organization)
+  );
+  const prompts = promptSet.prompts.slice(0, promptLimit);
   const engines = options.engineVariants?.length
     ? await ensureEngineVariants(options.engineVariants)
     : await ensureEngines(options.providers ?? ENGINE_PROVIDERS, {

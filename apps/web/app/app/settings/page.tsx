@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { BillingActions } from "@/components/billing-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
+import { effectivePlanForOrganization } from "@/lib/billing";
 import { requireCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +46,12 @@ export default async function SettingsPage() {
             </THead>
             <TBody>
               {organizations.map((organization) => {
-                const limits = PLAN_LIMITS[organization.plan];
+                const effectivePlan = effectivePlanForOrganization(organization);
+                const limits = PLAN_LIMITS[effectivePlan];
                 return (
                   <TR key={organization.id}>
                     <TD className="font-medium">{organization.name}</TD>
-                    <TD><Badge>{organization.plan}</Badge></TD>
+                    <TD><Badge>{effectivePlan}</Badge></TD>
                     <TD>{organization.brands.length}/{limits.brandCount}</TD>
                     <TD>{limits.promptsPerBrand} na znamko</TD>
                     <TD>{cadenceLabel(limits.scanCadence)}</TD>

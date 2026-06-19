@@ -1,6 +1,12 @@
 import type { Plan } from "@ai-radar/shared";
+import { PLAN_LIMITS } from "@ai-radar/usage";
 
 export type PaidFeatureKey = "competitors" | "citations" | "actions";
+
+type OrganizationPlanAccess = {
+  plan: Plan;
+  billingSubscription?: { status: string | null } | null;
+};
 
 export const paidFeatureLabels: Record<PaidFeatureKey, string> = {
   competitors: "Konkurenti",
@@ -8,14 +14,19 @@ export const paidFeatureLabels: Record<PaidFeatureKey, string> = {
   actions: "Akcijski center"
 };
 
-export function hasActivePaidPlan(organization: {
-  plan: Plan;
-  billingSubscription?: { status: string | null } | null;
-}) {
+export function hasActivePaidPlan(organization: OrganizationPlanAccess) {
   return (
     organization.plan !== "free" &&
     (organization.billingSubscription?.status === "active" || organization.billingSubscription?.status === "trialing")
   );
+}
+
+export function effectivePlanForOrganization(organization: OrganizationPlanAccess): Plan {
+  return hasActivePaidPlan(organization) ? organization.plan : "free";
+}
+
+export function promptLimitForOrganization(organization: OrganizationPlanAccess) {
+  return PLAN_LIMITS[effectivePlanForOrganization(organization)].promptsPerBrand;
 }
 
 export function paidFeatureFromValue(value: string | string[] | undefined): PaidFeatureKey {

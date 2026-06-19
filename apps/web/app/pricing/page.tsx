@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const plans = [
-  { name: "Brezplačno", price: "0", items: ["1 brezplačen audit", "5 promptov", "Ročni AI scan"] },
+  { name: "Brezplačno", price: "0", items: ["1 brezplačen audit", "10 promptov", "Ročni AI scan"] },
   { name: "Starter", price: "49", items: ["1 znamka", "25 promptov", "Tedenski reden scan", "Stripe naročnina"] },
   { name: "Growth", price: "149", items: ["3 znamke", "100 promptov na znamko", "Dnevni reden scan", "Akcijski center"] }
 ];

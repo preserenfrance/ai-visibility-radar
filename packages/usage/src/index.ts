@@ -24,7 +24,7 @@ export const PLAN_LIMITS: Record<
 > = {
   free: {
     brandCount: 1,
-    promptsPerBrand: 5,
+    promptsPerBrand: 10,
     scansPerMonth: 1,
     aiCallsPerMonth: 15,
     scanCadence: "manual"

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { requireBrandAccess } from "@/lib/auth";
+import { promptLimitForOrganization } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ async function addPrompt(formData: FormData) {
   if (text.length < 3) throw new Error("Prompt mora imeti vsaj 3 znake");
 
   const { brand } = await requireBrandAccess(brandId);
+  const promptLimit = promptLimitForOrganization(brand.organization);
   let promptSet = await prisma.promptSet.findFirst({
     where: { brandId, status: "active" },
     orderBy: { createdAt: "desc" }
@@ -38,6 +40,16 @@ async function addPrompt(formData: FormData) {
         status: "active"
       }
     });
+  }
+
+  const activePromptCount = await prisma.prompt.count({
+    where: {
+      promptSetId: promptSet.id,
+      isActive: true
+    }
+  });
+  if (activePromptCount >= promptLimit) {
+    throw new Error(`Bad Request: ta paket omogoča največ ${promptLimit} aktivnih promptov na znamko`);
   }
 
   const lastPrompt = await prisma.prompt.findFirst({
@@ -108,6 +120,7 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
     include: {
+      organization: { include: { billingSubscription: true } },
       promptSets: {
         where: { status: "active" },
         orderBy: { createdAt: "desc" },
@@ -128,12 +141,17 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
     }
   });
   const promptSet = brand?.promptSets[0];
+  const promptLimit = brand ? promptLimitForOrganization(brand.organization) : 10;
+  const activePromptCount = promptSet?.prompts.filter((prompt) => prompt.isActive).length ?? 0;
+  const promptLimitReached = activePromptCount >= promptLimit;
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold">Rezultati promptov</h1>
-        <p className="text-muted-foreground">{brand?.name} · {promptSet?.prompts.length ?? 0} promptov</p>
+        <p className="text-muted-foreground">
+          {brand?.name} · {activePromptCount}/{promptLimit} aktivnih promptov
+        </p>
       </div>
       <BrandMenu brandId={brandId} active="prompts" />
       <Card className="mb-6">
@@ -147,9 +165,15 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
               name="text"
               placeholder="Npr. Kateri ponudniki so najboljša izbira za tehnični SEO v Sloveniji?"
               required
+              disabled={promptLimitReached}
             />
-            <div className="flex justify-end">
-              <Button type="submit">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                {promptLimitReached
+                  ? `Dosežen je limit ${promptLimit} aktivnih promptov za trenutni paket.`
+                  : `Dodaš lahko še ${promptLimit - activePromptCount} aktivnih promptov.`}
+              </p>
+              <Button type="submit" disabled={promptLimitReached}>
                 <Plus className="h-4 w-4" />
                 Dodaj prompt
               </Button>
