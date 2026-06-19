@@ -80,7 +80,7 @@ async function createAuditAccount(formData: FormData) {
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    include: { organization: true }
+    include: { auditScanRun: true, organization: true }
   });
   if (!lead) redirect("/ai-visibility-checker?error=unknown");
 
@@ -123,7 +123,7 @@ async function createAuditAccount(formData: FormData) {
     }
   });
 
-  redirect(`/audit/${leadId}`);
+  redirect(monitoringPathForLead(lead));
 }
 
 async function openMonitoring(formData: FormData) {
@@ -151,7 +151,12 @@ async function openMonitoring(formData: FormData) {
   }
 
   const brandId = lead.auditScanRun?.brandId;
-  redirect(brandId ? `/app/brands/${brandId}` : "/app/dashboard");
+  redirect(monitoringPathForLead({ auditScanRun: lead.auditScanRun }));
+}
+
+function monitoringPathForLead(lead: { auditScanRun?: { brandId: string } | null }) {
+  const brandId = lead.auditScanRun?.brandId;
+  return brandId ? `/app/brands/${brandId}` : "/app/dashboard";
 }
 
 export default async function AuditPage({
