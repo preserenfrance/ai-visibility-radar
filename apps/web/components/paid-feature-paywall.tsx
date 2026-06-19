@@ -30,13 +30,13 @@ export function PaidFeaturePaywall({
         <div className="grid gap-3 md:grid-cols-2">
           <PlanCard
             name="Starter"
-            price="49 € / mesec"
+            price="15,99 € / mesec"
             badge="tedensko"
             items={["1 znamka", "25 promptov", "Tedenski reden scan", "Konkurenti, citati in akcijski center"]}
           />
           <PlanCard
             name="Growth"
-            price="149 € / mesec"
+            price="39,99 € / mesec"
             badge="dnevno"
             items={["3 znamke", "100 promptov na znamko", "Dnevni reden scan", "Več prostora za rast in primerjave"]}
           />

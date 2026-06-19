@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const plans = [
   { name: "Brezplačno", price: "0", items: ["1 brezplačen audit", "10 promptov", "Ročni AI scan"] },
-  { name: "Starter", price: "49", items: ["1 znamka", "25 promptov", "Tedenski reden scan", "Stripe naročnina"] },
-  { name: "Growth", price: "149", items: ["3 znamke", "100 promptov na znamko", "Dnevni reden scan", "Akcijski center"] }
+  { name: "Starter", price: "15,99", items: ["1 znamka", "25 promptov", "Tedenski reden scan", "Stripe naročnina"] },
+  { name: "Growth", price: "39,99", items: ["3 znamke", "100 promptov na znamko", "Dnevni reden scan", "Akcijski center"] }
 ];
 
 export default function PricingPage() {
@@ -26,7 +26,7 @@ export default function PricingPage() {
           <Card key={plan.name}>
             <CardHeader>
               <CardTitle>{plan.name}</CardTitle>
-              <div className="text-3xl font-semibold">€{plan.price}</div>
+              <div className="text-3xl font-semibold">{plan.price} €</div>
             </CardHeader>
             <CardContent className="space-y-3">
               {plan.items.map((item) => (

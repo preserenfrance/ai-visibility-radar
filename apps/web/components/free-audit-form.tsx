@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 const promptPlaceholders = [
-  "Npr. Kateri ponudniki so najboljša izbira za tehnični SEO v Sloveniji?",
-  "Npr. Primerjaj najboljše agencije za B2B marketing v Sloveniji.",
-  "Npr. Katero podjetje priporočate za izboljšanje vidnosti v ChatGPT?",
-  "Npr. Katere rešitve so primerne za podjetje, ki želi več povpraševanj iz iskalnikov?",
-  "Npr. Kdo ima največ izkušenj z optimizacijo vsebine za AI odgovore?",
+  "Npr. Katera spletna trgovina je najboljša izbira za nakup kakovostnih tekaških copat v Sloveniji?",
+  "Npr. Primerjaj spletne trgovine z otroško opremo glede na ceno, dostavo in vračila.",
+  "Npr. Kje lahko kupim zanesljiv robotski sesalnik z dobro garancijo in hitro dostavo?",
+  "Npr. Katere spletne trgovine priporočate za nakup naravne kozmetike v Sloveniji?",
+  "Npr. Katera spletna trgovina ima najboljšo ponudbo pohištva za manjša stanovanja?",
 ];
 
 export function FreeAuditForm({
