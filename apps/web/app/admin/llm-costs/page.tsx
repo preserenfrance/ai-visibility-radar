@@ -24,6 +24,8 @@ type ProviderSummary = {
   inputTokens: number;
   outputTokens: number;
   responseCount: number;
+  storedResponseCount: number;
+  estimatedResponseCount: number;
   models: Set<string>;
   daily: Array<{ key: string; label: string; value: number }>;
 };
@@ -58,8 +60,17 @@ export default async function AdminLlmCostsPage() {
 
   const summaries = buildProviderSummaries(days, responses);
   const monthTotal = summaries.reduce((sum, item) => sum + item.totalUsd, 0);
+  const storedTotal = summaries.reduce((sum, item) => sum + item.storedUsd, 0);
+  const estimatedTotal = summaries.reduce(
+    (sum, item) => sum + item.estimatedUsd,
+    0,
+  );
   const responseTotal = summaries.reduce(
     (sum, item) => sum + item.responseCount,
+    0,
+  );
+  const estimatedResponseTotal = summaries.reduce(
+    (sum, item) => sum + item.estimatedResponseCount,
     0,
   );
   const inputTokenTotal = summaries.reduce(
@@ -79,16 +90,18 @@ export default async function AdminLlmCostsPage() {
             <DollarSign className="h-5 w-5" />
             Admin analitika
           </div>
-          <h1 className="text-3xl font-semibold">LLM stroški</h1>
+          <h1 className="text-3xl font-semibold">
+            LLM poraba in ocena stroškov
+          </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Dnevna poraba po providerju in skupna poraba v tekočem mesecu.
-            Zneski so v USD; kjer provider ne vrne shranjenega stroška,
-            uporabimo oceno iz tokenov.
+            Dnevna poraba po providerju in skupna ocena v tekočem mesecu. Zneski
+            niso račun providerjev; temeljijo na shranjenih AI odgovorih in
+            tokenih v aplikaciji.
           </p>
         </div>
         <div className="rounded-lg border bg-white px-5 py-4 text-right">
           <div className="text-xs font-semibold uppercase text-muted-foreground">
-            Skupaj ta mesec
+            Ocenjeno skupaj ta mesec
           </div>
           <div className="mt-1 text-3xl font-semibold">
             ${formatMoney(monthTotal)}
@@ -99,7 +112,36 @@ export default async function AdminLlmCostsPage() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
+      <Card className="mb-6 border-amber-300 bg-amber-50">
+        <CardContent className="p-4 text-sm text-amber-950">
+          Ta stran ni natančen obračun dobaviteljev. Natančna je samo toliko,
+          kolikor so v bazi shranjeni provider stroški. Če `AiResponse.cost` ni
+          shranjen, uporabimo oceno iz input/output tokenov. Pomožni klici, ki
+          se ne shranijo kot `AiResponse` (na primer predlaganje promptov), v
+          tem prikazu niso zajeti.
+        </CardContent>
+      </Card>
+
+      <div className="mb-6 grid gap-4 md:grid-cols-4">
+        <MetricCard
+          label="Zabeleženo iz providerja"
+          value={`$${formatMoney(storedTotal)}`}
+        />
+        <MetricCard
+          label="Ocenjeno iz tokenov"
+          value={`$${formatMoney(estimatedTotal)}`}
+        />
+        <MetricCard
+          label="Odgovori brez shranjenega cost"
+          value={estimatedResponseTotal.toLocaleString("sl-SI")}
+        />
+        <MetricCard
+          label="Povprečna ocena na odgovor"
+          value={`$${formatMoney(responseTotal ? monthTotal / responseTotal : 0)}`}
+        />
+      </div>
+
+      <div className="mb-6 grid gap-4 md:grid-cols-2">
         <MetricCard
           label="Input tokeni"
           value={inputTokenTotal.toLocaleString("sl-SI")}
@@ -107,10 +149,6 @@ export default async function AdminLlmCostsPage() {
         <MetricCard
           label="Output tokeni"
           value={outputTokenTotal.toLocaleString("sl-SI")}
-        />
-        <MetricCard
-          label="Povprečje na odgovor"
-          value={`$${formatMoney(responseTotal ? monthTotal / responseTotal : 0)}`}
         />
       </div>
 
@@ -133,6 +171,7 @@ export default async function AdminLlmCostsPage() {
                 <TH>Odgovori</TH>
                 <TH>Input tokeni</TH>
                 <TH>Output tokeni</TH>
+                <TH>Vir stroška</TH>
                 <TH>Modeli</TH>
               </TR>
             </THead>
@@ -144,6 +183,10 @@ export default async function AdminLlmCostsPage() {
                   <TD>{summary.responseCount}</TD>
                   <TD>{summary.inputTokens.toLocaleString("sl-SI")}</TD>
                   <TD>{summary.outputTokens.toLocaleString("sl-SI")}</TD>
+                  <TD>
+                    {summary.storedResponseCount} zabeleženih,{" "}
+                    {summary.estimatedResponseCount} ocenjenih
+                  </TD>
                   <TD>{Array.from(summary.models).join(", ") || "-"}</TD>
                 </TR>
               ))}
@@ -157,9 +200,6 @@ export default async function AdminLlmCostsPage() {
 
 function ProviderCostCard({ summary }: { summary: ProviderSummary }) {
   const maxDaily = Math.max(...summary.daily.map((day) => day.value), 0);
-  const estimatedShare =
-    summary.totalUsd > 0 ? (summary.estimatedUsd / summary.totalUsd) * 100 : 0;
-
   return (
     <Card>
       <CardHeader>
@@ -178,14 +218,14 @@ function ProviderCostCard({ summary }: { summary: ProviderSummary }) {
           </div>
           <div className="text-right">
             <div className="text-xs font-semibold uppercase text-muted-foreground">
-              Ta mesec
+              Ocenjeno ta mesec
             </div>
             <div className="text-2xl font-semibold">
               ${formatMoney(summary.totalUsd)}
             </div>
             <div className="text-xs text-muted-foreground">
-              {summary.responseCount} odgovorov · {formatMoney(estimatedShare)}%
-              ocenjeno
+              ${formatMoney(summary.storedUsd)} zabeleženo · $
+              {formatMoney(summary.estimatedUsd)} ocenjeno
             </div>
           </div>
         </div>
@@ -274,6 +314,8 @@ function buildProviderSummaries(
         inputTokens: 0,
         outputTokens: 0,
         responseCount: 0,
+        storedResponseCount: 0,
+        estimatedResponseCount: 0,
         models: new Set<string>(),
         daily: days.map((day) => ({ ...day, value: 0 })),
       } satisfies ProviderSummary,
@@ -305,8 +347,13 @@ function buildProviderSummaries(
     summary.outputTokens += response.outputTokens ?? 0;
     summary.responseCount += 1;
     summary.models.add(response.model);
-    if (Number.isFinite(storedCost ?? NaN)) summary.storedUsd += storedCost!;
-    else summary.estimatedUsd += cost;
+    if (Number.isFinite(storedCost ?? NaN)) {
+      summary.storedUsd += storedCost!;
+      summary.storedResponseCount += 1;
+    } else {
+      summary.estimatedUsd += cost;
+      summary.estimatedResponseCount += 1;
+    }
     if (day) day.value += cost;
   }
 
