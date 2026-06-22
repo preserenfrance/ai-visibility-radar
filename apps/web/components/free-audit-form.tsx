@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Activity, ArrowRight, Loader2 } from "lucide-react";
 import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
@@ -16,6 +16,7 @@ const promptPlaceholders = [
   "Npr. Katere spletne trgovine priporočate za nakup naravne kozmetike v Sloveniji?",
   "Npr. Katera spletna trgovina ima najboljšo ponudbo pohištva za manjša stanovanja?",
 ];
+const MIN_PROMPT_COUNT = 3;
 
 export function FreeAuditForm({
   action,
@@ -28,6 +29,7 @@ export function FreeAuditForm({
   const promptRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const [suggestingPrompts, setSuggestingPrompts] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [promptCountWarning, setPromptCountWarning] = useState(false);
 
   async function suggestPrompts() {
     const form = formRef.current;
@@ -44,6 +46,7 @@ export function FreeAuditForm({
 
     setSuggestingPrompts(true);
     setSuggestError(null);
+    setPromptCountWarning(false);
 
     try {
       const response = await fetch("/api/public/audit/prompts/suggest", {
@@ -81,6 +84,7 @@ export function FreeAuditForm({
         element.value = prompt;
         element.dispatchEvent(new Event("input", { bubbles: true }));
       });
+      setPromptCountWarning(false);
     } catch (error) {
       setSuggestError(
         error instanceof Error
@@ -92,6 +96,20 @@ export function FreeAuditForm({
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const enteredPrompts = promptRefs.current.filter((element) => {
+      const value = element?.value.trim() ?? "";
+      return value.length >= 3;
+    }).length;
+
+    if (enteredPrompts >= MIN_PROMPT_COUNT) return;
+
+    event.preventDefault();
+    setSuggestError(null);
+    setPromptCountWarning(true);
+    promptRefs.current.find((element) => !element?.value.trim())?.focus();
+  }
+
   return (
     <CardContent>
       {errorMessage && (
@@ -99,7 +117,12 @@ export function FreeAuditForm({
           {errorMessage}
         </div>
       )}
-      <form ref={formRef} action={action} className="grid gap-3">
+      <form
+        ref={formRef}
+        action={action}
+        onSubmit={handleSubmit}
+        className="grid gap-3"
+      >
         <Input name="domain" placeholder="domain.com" required />
         <Input name="brandName" placeholder="Ime znamke" required />
         <Input
@@ -115,7 +138,7 @@ export function FreeAuditForm({
         <Input name="competitors" placeholder="Konkurent A, Konkurent B" />
         <fieldset className="grid gap-3 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
-            Vnesi 5 promptov za test
+            Vnesi vsaj 3 prompte za test
           </legend>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
@@ -143,6 +166,36 @@ export function FreeAuditForm({
               {suggestError}
             </div>
           )}
+          {promptCountWarning && (
+            <div className="grid gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <div>
+                <div className="font-medium">
+                  Za audit potrebuješ vsaj 3 prompte.
+                </div>
+                <p className="mt-1">
+                  Vpiši še en prompt ali pa klikni spodnji gumb in ti pripravimo
+                  predloge, ki jih lahko pregledaš in popraviš.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit border-amber-300 bg-white"
+                onClick={suggestPrompts}
+                disabled={suggestingPrompts}
+              >
+                {suggestingPrompts ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Pripravljam predloge
+                  </>
+                ) : (
+                  "Vi mi predlagajte prompte"
+                )}
+              </Button>
+            </div>
+          )}
           {promptPlaceholders.map((placeholder, index) => (
             <Textarea
               key={index}
@@ -151,7 +204,6 @@ export function FreeAuditForm({
               }}
               name="prompts"
               placeholder={placeholder}
-              required
               minLength={3}
               className="min-h-20 bg-white"
             />
@@ -233,8 +285,8 @@ function SubmitArea() {
             Audit teče v ozadju
           </div>
           <p className="mt-2 text-muted-foreground">
-            Pošiljamo tvojih 5 promptov na izbrane AI modele in računamo
-            rezultat. To lahko traja nekaj trenutkov.
+            Pošiljamo tvoje prompte na izbrane AI modele in računamo rezultat.
+            To lahko traja nekaj trenutkov.
           </p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-primary" />

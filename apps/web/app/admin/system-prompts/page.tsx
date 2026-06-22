@@ -8,7 +8,7 @@ import {
   isSystemPromptKey,
   resetSystemPrompt,
   saveSystemPrompt,
-  systemPromptSettings
+  systemPromptSettings,
 } from "@/lib/system-prompts";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +17,13 @@ async function savePrompt(formData: FormData) {
   "use server";
   const user = await requireAdminUser();
   const key = String(formData.get("key") ?? "");
-  if (!isSystemPromptKey(key)) throw new Error("Bad Request: neveljaven sistemski prompt");
+  if (!isSystemPromptKey(key))
+    throw new Error("Bad Request: neveljaven sistemski prompt");
 
   await saveSystemPrompt({
     key,
     content: String(formData.get("content") ?? "").trim(),
-    updatedByEmail: user.email
+    updatedByEmail: user.email,
   });
   redirect("/admin/system-prompts?saved=1");
 }
@@ -31,20 +32,22 @@ async function resetPrompt(formData: FormData) {
   "use server";
   const user = await requireAdminUser();
   const key = String(formData.get("key") ?? "");
-  if (!isSystemPromptKey(key)) throw new Error("Bad Request: neveljaven sistemski prompt");
+  if (!isSystemPromptKey(key))
+    throw new Error("Bad Request: neveljaven sistemski prompt");
 
   await resetSystemPrompt(key, user.email);
   redirect("/admin/system-prompts?reset=1");
 }
 
 export default async function AdminSystemPromptsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams?: Promise<{ saved?: string; reset?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/system-prompts");
-  if (!isAdminUser(user)) return <main className="p-8">Nimate dostopa do admin strani.</main>;
+  if (!isAdminUser(user))
+    return <main className="p-8">Nimate dostopa do admin strani.</main>;
 
   const params = await searchParams;
   const settings = await systemPromptSettings();
@@ -59,13 +62,16 @@ export default async function AdminSystemPromptsPage({
           </div>
           <h1 className="text-3xl font-semibold">Sistemski prompti</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Legacy nastavitve za prejšnji tok analize strani in generiranja vprašanj. Novi tok uporablja 5 promptov,
-            ki jih uporabnik vnese v začetnem obrazcu.
+            Legacy nastavitve za prejšnji tok analize strani in generiranja
+            vprašanj. Novi tok uporablja 3-5 promptov, ki jih uporabnik vnese v
+            začetnem obrazcu.
           </p>
         </div>
         {(params?.saved || params?.reset) && (
           <div className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
-            {params.saved ? "Sistemski prompt je shranjen." : "Sistemski prompt je ponastavljen."}
+            {params.saved
+              ? "Sistemski prompt je shranjen."
+              : "Sistemski prompt je ponastavljen."}
           </div>
         )}
       </div>
@@ -75,7 +81,9 @@ export default async function AdminSystemPromptsPage({
           <Card key={prompt.key}>
             <CardHeader>
               <CardTitle>{prompt.title}</CardTitle>
-              <p className="text-sm text-muted-foreground">{prompt.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {prompt.description}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {prompt.updatedAt
                   ? `Zadnja sprememba: ${prompt.updatedAt.toLocaleString("sl-SI")}${
@@ -87,10 +95,18 @@ export default async function AdminSystemPromptsPage({
             <CardContent>
               <form action={savePrompt} className="grid gap-3">
                 <input type="hidden" name="key" value={prompt.key} />
-                <Textarea name="content" defaultValue={prompt.content} className="min-h-56 font-mono text-xs" />
+                <Textarea
+                  name="content"
+                  defaultValue={prompt.content}
+                  className="min-h-56 font-mono text-xs"
+                />
                 <div className="flex flex-wrap gap-2">
                   <Button type="submit">Shrani</Button>
-                  <Button type="submit" variant="outline" formAction={resetPrompt}>
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    formAction={resetPrompt}
+                  >
                     Ponastavi
                   </Button>
                 </div>

@@ -7,7 +7,7 @@ import { generatePromptSet } from "@ai-radar/prompts";
 import {
   calculateLeadScore,
   calculateVisibilityScore,
-  generateRecommendationDrafts
+  generateRecommendationDrafts,
 } from "@ai-radar/scoring";
 import {
   ENGINE_PROVIDERS,
@@ -21,7 +21,7 @@ import {
   type GeneratedPrompt,
   type ParsedAiResult,
   type Plan,
-  type PromptCategory
+  type PromptCategory,
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
@@ -32,12 +32,15 @@ import { systemPromptContent } from "@/lib/system-prompts";
 export async function crawlBrand(
   brandId: string,
   maxPages: number = MVP_LIMITS.maxPages,
-  crawlOptions: { timeoutMs?: number; rateLimitMs?: number } = {}
+  crawlOptions: { timeoutMs?: number; rateLimitMs?: number } = {},
 ) {
   throw new Error("Bad Request: analiza spletne strani je izklopljena");
 }
 
-export async function generatePromptsForBrand(brandId: string, count: number = MVP_LIMITS.promptCount) {
+export async function generatePromptsForBrand(
+  brandId: string,
+  count: number = MVP_LIMITS.promptCount,
+) {
   throw new Error("Bad Request: samodejno generiranje promptov je izklopljeno");
 }
 
@@ -51,20 +54,30 @@ type PromptControlSettings = {
   questionBlueprint: string;
 };
 
-const USER_PROMPT_COUNT = 5;
+const USER_PROMPT_MIN_COUNT = 3;
+const USER_PROMPT_MAX_COUNT = 5;
 const USER_PROMPT_CATEGORY: PromptCategory = "category";
-const USER_PROMPT_FUNNEL_STAGE: GeneratedPrompt["funnelStage"] = "consideration";
+const USER_PROMPT_FUNNEL_STAGE: GeneratedPrompt["funnelStage"] =
+  "consideration";
 
 function normalizeUserPrompts(prompts: string[]) {
   const normalized = prompts
     .map((prompt) => prompt.trim().replace(/\s+/g, " "))
     .filter(Boolean);
 
-  if (normalized.length !== USER_PROMPT_COUNT) {
-    throw new Error(`Bad Request: vnesite točno ${USER_PROMPT_COUNT} promptov`);
+  if (
+    normalized.length < USER_PROMPT_MIN_COUNT ||
+    normalized.length > USER_PROMPT_MAX_COUNT
+  ) {
+    throw new Error(
+      `Bad Request: vnesite vsaj ${USER_PROMPT_MIN_COUNT} in največ ${USER_PROMPT_MAX_COUNT} promptov`,
+    );
   }
 
-  if (new Set(normalized.map((prompt) => prompt.toLowerCase())).size !== normalized.length) {
+  if (
+    new Set(normalized.map((prompt) => prompt.toLowerCase())).size !==
+    normalized.length
+  ) {
     throw new Error("Bad Request: prompti se ne smejo podvajati");
   }
 
@@ -75,12 +88,15 @@ function normalizeUserPrompts(prompts: string[]) {
   return normalized;
 }
 
-async function createUserPromptSet(brand: { id: string; name: string; language: string; country: string }, prompts: string[]) {
+async function createUserPromptSet(
+  brand: { id: string; name: string; language: string; country: string },
+  prompts: string[],
+) {
   const normalized = normalizeUserPrompts(prompts);
 
   await prisma.promptSet.updateMany({
     where: { brandId: brand.id, status: "active" },
-    data: { status: "archived" }
+    data: { status: "archived" },
   });
 
   return prisma.promptSet.create({
@@ -98,25 +114,29 @@ async function createUserPromptSet(brand: { id: string; name: string; language: 
           persona: "buyer",
           funnelStage: USER_PROMPT_FUNNEL_STAGE,
           priority: index + 1,
-          isActive: true
-        }))
-      }
+          isActive: true,
+        })),
+      },
     },
-    include: { prompts: true }
+    include: { prompts: true },
   });
 }
 
 async function promptControlSettings(): Promise<PromptControlSettings> {
-  const [websiteAnalysisInstructions, promptGenerationInstructions, questionBlueprint] = await Promise.all([
+  const [
+    websiteAnalysisInstructions,
+    promptGenerationInstructions,
+    questionBlueprint,
+  ] = await Promise.all([
     systemPromptContent("website_analysis"),
     systemPromptContent("prompt_generation"),
-    systemPromptContent("question_blueprint")
+    systemPromptContent("question_blueprint"),
   ]);
 
   return {
     websiteAnalysisInstructions,
     promptGenerationInstructions,
-    questionBlueprint
+    questionBlueprint,
   };
 }
 
@@ -132,7 +152,7 @@ function renderQuestionBlueprintPrompts(
     count: number;
   },
   blueprint: string,
-  count: number
+  count: number,
 ): GeneratedPrompt[] {
   const templates = blueprint
     .split(/\r?\n/)
@@ -143,7 +163,11 @@ function renderQuestionBlueprintPrompts(
     .map((template, index) => {
       const text = ensureQuestionText(renderQuestionTemplate(template, input));
       if (!text || hasMojibake(text)) return null;
-      if (isSlovenianLanguage(input.language) && !looksLikeSlovenianQuestion(text)) return null;
+      if (
+        isSlovenianLanguage(input.language) &&
+        !looksLikeSlovenianQuestion(text)
+      )
+        return null;
       const category = inferBlueprintCategory(text, input.brandName);
       return {
         text,
@@ -153,7 +177,7 @@ function renderQuestionBlueprintPrompts(
         funnelStage: funnelStageForCategory(category),
         priority: index + 1,
         language: input.language,
-        country: input.country
+        country: input.country,
       };
     })
     .filter((prompt): prompt is GeneratedPrompt => Boolean(prompt))
@@ -168,10 +192,13 @@ function renderQuestionTemplate(
     country: string;
     language: string;
     competitors: Array<{ name: string; domain?: string | null }>;
-  }
+  },
 ) {
-  const competitors = input.competitors.map((competitor) => competitor.name).filter(Boolean);
-  const firstCompetitor = competitors[0] ?? "najpogosteje omenjenega konkurenta";
+  const competitors = input.competitors
+    .map((competitor) => competitor.name)
+    .filter(Boolean);
+  const firstCompetitor =
+    competitors[0] ?? "najpogosteje omenjenega konkurenta";
   const industry = input.industry || "ustrezen produkt ali rešitev";
   return template
     .replaceAll("{brandName}", input.brandName)
@@ -198,7 +225,7 @@ function mergeGeneratedPrompts(prompts: GeneratedPrompt[], count: number) {
 
   return merged.map((prompt, index) => ({
     ...prompt,
-    priority: index + 1
+    priority: index + 1,
   }));
 }
 
@@ -209,33 +236,60 @@ function normalizePromptText(text: string) {
 function inferPromptIndustry(pages: CrawledPageSnapshot[]) {
   const candidates = pages
     .slice(0, 8)
-    .flatMap((page) => [page.h1, ...page.h2.slice(0, 8), page.title, page.metaDescription])
+    .flatMap((page) => [
+      page.h1,
+      ...page.h2.slice(0, 8),
+      page.title,
+      page.metaDescription,
+    ])
     .map(cleanIndustryCandidate)
     .filter((candidate): candidate is string => Boolean(candidate));
   const unique = uniqueStrings(candidates);
   return unique.find(containsProductCue) ?? unique[0];
 }
 
-function inferBlueprintCategory(text: string, brandName: string): PromptCategory {
+function inferBlueprintCategory(
+  text: string,
+  brandName: string,
+): PromptCategory {
   const lower = text.toLowerCase();
   if (brandName && lower.includes(brandName.toLowerCase())) return "branded";
   if (lower.includes("alternativ")) return "competitor_alternative";
-  if (lower.includes("primerj") || lower.includes("compare")) return "comparison";
+  if (lower.includes("primerj") || lower.includes("compare"))
+    return "comparison";
   if (lower.includes("najbolj") || lower.includes("best")) return "best_for";
-  if (lower.includes("sloven") || lower.includes("lokal") || lower.includes("local")) return "local";
-  if (lower.includes("kako") || lower.includes("kaj mora") || lower.includes("problem")) return "problem";
+  if (
+    lower.includes("sloven") ||
+    lower.includes("lokal") ||
+    lower.includes("local")
+  )
+    return "local";
+  if (
+    lower.includes("kako") ||
+    lower.includes("kaj mora") ||
+    lower.includes("problem")
+  )
+    return "problem";
   return "category";
 }
 
-function funnelStageForCategory(category: PromptCategory): GeneratedPrompt["funnelStage"] {
+function funnelStageForCategory(
+  category: PromptCategory,
+): GeneratedPrompt["funnelStage"] {
   if (category === "branded" || category === "comparison") return "decision";
-  if (category === "best_for" || category === "competitor_alternative" || category === "local") return "consideration";
+  if (
+    category === "best_for" ||
+    category === "competitor_alternative" ||
+    category === "local"
+  )
+    return "consideration";
   return "awareness";
 }
 
 function localMarketLabelForPrompt(country: string) {
   const lower = country.toLowerCase();
-  if (lower === "slovenia" || lower === "slovenija" || lower === "si") return "Sloveniji";
+  if (lower === "slovenia" || lower === "slovenija" || lower === "si")
+    return "Sloveniji";
   return country;
 }
 
@@ -249,7 +303,10 @@ function isSlovenianLanguage(language: string) {
 }
 
 function ensureQuestionText(value: string) {
-  const text = value.replace(/\s+/g, " ").trim().replace(/[.。]+$/, "");
+  const text = value
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.。]+$/, "");
   return text.endsWith("?") ? text : `${text}?`;
 }
 
@@ -260,7 +317,7 @@ function hasMojibake(value: string) {
 function looksLikeSlovenianQuestion(value: string) {
   const lower = value.toLowerCase();
   return /^(kateri|katere|katero|kakšen|kaksen|kakšna|kaksna|kako|kaj|kdo|kje|kdaj|zakaj|koliko|ali|na kaj|za katere|primerjaj)\b/.test(
-    lower
+    lower,
   );
 }
 
@@ -274,7 +331,9 @@ function cleanIndustryCandidate(value: string | null | undefined) {
   if (cleaned.length < 5 || cleaned.length > 100) return undefined;
   if (hasMojibake(cleaned)) return undefined;
   if (isGenericIndustryCandidate(cleaned)) return undefined;
-  return /^[A-ZČŠŽ][a-zčšž]/.test(cleaned) ? cleaned.charAt(0).toLowerCase() + cleaned.slice(1) : cleaned;
+  return /^[A-ZČŠŽ][a-zčšž]/.test(cleaned)
+    ? cleaned.charAt(0).toLowerCase() + cleaned.slice(1)
+    : cleaned;
 }
 
 function isGenericIndustryCandidate(value: string) {
@@ -298,9 +357,11 @@ function isGenericIndustryCandidate(value: string) {
     "pogoji",
     "terms",
     "piškotki",
-    "cookie"
+    "cookie",
   ];
-  return genericTerms.some((term) => lower === term || lower.startsWith(`${term} `));
+  return genericTerms.some(
+    (term) => lower === term || lower.startsWith(`${term} `),
+  );
 }
 
 function containsProductCue(value: string) {
@@ -319,7 +380,7 @@ function containsProductCue(value: string) {
     "solution",
     "service",
     "platform",
-    "tool"
+    "tool",
   ].some((term) => lower.includes(term));
 }
 
@@ -342,21 +403,28 @@ const PROMPT_CATEGORIES: PromptCategory[] = [
   "best_for",
   "local",
   "branded",
-  "competitor_alternative"
+  "competitor_alternative",
 ];
 
-const FUNNEL_STAGES: GeneratedPrompt["funnelStage"][] = ["awareness", "consideration", "decision"];
+const FUNNEL_STAGES: GeneratedPrompt["funnelStage"][] = [
+  "awareness",
+  "consideration",
+  "decision",
+];
 
-async function generatePromptSetWithChatGpt(input: {
-  brandName: string;
-  domain: string;
-  industry?: string;
-  country: string;
-  language: string;
-  competitors: Array<{ name: string; domain?: string | null }>;
-  pages: CrawledPageSnapshot[];
-  count: number;
-}, settings: PromptControlSettings): Promise<GeneratedPrompt[]> {
+async function generatePromptSetWithChatGpt(
+  input: {
+    brandName: string;
+    domain: string;
+    industry?: string;
+    country: string;
+    language: string;
+    competitors: Array<{ name: string; domain?: string | null }>;
+    pages: CrawledPageSnapshot[];
+    count: number;
+  },
+  settings: PromptControlSettings,
+): Promise<GeneratedPrompt[]> {
   const config = getConfig();
   if (!config.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is required for ChatGPT prompt generation");
@@ -364,7 +432,7 @@ async function generatePromptSetWithChatGpt(input: {
 
   const adapter = createAiAdapter("openai", {
     modelOverride: config.OPENAI_MODEL,
-    searchEnabled: false
+    searchEnabled: false,
   });
 
   const output = await adapter.runPrompt({
@@ -375,9 +443,9 @@ async function generatePromptSetWithChatGpt(input: {
     brandDomain: input.domain,
     competitors: input.competitors.map((competitor) => ({
       name: competitor.name,
-      domain: competitor.domain ?? undefined
+      domain: competitor.domain ?? undefined,
     })),
-    searchEnabled: false
+    searchEnabled: false,
   });
 
   const parsed = parseJsonObject(output.rawText);
@@ -388,16 +456,19 @@ async function generatePromptSetWithChatGpt(input: {
   return generated.slice(0, input.count);
 }
 
-function buildPromptGenerationPrompt(input: {
-  brandName: string;
-  domain: string;
-  industry?: string;
-  country: string;
-  language: string;
-  competitors: Array<{ name: string; domain?: string | null }>;
-  pages: CrawledPageSnapshot[];
-  count: number;
-}, settings: PromptControlSettings) {
+function buildPromptGenerationPrompt(
+  input: {
+    brandName: string;
+    domain: string;
+    industry?: string;
+    country: string;
+    language: string;
+    competitors: Array<{ name: string; domain?: string | null }>;
+    pages: CrawledPageSnapshot[];
+    count: number;
+  },
+  settings: PromptControlSettings,
+) {
   return [
     "Website analysis instructions:",
     settings.websiteAnalysisInstructions,
@@ -434,7 +505,7 @@ function buildPromptGenerationPrompt(input: {
     settings.questionBlueprint,
     "",
     "Website context:",
-    JSON.stringify(buildWebsiteContext(input.pages), null, 2)
+    JSON.stringify(buildWebsiteContext(input.pages), null, 2),
   ].join("\n");
 }
 
@@ -445,7 +516,7 @@ function buildWebsiteContext(pages: CrawledPageSnapshot[]) {
     metaDescription: page.metaDescription,
     h1: page.h1,
     h2: page.h2.slice(0, 8),
-    textSample: page.mainText?.replace(/\s+/g, " ").trim().slice(0, 1200)
+    textSample: page.mainText?.replace(/\s+/g, " ").trim().slice(0, 1200),
   }));
 }
 
@@ -455,10 +526,14 @@ function normalizeChatGptPrompts(
     country: string;
     language: string;
     count: number;
-  }
+  },
 ): GeneratedPrompt[] {
   const value = parsed as { prompts?: unknown };
-  const rawPrompts = Array.isArray(value.prompts) ? value.prompts : Array.isArray(parsed) ? parsed : [];
+  const rawPrompts = Array.isArray(value.prompts)
+    ? value.prompts
+    : Array.isArray(parsed)
+      ? parsed
+      : [];
 
   return rawPrompts
     .map((item, index) => normalizeChatGptPrompt(item, index, input))
@@ -471,29 +546,40 @@ function normalizeChatGptPrompt(
   input: {
     country: string;
     language: string;
-  }
+  },
 ): GeneratedPrompt | null {
   if (!item || typeof item !== "object") return null;
   const draft = item as Record<string, unknown>;
-  const text = ensureQuestionText(typeof draft.text === "string" ? draft.text.trim() : "");
+  const text = ensureQuestionText(
+    typeof draft.text === "string" ? draft.text.trim() : "",
+  );
   if (text.length < 8) return null;
   if (hasMojibake(text)) return null;
-  if (isSlovenianLanguage(input.language) && !looksLikeSlovenianQuestion(text)) return null;
+  if (isSlovenianLanguage(input.language) && !looksLikeSlovenianQuestion(text))
+    return null;
 
   return {
     text,
     category: promptCategory(draft.category),
-    intent: typeof draft.intent === "string" && draft.intent.trim() ? draft.intent.trim() : "buyer discovery",
-    persona: typeof draft.persona === "string" && draft.persona.trim() ? draft.persona.trim() : "buyer",
+    intent:
+      typeof draft.intent === "string" && draft.intent.trim()
+        ? draft.intent.trim()
+        : "buyer discovery",
+    persona:
+      typeof draft.persona === "string" && draft.persona.trim()
+        ? draft.persona.trim()
+        : "buyer",
     funnelStage: funnelStage(draft.funnelStage),
     priority: index + 1,
     language: input.language,
-    country: input.country
+    country: input.country,
   };
 }
 
 function promptCategory(value: unknown): PromptCategory {
-  return PROMPT_CATEGORIES.includes(value as PromptCategory) ? (value as PromptCategory) : "category";
+  return PROMPT_CATEGORIES.includes(value as PromptCategory)
+    ? (value as PromptCategory)
+    : "category";
 }
 
 function funnelStage(value: unknown): GeneratedPrompt["funnelStage"] {
@@ -510,13 +596,13 @@ function isPageFromDomain(url: string, domain: string) {
 
 export async function ensureEngines(
   providers: AiEngineProvider[] = ENGINE_PROVIDERS,
-  options: { searchEnabled?: boolean } = {}
+  options: { searchEnabled?: boolean } = {},
 ) {
   return ensureEngineVariants(
     providers.map((provider) => ({
       provider,
-      searchEnabled: options.searchEnabled
-    }))
+      searchEnabled: options.searchEnabled,
+    })),
   );
 }
 
@@ -534,33 +620,36 @@ export async function ensureEngineVariants(selections: EngineSelection[]) {
     openai: config.OPENAI_MODEL,
     google: config.GEMINI_MODEL,
     anthropic: config.CLAUDE_MODEL,
-    mock: "mock-ai-visibility-model"
+    mock: "mock-ai-visibility-model",
   };
 
   return Promise.all(
-    uniqueEngineSelections(selections.length ? selections : ENGINE_PROVIDERS.map((provider) => ({ provider }))).map(
-      ({ provider, searchEnabled }) =>
-        prisma.engine.upsert({
-          where: {
-            provider_model_searchEnabled: {
-              provider,
-              model: models[provider] ?? `env:${provider}`,
-              searchEnabled
-            }
-          },
-          update: {
-            engineName: engineName(provider, searchEnabled),
-            isActive: true
-          },
-          create: {
+    uniqueEngineSelections(
+      selections.length
+        ? selections
+        : ENGINE_PROVIDERS.map((provider) => ({ provider })),
+    ).map(({ provider, searchEnabled }) =>
+      prisma.engine.upsert({
+        where: {
+          provider_model_searchEnabled: {
             provider,
             model: models[provider] ?? `env:${provider}`,
-            engineName: engineName(provider, searchEnabled),
             searchEnabled,
-            isActive: true
-          }
-        })
-    )
+          },
+        },
+        update: {
+          engineName: engineName(provider, searchEnabled),
+          isActive: true,
+        },
+        create: {
+          provider,
+          model: models[provider] ?? `env:${provider}`,
+          engineName: engineName(provider, searchEnabled),
+          searchEnabled,
+          isActive: true,
+        },
+      }),
+    ),
   );
 }
 
@@ -574,7 +663,7 @@ export async function createScanForBrand(
     repeatCount?: number;
     runNow?: boolean;
     searchEnabled?: boolean;
-  } = {}
+  } = {},
 ) {
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
@@ -583,10 +672,12 @@ export async function createScanForBrand(
         where: { status: "active" },
         orderBy: { createdAt: "desc" },
         take: 1,
-        include: { prompts: { where: { isActive: true }, orderBy: { priority: "asc" } } }
+        include: {
+          prompts: { where: { isActive: true }, orderBy: { priority: "asc" } },
+        },
       },
-      organization: { include: { billingSubscription: true } }
-    }
+      organization: { include: { billingSubscription: true } },
+    },
   });
   if (!brand) throw new Error("Brand not found");
 
@@ -596,13 +687,13 @@ export async function createScanForBrand(
   }
   const promptLimit = Math.min(
     options.promptLimit ?? MVP_LIMITS.promptCount,
-    promptLimitForOrganization(brand.organization)
+    promptLimitForOrganization(brand.organization),
   );
   const prompts = promptSet.prompts.slice(0, promptLimit);
   const engines = options.engineVariants?.length
     ? await ensureEngineVariants(options.engineVariants)
     : await ensureEngines(options.providers ?? ENGINE_PROVIDERS, {
-        searchEnabled: options.searchEnabled
+        searchEnabled: options.searchEnabled,
       });
   const repeatCount = options.repeatCount ?? MVP_LIMITS.repeatCount;
   const totalPromptRuns = prompts.length * engines.length * repeatCount;
@@ -621,13 +712,13 @@ export async function createScanForBrand(
               promptId: prompt.id,
               engineId: engine.id,
               repeatIndex,
-              status: "queued" as const
-            }))
-          )
-        )
-      }
+              status: "queued" as const,
+            })),
+          ),
+        ),
+      },
     },
-    include: { promptRuns: true }
+    include: { promptRuns: true },
   });
 
   await prisma.auditLog.create({
@@ -635,8 +726,8 @@ export async function createScanForBrand(
       organizationId: brand.organizationId,
       action: "scan_started",
       entityType: "ScanRun",
-      entityId: scan.id
-    }
+      entityId: scan.id,
+    },
   });
 
   if (options.runNow) {
@@ -647,17 +738,22 @@ export async function createScanForBrand(
 
   return prisma.scanRun.findUnique({
     where: { id: scan.id },
-    include: { promptRuns: true, scoreSnapshot: true }
+    include: { promptRuns: true, scoreSnapshot: true },
   });
 }
 
-export function recurringScanCadenceForPlan(plan: Plan): RecurringScanCadence | null {
+export function recurringScanCadenceForPlan(
+  plan: Plan,
+): RecurringScanCadence | null {
   if (plan === "growth") return "daily";
   if (plan === "starter") return "weekly";
   return null;
 }
 
-export function nextRecurringScanDate(cadence: RecurringScanCadence, from = new Date()) {
+export function nextRecurringScanDate(
+  cadence: RecurringScanCadence,
+  from = new Date(),
+) {
   const next = new Date(from);
   next.setDate(next.getDate() + (cadence === "daily" ? 1 : 7));
   return next;
@@ -667,7 +763,9 @@ export function defaultRecurringScanEngineVariants(): EngineSelection[] {
   return [{ provider: "openai", searchEnabled: true }];
 }
 
-export function recurringScanEngineVariantsFromJson(value: unknown): EngineSelection[] {
+export function recurringScanEngineVariantsFromJson(
+  value: unknown,
+): EngineSelection[] {
   if (!Array.isArray(value)) return defaultRecurringScanEngineVariants();
   const variants: EngineSelection[] = [];
 
@@ -675,12 +773,14 @@ export function recurringScanEngineVariantsFromJson(value: unknown): EngineSelec
     if (!item || typeof item !== "object") continue;
     const candidate = item as Record<string, unknown>;
     if (
-      (candidate.provider === "openai" || candidate.provider === "google" || candidate.provider === "anthropic") &&
+      (candidate.provider === "openai" ||
+        candidate.provider === "google" ||
+        candidate.provider === "anthropic") &&
       typeof candidate.searchEnabled === "boolean"
     ) {
       variants.push({
         provider: candidate.provider,
-        searchEnabled: candidate.searchEnabled
+        searchEnabled: candidate.searchEnabled,
       });
     }
   }
@@ -688,9 +788,13 @@ export function recurringScanEngineVariantsFromJson(value: unknown): EngineSelec
   return variants.length ? variants : defaultRecurringScanEngineVariants();
 }
 
-export async function activateRecurringScanForBrand(brandId: string, plan: PaidPlan) {
+export async function activateRecurringScanForBrand(
+  brandId: string,
+  plan: PaidPlan,
+) {
   const cadence = recurringScanCadenceForPlan(plan);
-  if (!cadence) throw new Error("Bad Request: recurring scan requires a paid plan");
+  if (!cadence)
+    throw new Error("Bad Request: recurring scan requires a paid plan");
   const now = new Date();
 
   return prisma.brand.update({
@@ -701,8 +805,8 @@ export async function activateRecurringScanForBrand(brandId: string, plan: PaidP
       recurringScanPlan: plan,
       recurringScanActivatedAt: now,
       recurringScanNextRunAt: now,
-      recurringScanProviderVariants: defaultRecurringScanEngineVariants()
-    }
+      recurringScanProviderVariants: defaultRecurringScanEngineVariants(),
+    },
   });
 }
 
@@ -711,8 +815,8 @@ export async function deactivateRecurringScanForBrand(brandId: string) {
     where: { id: brandId },
     data: {
       recurringScanActive: false,
-      recurringScanNextRunAt: null
-    }
+      recurringScanNextRunAt: null,
+    },
   });
 }
 
@@ -721,7 +825,7 @@ export async function runScanNow(scanRunId: string) {
     where: { id: scanRunId },
     data: {
       status: "running",
-      startedAt: new Date()
+      startedAt: new Date(),
     },
     include: {
       brand: { include: { competitors: true } },
@@ -729,16 +833,16 @@ export async function runScanNow(scanRunId: string) {
         include: {
           prompt: true,
           engine: true,
-          aiResponse: { include: { parsedResult: true } }
-        }
-      }
-    }
+          aiResponse: { include: { parsedResult: true } },
+        },
+      },
+    },
   });
 
   await Promise.allSettled(
     scan.promptRuns
       .filter((promptRun) => !promptRun.aiResponse)
-      .map((promptRun) => runPromptRun(promptRun.id))
+      .map((promptRun) => runPromptRun(promptRun.id)),
   );
 
   return scoreScan(scanRunId);
@@ -747,10 +851,14 @@ export async function runScanNow(scanRunId: string) {
 export async function runNextScanStep(scanRunId: string) {
   const scan = await prisma.scanRun.findUnique({
     where: { id: scanRunId },
-    include: { scoreSnapshot: true }
+    include: { scoreSnapshot: true },
   });
   if (!scan) throw new Error("Scan not found");
-  if (scan.status === "completed" || scan.status === "failed" || scan.status === "canceled") {
+  if (
+    scan.status === "completed" ||
+    scan.status === "failed" ||
+    scan.status === "canceled"
+  ) {
     return scan;
   }
 
@@ -759,12 +867,12 @@ export async function runNextScanStep(scanRunId: string) {
     where: {
       scanRunId,
       status: "running",
-      startedAt: { lt: staleCutoff }
+      startedAt: { lt: staleCutoff },
     },
     data: {
       status: "queued",
-      errorMessage: "Ponovni poskus po preteku časa izvajanja."
-    }
+      errorMessage: "Ponovni poskus po preteku časa izvajanja.",
+    },
   });
 
   if (scan.status === "queued") {
@@ -772,15 +880,15 @@ export async function runNextScanStep(scanRunId: string) {
       where: { id: scanRunId },
       data: {
         status: "running",
-        startedAt: scan.startedAt ?? new Date()
-      }
+        startedAt: scan.startedAt ?? new Date(),
+      },
     });
   }
 
   const nextPromptRun = await prisma.promptRun.findFirst({
     where: { scanRunId, status: "queued" },
     orderBy: { createdAt: "asc" },
-    select: { id: true }
+    select: { id: true },
   });
 
   if (nextPromptRun) {
@@ -790,8 +898,8 @@ export async function runNextScanStep(scanRunId: string) {
   const remainingPromptRuns = await prisma.promptRun.count({
     where: {
       scanRunId,
-      status: { in: ["queued", "running"] }
-    }
+      status: { in: ["queued", "running"] },
+    },
   });
 
   if (remainingPromptRuns === 0) {
@@ -800,7 +908,7 @@ export async function runNextScanStep(scanRunId: string) {
 
   return prisma.scanRun.findUnique({
     where: { id: scanRunId },
-    include: { scoreSnapshot: true }
+    include: { scoreSnapshot: true },
   });
 }
 
@@ -812,24 +920,26 @@ export async function runPromptRun(promptRunId: string) {
       engine: true,
       scanRun: {
         include: {
-          brand: { include: { competitors: true } }
-        }
+          brand: { include: { competitors: true } },
+        },
       },
-      aiResponse: true
-    }
+      aiResponse: true,
+    },
   });
   if (!promptRun) throw new Error("Prompt run not found");
   if (promptRun.aiResponse) return promptRun.aiResponse;
 
   await prisma.promptRun.update({
     where: { id: promptRunId },
-    data: { status: "running", startedAt: new Date() }
+    data: { status: "running", startedAt: new Date() },
   });
 
   try {
     const adapter = createAiAdapter(promptRun.engine.provider, {
-      modelOverride: promptRun.engine.model.startsWith("env:") ? undefined : promptRun.engine.model,
-      searchEnabled: promptRun.engine.searchEnabled
+      modelOverride: promptRun.engine.model.startsWith("env:")
+        ? undefined
+        : promptRun.engine.model,
+      searchEnabled: promptRun.engine.searchEnabled,
     });
     const output = await adapter.runPrompt({
       prompt: promptRun.prompt.text,
@@ -839,9 +949,9 @@ export async function runPromptRun(promptRunId: string) {
       brandDomain: promptRun.scanRun.brand.domain,
       competitors: promptRun.scanRun.brand.competitors.map((competitor) => ({
         name: competitor.name,
-        domain: competitor.domain ?? undefined
+        domain: competitor.domain ?? undefined,
       })),
-      searchEnabled: promptRun.engine.searchEnabled
+      searchEnabled: promptRun.engine.searchEnabled,
     });
 
     const aiResponse = await prisma.aiResponse.create({
@@ -860,16 +970,16 @@ export async function runPromptRun(promptRunId: string) {
             url: citation.url,
             domain: citation.domain ?? normalizeDomain(citation.url),
             title: citation.title,
-            sourceType: "provider"
-          }))
-        }
-      }
+            sourceType: "provider",
+          })),
+        },
+      },
     });
 
     await parseResponse(aiResponse.id);
     await prisma.promptRun.update({
       where: { id: promptRunId },
-      data: { status: "completed", finishedAt: new Date() }
+      data: { status: "completed", finishedAt: new Date() },
     });
     return aiResponse;
   } catch (error) {
@@ -878,8 +988,9 @@ export async function runPromptRun(promptRunId: string) {
       data: {
         status: "failed",
         finishedAt: new Date(),
-        errorMessage: error instanceof Error ? error.message : "Unknown provider error"
-      }
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown provider error",
+      },
     });
     throw error;
   }
@@ -895,12 +1006,12 @@ export async function parseResponse(aiResponseId: string) {
           prompt: true,
           scanRun: {
             include: {
-              brand: { include: { competitors: true } }
-            }
-          }
-        }
-      }
-    }
+              brand: { include: { competitors: true } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!aiResponse) throw new Error("AI response not found");
   if (aiResponse.parsedResult) return aiResponse.parsedResult;
@@ -913,13 +1024,13 @@ export async function parseResponse(aiResponseId: string) {
     competitors: aiResponse.promptRun.scanRun.brand.competitors,
     knownBrandFacts: [
       aiResponse.promptRun.scanRun.brand.description ?? "",
-      aiResponse.promptRun.scanRun.brand.industry ?? ""
+      aiResponse.promptRun.scanRun.brand.industry ?? "",
     ].filter(Boolean),
     prompt: aiResponse.promptRun.prompt.text,
     rawAiAnswer: aiResponse.rawText,
     citations: toCitationArray(aiResponse.citationsJson),
     parserProvider: config.PARSER_PROVIDER,
-    parserModel: config.PARSER_MODEL
+    parserModel: config.PARSER_MODEL,
   });
 
   const result = await prisma.parsedResult.create({
@@ -932,8 +1043,8 @@ export async function parseResponse(aiResponseId: string) {
       sentiment: parsed.sentiment,
       accuracyScore: parsed.accuracyScore,
       confidence: parsed.confidence,
-      parsedJson: parsed
-    }
+      parsedJson: parsed,
+    },
   });
 
   await prisma.citation.deleteMany({ where: { aiResponseId } });
@@ -947,8 +1058,8 @@ export async function parseResponse(aiResponseId: string) {
       isCompetitorDomain: citation.isCompetitorDomain,
       supportsBrand: citation.supportsBrand,
       supportsCompetitor: citation.supportsCompetitor,
-      sourceType: "provider"
-    }))
+      sourceType: "provider",
+    })),
   });
 
   await prisma.mention.createMany({
@@ -961,9 +1072,11 @@ export async function parseResponse(aiResponseId: string) {
               entityType: "brand",
               rankPosition: parsed.brandRank,
               sentiment: parsed.sentiment,
-              evidenceText: parsed.evidence.find((item) => item.type === "brand_mention")?.text,
-              confidence: parsed.confidence
-            }
+              evidenceText: parsed.evidence.find(
+                (item) => item.type === "brand_mention",
+              )?.text,
+              confidence: parsed.confidence,
+            },
           ]
         : []),
       ...parsed.competitorsMentioned.map((competitor) => ({
@@ -973,9 +1086,9 @@ export async function parseResponse(aiResponseId: string) {
         rankPosition: competitor.rank,
         sentiment: competitor.sentiment,
         evidenceText: competitor.evidenceText,
-        confidence: parsed.confidence
-      }))
-    ]
+        confidence: parsed.confidence,
+      })),
+    ],
   });
 
   return result;
@@ -992,26 +1105,31 @@ export async function scoreScan(scanRunId: string) {
           engine: true,
           aiResponse: {
             include: {
-              parsedResult: true
-            }
-          }
-        }
-      }
-    }
+              parsedResult: true,
+            },
+          },
+        },
+      },
+    },
   });
   if (!scan) throw new Error("Scan not found");
 
   const parsedResults = scan.promptRuns
     .map((promptRun) => {
-      const parsed = promptRun.aiResponse?.parsedResult?.parsedJson as ParsedAiResult | undefined;
+      const parsed = promptRun.aiResponse?.parsedResult?.parsedJson as
+        | ParsedAiResult
+        | undefined;
       if (!parsed) return null;
       return {
         ...parsed,
         prompt: promptRun.prompt.text,
-        engine: promptRun.engine.engineName
+        engine: promptRun.engine.engineName,
       };
     })
-    .filter((result): result is ParsedAiResult & { prompt: string; engine: string } => Boolean(result));
+    .filter(
+      (result): result is ParsedAiResult & { prompt: string; engine: string } =>
+        Boolean(result),
+    );
 
   const score = calculateVisibilityScore(parsedResults);
   const scoreSnapshot = await prisma.scoreSnapshot.upsert({
@@ -1020,12 +1138,12 @@ export async function scoreScan(scanRunId: string) {
     create: {
       brandId: scan.brandId,
       scanRunId,
-      ...score
-    }
+      ...score,
+    },
   });
 
   await prisma.recommendation.deleteMany({
-    where: { brandId: scan.brandId, scanRunId }
+    where: { brandId: scan.brandId, scanRunId },
   });
   const recommendations = generateRecommendationDrafts(parsedResults);
   await prisma.recommendation.createMany({
@@ -1037,20 +1155,25 @@ export async function scoreScan(scanRunId: string) {
       impactScore: recommendation.impactScore,
       effortScore: recommendation.effortScore,
       affectedPromptsJson: recommendation.affectedPromptsJson,
-      affectedEnginesJson: recommendation.affectedEnginesJson
-    }))
+      affectedEnginesJson: recommendation.affectedEnginesJson,
+    })),
   });
 
-  const completedPromptRuns = scan.promptRuns.filter((promptRun) => promptRun.status === "completed").length;
-  const failedPromptRuns = scan.promptRuns.filter((promptRun) => promptRun.status === "failed").length;
+  const completedPromptRuns = scan.promptRuns.filter(
+    (promptRun) => promptRun.status === "completed",
+  ).length;
+  const failedPromptRuns = scan.promptRuns.filter(
+    (promptRun) => promptRun.status === "failed",
+  ).length;
   await prisma.scanRun.update({
     where: { id: scanRunId },
     data: {
-      status: failedPromptRuns === scan.promptRuns.length ? "failed" : "completed",
+      status:
+        failedPromptRuns === scan.promptRuns.length ? "failed" : "completed",
       completedPromptRuns,
       failedPromptRuns,
-      finishedAt: new Date()
-    }
+      finishedAt: new Date(),
+    },
   });
 
   await prisma.auditLog.create({
@@ -1058,8 +1181,8 @@ export async function scoreScan(scanRunId: string) {
       organizationId: scan.brand.organizationId,
       action: "scan_completed",
       entityType: "ScanRun",
-      entityId: scanRunId
-    }
+      entityId: scanRunId,
+    },
   });
 
   return scoreSnapshot;
@@ -1079,88 +1202,88 @@ export async function createFreeAudit(input: {
 }) {
   let auditStep = "organization";
   try {
-  const organization = await prisma.organization.create({
-    data: {
-      name: input.brandName,
-      plan: "free"
-    }
-  });
-  auditStep = "brand";
-  const brand = await prisma.brand.create({
-    data: {
-      organizationId: organization.id,
-      name: input.brandName,
-      domain: normalizeDomain(input.domain),
-      country: input.country,
-      language: input.language,
-      aliases: []
-    }
-  });
-  const competitorNames = splitCompetitors(input.competitors);
-  auditStep = "competitors";
-  await prisma.competitor.createMany({
-    data: competitorNames.map((name) => ({
-      brandId: brand.id,
-      name
-    })),
-    skipDuplicates: true
-  });
-  auditStep = "lead";
-  const lead = await prisma.lead.create({
-    data: {
-      organizationId: organization.id,
-      email: input.email,
-      domain: brand.domain,
-      brandName: input.brandName,
-      source: "free_audit",
-      utmSource: input.utmSource,
-      utmCampaign: input.utmCampaign,
-      leadScore: calculateLeadScore({
+    const organization = await prisma.organization.create({
+      data: {
+        name: input.brandName,
+        plan: "free",
+      },
+    });
+    auditStep = "brand";
+    const brand = await prisma.brand.create({
+      data: {
+        organizationId: organization.id,
+        name: input.brandName,
+        domain: normalizeDomain(input.domain),
+        country: input.country,
+        language: input.language,
+        aliases: [],
+      },
+    });
+    const competitorNames = splitCompetitors(input.competitors);
+    auditStep = "competitors";
+    await prisma.competitor.createMany({
+      data: competitorNames.map((name) => ({
+        brandId: brand.id,
+        name,
+      })),
+      skipDuplicates: true,
+    });
+    auditStep = "lead";
+    const lead = await prisma.lead.create({
+      data: {
+        organizationId: organization.id,
         email: input.email,
-        competitorCount: competitorNames.length,
-        crawledPageCount: 0
-      })
-    }
-  });
+        domain: brand.domain,
+        brandName: input.brandName,
+        source: "free_audit",
+        utmSource: input.utmSource,
+        utmCampaign: input.utmCampaign,
+        leadScore: calculateLeadScore({
+          email: input.email,
+          competitorCount: competitorNames.length,
+          crawledPageCount: 0,
+        }),
+      },
+    });
 
-  auditStep = "prompts";
-  const promptSet = await createUserPromptSet(brand, input.prompts);
-  auditStep = "scan";
-  const scan = await createScanForBrand(brand.id, {
-    triggerType: "free_audit",
-    promptLimit: promptSet.prompts.length,
-    providers: input.providers?.length ? input.providers : ["openai"],
-    repeatCount: FREE_AUDIT_LIMITS.repeatCount,
-    runNow: false,
-    searchEnabled: false
-  });
+    auditStep = "prompts";
+    const promptSet = await createUserPromptSet(brand, input.prompts);
+    auditStep = "scan";
+    const scan = await createScanForBrand(brand.id, {
+      triggerType: "free_audit",
+      promptLimit: promptSet.prompts.length,
+      providers: input.providers?.length ? input.providers : ["openai"],
+      repeatCount: FREE_AUDIT_LIMITS.repeatCount,
+      runNow: false,
+      searchEnabled: false,
+    });
 
-  auditStep = "lead update";
-  await prisma.lead.update({
-    where: { id: lead.id },
-    data: {
-      auditScanRunId: scan?.id,
-      leadScore: calculateLeadScore({
-        email: input.email,
-        competitorCount: competitorNames.length,
-        crawledPageCount: 0,
-        visibilityScore: scan?.scoreSnapshot?.visibilityScore
-      })
-    }
-  });
+    auditStep = "lead update";
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        auditScanRunId: scan?.id,
+        leadScore: calculateLeadScore({
+          email: input.email,
+          competitorCount: competitorNames.length,
+          crawledPageCount: 0,
+          visibilityScore: scan?.scoreSnapshot?.visibilityScore,
+        }),
+      },
+    });
 
-  auditStep = "lead result";
-  return prisma.lead.findUnique({
-    where: { id: lead.id },
-    include: {
-      auditScanRun: {
-        include: {
-          scoreSnapshot: true,
-          recommendations: true
-        }
-      }
-    }
-  });
+    auditStep = "lead result";
+    return prisma.lead.findUnique({
+      where: { id: lead.id },
+      include: {
+        auditScanRun: {
+          include: {
+            scoreSnapshot: true,
+            recommendations: true,
+          },
+        },
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Free audit failed at ${auditStep}: ${message}`);
@@ -1179,19 +1302,22 @@ export async function sendLeadAuditEmail(leadId: string) {
             include: {
               prompt: true,
               engine: true,
-              aiResponse: { include: { parsedResult: true } }
-            }
-          }
-        }
-      }
-    }
+              aiResponse: { include: { parsedResult: true } },
+            },
+          },
+        },
+      },
+    },
   });
-  if (!lead?.auditScanRun?.scoreSnapshot) throw new Error("Audit result not ready");
+  if (!lead?.auditScanRun?.scoreSnapshot)
+    throw new Error("Audit result not ready");
 
   const topCompetitor = await topCompetitorForScan(lead.auditScanRun.id);
   const losingPrompts = lead.auditScanRun.promptRuns
     .filter((run) => {
-      const parsed = run.aiResponse?.parsedResult?.parsedJson as ParsedAiResult | undefined;
+      const parsed = run.aiResponse?.parsedResult?.parsedJson as
+        | ParsedAiResult
+        | undefined;
       return parsed && (!parsed.brandMentioned || (parsed.brandRank ?? 99) > 3);
     })
     .map((run) => run.prompt.text)
@@ -1203,7 +1329,7 @@ export async function sendLeadAuditEmail(leadId: string) {
     topCompetitor,
     losingPrompts,
     recommendations: lead.auditScanRun.recommendations,
-    reportUrl: `${getConfig().NEXT_PUBLIC_APP_URL}/audit/${lead.id}`
+    reportUrl: `${getConfig().NEXT_PUBLIC_APP_URL}/audit/${lead.id}`,
   };
   const email = await sendAuditReportEmail(lead.email, report);
   await prisma.emailEvent.create({
@@ -1212,10 +1338,13 @@ export async function sendLeadAuditEmail(leadId: string) {
       type: email.skipped ? "queued" : "sent",
       provider: "resend",
       providerId: email.id,
-      subject: `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`
-    }
+      subject: `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`,
+    },
   });
-  await prisma.lead.update({ where: { id: leadId }, data: { status: "report_sent" } });
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { status: "report_sent" },
+  });
   return email;
 }
 
@@ -1231,17 +1360,19 @@ export async function buildAdminLeadDetail(leadId: string) {
             include: {
               prompt: true,
               engine: true,
-              aiResponse: { include: { parsedResult: true } }
-            }
-          }
-        }
-      }
-    }
+              aiResponse: { include: { parsedResult: true } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!lead?.auditScanRun?.scoreSnapshot) return { lead, salesBrief: null };
   const losingPrompts = lead.auditScanRun.promptRuns
     .filter((run) => {
-      const parsed = run.aiResponse?.parsedResult?.parsedJson as ParsedAiResult | undefined;
+      const parsed = run.aiResponse?.parsedResult?.parsedJson as
+        | ParsedAiResult
+        | undefined;
       return parsed && (!parsed.brandMentioned || (parsed.brandRank ?? 99) > 3);
     })
     .map((run) => run.prompt.text)
@@ -1253,7 +1384,7 @@ export async function buildAdminLeadDetail(leadId: string) {
     topCompetitor: await topCompetitorForScan(lead.auditScanRun.id),
     losingPrompts,
     recommendations: lead.auditScanRun.recommendations,
-    reportUrl: `${getConfig().NEXT_PUBLIC_APP_URL}/audit/${lead.id}`
+    reportUrl: `${getConfig().NEXT_PUBLIC_APP_URL}/audit/${lead.id}`,
   });
   return { lead, salesBrief };
 }
@@ -1263,21 +1394,24 @@ export async function topCompetitorForScan(scanRunId: string) {
     by: ["entityName"],
     where: {
       entityType: "competitor",
-      aiResponse: { promptRun: { scanRunId } }
+      aiResponse: { promptRun: { scanRunId } },
     },
     _count: { entityName: true },
     orderBy: { _count: { entityName: "desc" } },
-    take: 1
+    take: 1,
   });
   return mentions[0]?.entityName;
 }
 
-function uniqueEngineSelections(selections: EngineSelection[]): Array<Required<EngineSelection>> {
+function uniqueEngineSelections(
+  selections: EngineSelection[],
+): Array<Required<EngineSelection>> {
   const seen = new Set<string>();
   const unique: Array<Required<EngineSelection>> = [];
 
   for (const selection of selections) {
-    const searchEnabled = selection.searchEnabled ?? selection.provider !== "mock";
+    const searchEnabled =
+      selection.searchEnabled ?? selection.provider !== "mock";
     const key = `${selection.provider}:${searchEnabled}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -1301,7 +1435,9 @@ function engineName(provider: AiEngineProvider, searchEnabled = false) {
 }
 
 function toStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function toCitationArray(value: unknown) {
@@ -1311,7 +1447,7 @@ function toCitationArray(value: unknown) {
         .map((item: any) => ({
           url: String(item.url),
           title: item.title ? String(item.title) : undefined,
-          domain: item.domain ? String(item.domain) : undefined
+          domain: item.domain ? String(item.domain) : undefined,
         }))
     : [];
 }
