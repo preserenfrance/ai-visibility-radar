@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
+import { PromptSuggestionTester } from "@/components/prompt-suggestion-tester";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,9 +63,9 @@ export default async function AdminSystemPromptsPage({
           </div>
           <h1 className="text-3xl font-semibold">Sistemski prompti</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Legacy nastavitve za prejšnji tok analize strani in generiranja
-            vprašanj. Novi tok uporablja 3-5 promptov, ki jih uporabnik vnese v
-            začetnem obrazcu.
+            Urejanje internih navodil za predlaganje promptov in legacy
+            nastavitve prejšnjega toka. Za testiranje najprej shrani spremembe,
+            nato spodaj zaženi test.
           </p>
         </div>
         {(params?.saved || params?.reset) && (
@@ -75,6 +76,19 @@ export default async function AdminSystemPromptsPage({
           </div>
         )}
       </div>
+
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>Test predlaganja promptov</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Test uporabi trenutno shranjena navodila za sistemski prompt
+            "Predlaganje promptov v začetnem auditu".
+          </p>
+        </CardHeader>
+        <CardContent>
+          <PromptSuggestionTester />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4">
         {settings.map((prompt) => (

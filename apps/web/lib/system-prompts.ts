@@ -4,6 +4,7 @@ export const SYSTEM_PROMPT_KEYS = [
   "website_analysis",
   "prompt_generation",
   "question_blueprint",
+  "prompt_suggestion",
 ] as const;
 
 export type SystemPromptKey = (typeof SYSTEM_PROMPT_KEYS)[number];
@@ -42,6 +43,24 @@ export const SYSTEM_PROMPT_DEFINITIONS: SystemPromptDefinition[] = [
       "Izklopljeno. Predloge se ne uporabljajo več za generiranje promptov.",
     defaultContent: [
       "Izklopljeno: uporabnik vnese točna vprašanja, ki jih želi meriti.",
+    ].join("\n"),
+  },
+  {
+    key: "prompt_suggestion",
+    title: "Predlaganje promptov v začetnem auditu",
+    description:
+      "Navodilo za gumb 'Vi mi predlagajte prompte' na začetnem audit obrazcu.",
+    defaultContent: [
+      "Ustvari točno 5 kratkih vprašanj, ki jih lahko uporabnik uporabi za AI visibility audit.",
+      "Najprej preglej spletno stran in razumi, katere konkretne produkte, kategorije in namene nakupa trgovina ponuja.",
+      "Vsaj 4 od 5 vprašanj naj bodo produktna vprašanja tipa: kje kupiti, kateri izdelek izbrati, katera spletna trgovina ima dobro ponudbo, kaj priporočate za konkreten namen.",
+      "Vprašanja naj zvenijo kot resnično vprašanje kupca, ki išče izdelek ali trgovino, ne kot vprašanje marketinškega analitika.",
+      "Ne omenjaj testirane znamke v promptih.",
+      "Ne omenjaj konkurentov ali drugih brandov, razen če je uporabnik izrecno vnesel konkurente in je primerjava res nujna.",
+      "Največ eno vprašanje je lahko primerjava; ostala naj bodo usmerjena v produkte, kategorije, uporabo, nakup in izbiro trgovine.",
+      "Uporabi konkretne produktne kategorije s spletne strani. Za vrtno trgovino bi to lahko bili na primer vrtni stoli, vrtne mize, senčniki, visoke grede, vrtne garniture, žari ali orodje.",
+      "Vsak prompt naj bo ena sama poved, kratek in konkreten.",
+      "Vsi prompti naj bodo v jeziku, ki ga uporabnik zahteva.",
     ].join("\n"),
   },
 ];

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requireAdminUser } from "@/lib/auth";
 import { ok, parseBody, route } from "@/lib/http";
 import { suggestAuditPrompts } from "@/lib/prompt-suggestions";
 
@@ -14,6 +15,7 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   return route(async () => {
+    await requireAdminUser();
     const input = await parseBody(request, schema);
     const prompts = await suggestAuditPrompts(input);
     return ok({ prompts });
