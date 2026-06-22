@@ -154,14 +154,15 @@ async function openMonitoring(formData: FormData) {
     await ensureLeadMembership(lead, user.id);
   }
 
-  const brandId = lead.auditScanRun?.brandId;
   redirect(monitoringPathForLead({ auditScanRun: lead.auditScanRun }));
 }
 
 function monitoringPathForLead(lead: {
-  auditScanRun?: { brandId: string } | null;
+  auditScanRun?: { brandId: string; id?: string } | null;
 }) {
+  const scanId = lead.auditScanRun?.id;
   const brandId = lead.auditScanRun?.brandId;
+  if (brandId && scanId) return `/app/brands/${brandId}/scans/${scanId}`;
   return brandId ? `/app/brands/${brandId}` : "/app/dashboard";
 }
 

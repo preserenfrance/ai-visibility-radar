@@ -10,7 +10,11 @@ import { requireScanAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function ScanPage({ params }: { params: Promise<{ brandId: string; scanId: string }> }) {
+export default async function ScanPage({
+  params,
+}: {
+  params: Promise<{ brandId: string; scanId: string }>;
+}) {
   const { brandId, scanId } = await params;
   const access = await requireScanAccess(scanId);
   if (access.scan.brandId !== brandId) notFound();
@@ -27,13 +31,13 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
             include: {
               parsedResult: true,
               citations: true,
-              mentions: true
-            }
-          }
+              mentions: true,
+            },
+          },
         },
-        orderBy: { createdAt: "asc" }
-      }
-    }
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
   if (!scan) return null;
   const scanPending = scan.status === "queued" || scan.status === "running";
@@ -46,7 +50,9 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
           <h1 className="text-3xl font-semibold">Izvedba scana</h1>
           <p className="text-muted-foreground">{scan.brand.name}</p>
         </div>
-        <Badge variant="secondary">{scan.status}</Badge>
+        <Badge variant={statusBadgeVariant(scan.status)}>
+          {statusLabel(scan.status)}
+        </Badge>
       </div>
       <BrandMenu brandId={brandId} />
       {scanPending && (
@@ -58,16 +64,25 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            AI modeli odgovarjajo na prompte in rezultat se bo prikazal takoj, ko bo obdelava končana.
-            Stran se samodejno osvežuje.
+            AI modeli odgovarjajo na prompte in rezultat se bo prikazal takoj,
+            ko bo obdelava končana. Stran se samodejno osvežuje.
           </CardContent>
         </Card>
       )}
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <Metric label="Vidnost" value={scan.scoreSnapshot?.visibilityScore ?? 0} />
+        <Metric
+          label="Vidnost"
+          value={scan.scoreSnapshot?.visibilityScore ?? 0}
+        />
         <Metric label="Omembe" value={scan.scoreSnapshot?.mentionScore ?? 0} />
-        <Metric label="Delež glasu" value={scan.scoreSnapshot?.shareOfVoiceScore ?? 0} />
-        <Metric label="Točnost" value={scan.scoreSnapshot?.accuracyScore ?? 0} />
+        <Metric
+          label="Delež glasu"
+          value={scan.scoreSnapshot?.shareOfVoiceScore ?? 0}
+        />
+        <Metric
+          label="Točnost"
+          value={scan.scoreSnapshot?.accuracyScore ?? 0}
+        />
       </div>
       <Card>
         <CardHeader>
@@ -89,26 +104,42 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
             <TBody>
               {scan.promptRuns.map((run) => {
                 const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
+                const resultReady = run.status === "completed" && parsed;
                 return (
                   <TR key={run.id}>
                     <TD className="min-w-96">
                       <details>
-                        <summary className="cursor-pointer font-medium">{run.prompt.text}</summary>
+                        <summary className="cursor-pointer font-medium">
+                          {run.prompt.text}
+                        </summary>
                         <div className="mt-3 space-y-3 rounded-md border bg-secondary/30 p-3">
-                          <div className="text-sm font-semibold">Izvorni odgovor</div>
+                          <div className="text-sm font-semibold">
+                            Izvorni odgovor
+                          </div>
                           <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
-                            {run.aiResponse?.rawText ?? run.errorMessage ?? "Ni odgovora"}
+                            {run.aiResponse?.rawText ??
+                              run.errorMessage ??
+                              "Ni odgovora"}
                           </pre>
-                          <div className="text-sm font-semibold">Razčlenjen rezultat</div>
+                          <div className="text-sm font-semibold">
+                            Razčlenjen rezultat
+                          </div>
                           <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-white p-3 text-xs">
                             {JSON.stringify(parsed ?? {}, null, 2)}
                           </pre>
                           <div className="text-sm">
-                            Citati: {run.aiResponse?.citations.map((citation) => citation.domain).join(", ") || "-"}
+                            Citati:{" "}
+                            {run.aiResponse?.citations
+                              .map((citation) => citation.domain)
+                              .join(", ") || "-"}
                           </div>
                           <div className="text-sm">
-                            Konkurenti: {run.aiResponse?.mentions
-                              .filter((mention) => mention.entityType === "competitor")
+                            Konkurenti:{" "}
+                            {run.aiResponse?.mentions
+                              .filter(
+                                (mention) =>
+                                  mention.entityType === "competitor",
+                              )
                               .map((mention) => mention.entityName)
                               .join(", ") || "-"}
                           </div>
@@ -116,11 +147,23 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
                       </details>
                     </TD>
                     <TD>{run.engine.engineName}</TD>
-                    <TD><Badge variant={run.status === "failed" ? "danger" : "secondary"}>{run.status}</Badge></TD>
-                    <TD>{parsed?.brandMentioned ? "omenjena" : "ni omenjena"}</TD>
-                    <TD>{parsed?.brandRank ?? "-"}</TD>
-                    <TD>{parsed?.sentiment ?? "-"}</TD>
-                    <TD>{parsed?.confidence ?? "-"}</TD>
+                    <TD>
+                      <Badge variant={statusBadgeVariant(run.status)}>
+                        {statusLabel(run.status)}
+                      </Badge>
+                    </TD>
+                    <TD>
+                      {resultReady ? (
+                        <Badge
+                          variant={mentionBadgeVariant(parsed.brandMentioned)}
+                        >
+                          {parsed.brandMentioned ? "omenjena" : "ni omenjena"}
+                        </Badge>
+                      ) : null}
+                    </TD>
+                    <TD>{resultReady ? (parsed.brandRank ?? "-") : null}</TD>
+                    <TD>{resultReady ? (parsed.sentiment ?? "-") : null}</TD>
+                    <TD>{resultReady ? (parsed.confidence ?? "-") : null}</TD>
                   </TR>
                 );
               })}
@@ -130,6 +173,35 @@ export default async function ScanPage({ params }: { params: Promise<{ brandId: 
       </Card>
     </section>
   );
+}
+
+type BadgeVariant = "default" | "secondary" | "warning" | "danger" | "success";
+
+function statusLabel(status: string) {
+  switch (status) {
+    case "queued":
+    case "running":
+      return "v delu";
+    case "completed":
+      return "končano";
+    case "failed":
+      return "napaka";
+    case "canceled":
+      return "preklicano";
+    default:
+      return status;
+  }
+}
+
+function statusBadgeVariant(status: string): BadgeVariant {
+  if (status === "queued" || status === "running") return "warning";
+  if (status === "completed") return "success";
+  if (status === "failed") return "danger";
+  return "secondary";
+}
+
+function mentionBadgeVariant(brandMentioned: boolean): BadgeVariant {
+  return brandMentioned ? "success" : "danger";
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
