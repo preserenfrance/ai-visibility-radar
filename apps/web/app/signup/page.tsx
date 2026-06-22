@@ -17,28 +17,44 @@ async function signup(formData: FormData) {
   const passwordRepeat = String(formData.get("passwordRepeat") ?? "");
   const name = String(formData.get("name") ?? "");
   const organizationName = String(formData.get("organizationName") ?? "");
-  const next = safeRedirectPath(String(formData.get("next") ?? "/app/dashboard"), "/app/dashboard");
+  const next = safeRedirectPath(
+    String(formData.get("next") ?? "/app/dashboard"),
+    "/app/dashboard",
+  );
 
   if (password.length < 8) {
-    redirect(`/signup?error=short&email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`);
+    redirect(
+      `/signup?error=short&email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`,
+    );
   }
   if (password !== passwordRepeat) {
-    redirect(`/signup?error=mismatch&email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`);
+    redirect(
+      `/signup?error=mismatch&email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`,
+    );
   }
 
   try {
-    const user = await createUserAccount({ email, password, name, organizationName });
+    const user = await createUserAccount({
+      email,
+      password,
+      name,
+      organizationName,
+    });
     await setUserSession(user.id);
-    await prisma.auditLog.create({ data: { userId: user.id, action: "login" } });
+    await prisma.auditLog.create({
+      data: { userId: user.id, action: "login" },
+    });
   } catch {
-    redirect(`/signup?error=exists&email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`);
+    redirect(
+      `/signup?error=exists&email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`,
+    );
   }
 
   redirect(next);
 }
 
 export default async function SignupPage({
-  searchParams
+  searchParams,
 }: {
   searchParams?: Promise<{ error?: string; email?: string; next?: string }>;
 }) {
@@ -63,15 +79,46 @@ export default async function SignupPage({
           )}
           <form action={signup} className="grid gap-3">
             <input type="hidden" name="next" value={next} />
-            <Input name="email" type="email" placeholder="ime@podjetje.si" defaultValue={params?.email ?? ""} required />
+            <Input
+              name="email"
+              type="email"
+              placeholder="ime@podjetje.si"
+              defaultValue={params?.email ?? ""}
+              required
+            />
             <Input name="name" placeholder="Ime in priimek" />
             <Input name="organizationName" placeholder="Ime organizacije" />
-            <Input name="password" type="password" placeholder="Geslo" required />
-            <Input name="passwordRepeat" type="password" placeholder="Ponovi geslo" required />
+            <Input
+              name="password"
+              type="password"
+              placeholder="Geslo"
+              minLength={8}
+              aria-describedby="signup-password-help"
+              required
+            />
+            <p
+              id="signup-password-help"
+              className="-mt-2 text-xs text-muted-foreground"
+            >
+              Geslo mora vsebovati vsaj 8 znakov. Posebni znaki niso obvezni.
+            </p>
+            <Input
+              name="passwordRepeat"
+              type="password"
+              placeholder="Ponovi geslo"
+              minLength={8}
+              required
+            />
             <Button type="submit">Ustvari račun</Button>
           </form>
           <p className="mt-4 text-sm text-muted-foreground">
-            Že imaš račun? <Link className="text-primary" href={`/login?next=${encodeURIComponent(next)}`}>Prijava</Link>
+            Že imaš račun?{" "}
+            <Link
+              className="text-primary"
+              href={`/login?next=${encodeURIComponent(next)}`}
+            >
+              Prijava
+            </Link>
           </p>
         </CardContent>
       </Card>

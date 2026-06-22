@@ -29,7 +29,7 @@ async function ensureLeadMembership(lead: ClaimableLead, userId: string) {
   if (!organizationId && lead.auditScanRunId) {
     const scan = await prisma.scanRun.findUnique({
       where: { id: lead.auditScanRunId },
-      select: { brand: { select: { organizationId: true } } }
+      select: { brand: { select: { organizationId: true } } },
     });
     organizationId = scan?.brand.organizationId ?? null;
   }
@@ -38,8 +38,8 @@ async function ensureLeadMembership(lead: ClaimableLead, userId: string) {
     organizationId = (
       await prisma.organization.create({
         data: {
-          name: lead.companyName || lead.brandName || "Moja organizacija"
-        }
+          name: lead.companyName || lead.brandName || "Moja organizacija",
+        },
       })
     ).id;
   }
@@ -48,23 +48,23 @@ async function ensureLeadMembership(lead: ClaimableLead, userId: string) {
     where: {
       userId_organizationId: {
         userId,
-        organizationId
-      }
+        organizationId,
+      },
     },
     update: { role: "owner" },
     create: {
       userId,
       organizationId,
-      role: "owner"
-    }
+      role: "owner",
+    },
   });
 
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
       organizationId,
-      status: "converted"
-    }
+      status: "converted",
+    },
   });
 
   return organizationId;
@@ -80,7 +80,7 @@ async function createAuditAccount(formData: FormData) {
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    include: { auditScanRun: true, organization: true }
+    include: { auditScanRun: true, organization: true },
   });
   if (!lead) redirect("/ai-visibility-checker?error=unknown");
 
@@ -102,15 +102,15 @@ async function createAuditAccount(formData: FormData) {
         where: { id: existingUser.id },
         data: {
           name: name || existingUser.name,
-          passwordHash: await hashPassword(password)
-        }
+          passwordHash: await hashPassword(password),
+        },
       })
     : await prisma.user.create({
         data: {
           email,
           name: name || undefined,
-          passwordHash: await hashPassword(password)
-        }
+          passwordHash: await hashPassword(password),
+        },
       });
 
   const organizationId = await ensureLeadMembership(lead, user.id);
@@ -119,8 +119,8 @@ async function createAuditAccount(formData: FormData) {
     data: {
       userId: user.id,
       organizationId,
-      action: "login"
-    }
+      action: "login",
+    },
   });
 
   redirect(monitoringPathForLead(lead));
@@ -136,14 +136,18 @@ async function openMonitoring(formData: FormData) {
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    include: { auditScanRun: true }
+    include: { auditScanRun: true },
   });
   if (!lead) redirect("/ai-visibility-checker?error=unknown");
 
   const hasMembership = Boolean(
-    lead.organizationId && user.memberships.some((membership) => membership.organizationId === lead.organizationId)
+    lead.organizationId &&
+    user.memberships.some(
+      (membership) => membership.organizationId === lead.organizationId,
+    ),
   );
-  const emailMatches = normalizeEmail(user.email) === normalizeEmail(lead.email);
+  const emailMatches =
+    normalizeEmail(user.email) === normalizeEmail(lead.email);
 
   if (!hasMembership) {
     if (!emailMatches) redirect(next);
@@ -154,14 +158,16 @@ async function openMonitoring(formData: FormData) {
   redirect(monitoringPathForLead({ auditScanRun: lead.auditScanRun }));
 }
 
-function monitoringPathForLead(lead: { auditScanRun?: { brandId: string } | null }) {
+function monitoringPathForLead(lead: {
+  auditScanRun?: { brandId: string } | null;
+}) {
   const brandId = lead.auditScanRun?.brandId;
   return brandId ? `/app/brands/${brandId}` : "/app/dashboard";
 }
 
 export default async function AuditPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ accountError?: string }>;
@@ -176,28 +182,37 @@ export default async function AuditPage({
             scoreSnapshot: true,
             recommendations: true,
             promptRuns: {
-              include: { prompt: true, engine: true, aiResponse: { include: { parsedResult: true } } },
-              take: 15
-            }
-          }
-        }
-      }
+              include: {
+                prompt: true,
+                engine: true,
+                aiResponse: { include: { parsedResult: true } },
+              },
+              take: 15,
+            },
+          },
+        },
+      },
     }),
     getCurrentUser(),
-    searchParams
+    searchParams,
   ]);
 
   if (!lead) return <main className="p-8">Audit ni najden.</main>;
   const score = lead.auditScanRun?.scoreSnapshot;
   const reportPending =
-    !score || lead.auditScanRun?.status === "queued" || lead.auditScanRun?.status === "running";
-  const runFromBrowser = reportPending && lead.auditScanRunId && !process.env.REDIS_URL;
+    !score ||
+    lead.auditScanRun?.status === "queued" ||
+    lead.auditScanRun?.status === "running";
+  const runFromBrowser =
+    reportPending && lead.auditScanRunId && !process.env.REDIS_URL;
   const canViewResult =
     user &&
     (normalizeEmail(user.email) === normalizeEmail(lead.email) ||
       Boolean(
         lead.organizationId &&
-          user.memberships.some((membership) => membership.organizationId === lead.organizationId)
+        user.memberships.some(
+          (membership) => membership.organizationId === lead.organizationId,
+        ),
       ));
 
   if (!canViewResult) {
@@ -214,7 +229,11 @@ export default async function AuditPage({
   return (
     <main className="mx-auto max-w-7xl px-5 py-8">
       {reportPending &&
-        (runFromBrowser ? <ScanRunner endpoint={`/api/public/audit/${lead.id}/run-next`} /> : <AutoRefresh />)}
+        (runFromBrowser ? (
+          <ScanRunner endpoint={`/api/public/audit/${lead.id}/run-next`} />
+        ) : (
+          <AutoRefresh />
+        ))}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Badge variant="secondary">Brezplačen audit</Badge>
@@ -223,9 +242,7 @@ export default async function AuditPage({
         </div>
         <form action={openMonitoring}>
           <input type="hidden" name="leadId" value={lead.id} />
-          <Button type="submit">
-            Odpri celoten monitoring
-          </Button>
+          <Button type="submit">Odpri celoten monitoring</Button>
         </form>
       </div>
       {reportPending && (
@@ -237,13 +254,16 @@ export default async function AuditPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Audit teče v ozadju: pošiljamo tvoje prompte na izbrane AI modele in računamo rezultat.
-            Stran se bo samodejno osvežila.
+            Audit teče v ozadju: pošiljamo tvoje prompte na izbrane AI modele in
+            računamo rezultat. Stran se bo samodejno osvežila.
           </CardContent>
         </Card>
       )}
       <div className="grid gap-4 md:grid-cols-4">
-        <Metric label="AI Visibility Score" value={score?.visibilityScore ?? 0} />
+        <Metric
+          label="AI Visibility Score"
+          value={score?.visibilityScore ?? 0}
+        />
         <Metric label="Delež omemb" value={score?.mentionScore ?? 0} />
         <Metric label="Ocena citatov" value={score?.citationScore ?? 0} />
         <Metric label="Ocena točnosti" value={score?.accuracyScore ?? 0} />
@@ -265,7 +285,8 @@ export default async function AuditPage({
               </THead>
               <TBody>
                 {lead.auditScanRun?.promptRuns.slice(0, 3).map((run) => {
-                  const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
+                  const parsed = run.aiResponse?.parsedResult
+                    ?.parsedJson as any;
                   return (
                     <TR key={run.id}>
                       <TD>{run.prompt.text}</TD>
@@ -287,7 +308,9 @@ export default async function AuditPage({
             {lead.auditScanRun?.recommendations.slice(0, 3).map((item) => (
               <div key={item.id} className="rounded-md border p-3">
                 <div className="font-medium">{item.title}</div>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {item.description}
+                </p>
               </div>
             ))}
           </CardContent>
@@ -301,9 +324,15 @@ function AuditAccountGate({
   lead,
   reportPending,
   runFromBrowser,
-  accountError
+  accountError,
 }: {
-  lead: { id: string; email: string; brandName: string; domain: string; companyName?: string | null };
+  lead: {
+    id: string;
+    email: string;
+    brandName: string;
+    domain: string;
+    companyName?: string | null;
+  };
   reportPending: boolean;
   runFromBrowser: boolean;
   accountError?: string;
@@ -311,7 +340,12 @@ function AuditAccountGate({
   const next = `/audit/${lead.id}`;
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-5 py-10">
-      {runFromBrowser && <ScanRunner endpoint={`/api/public/audit/${lead.id}/run-next`} refreshOnStep={false} />}
+      {runFromBrowser && (
+        <ScanRunner
+          endpoint={`/api/public/audit/${lead.id}/run-next`}
+          refreshOnStep={false}
+        />
+      )}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.08),transparent_32%)]" />
       <div className="relative grid w-full max-w-5xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <section className="flex flex-col justify-center">
@@ -319,11 +353,13 @@ function AuditAccountGate({
             Brezplačen audit
           </Badge>
           <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
-            {reportPending ? "Pregledujemo tvoje prompte." : "Tvoj rezultat je pripravljen."}
+            {reportPending
+              ? "Pregledujemo tvoje prompte."
+              : "Tvoj rezultat je pripravljen."}
           </h1>
           <p className="mt-4 max-w-xl text-muted-foreground">
-            Za ogled rezultatov najprej ustvari račun. Tako rezultat povežemo s tvojo organizacijo in ga lahko
-            varno pokažemo samo tebi.
+            Za ogled rezultatov najprej ustvari račun. Tako rezultat povežemo s
+            tvojo organizacijo in ga lahko varno pokažemo samo tebi.
           </p>
           <div className="mt-6 rounded-md border bg-white/80 p-4 text-sm shadow-sm">
             <div className="flex items-center gap-2 font-medium">
@@ -359,8 +395,27 @@ function AuditAccountGate({
                 defaultValue={lead.companyName || lead.brandName}
                 readOnly
               />
-              <Input name="password" type="password" placeholder="Geslo" required />
-              <Input name="passwordRepeat" type="password" placeholder="Ponovi geslo" required />
+              <Input
+                name="password"
+                type="password"
+                placeholder="Geslo"
+                minLength={8}
+                aria-describedby="audit-password-help"
+                required
+              />
+              <p
+                id="audit-password-help"
+                className="-mt-2 text-xs text-muted-foreground"
+              >
+                Geslo mora vsebovati vsaj 8 znakov. Posebni znaki niso obvezni.
+              </p>
+              <Input
+                name="passwordRepeat"
+                type="password"
+                placeholder="Ponovi geslo"
+                minLength={8}
+                required
+              />
               <Button type="submit">
                 <UserPlus className="h-4 w-4" />
                 Ustvari račun in pokaži rezultat
@@ -368,7 +423,10 @@ function AuditAccountGate({
             </form>
             <p className="mt-4 text-sm text-muted-foreground">
               Že imaš račun?{" "}
-              <Link className="text-primary" href={`/login?next=${encodeURIComponent(next)}`}>
+              <Link
+                className="text-primary"
+                href={`/login?next=${encodeURIComponent(next)}`}
+              >
                 Prijavi se za ogled rezultata
               </Link>
             </p>
