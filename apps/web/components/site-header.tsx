@@ -45,7 +45,7 @@ export async function SiteHeader() {
               <Nav
                 href="/ai-visibility-checker"
                 icon={<SearchCheck className="h-4 w-4" />}
-                label="Nov audit"
+                label="Nova znamka"
               />
               {admin && (
                 <Nav

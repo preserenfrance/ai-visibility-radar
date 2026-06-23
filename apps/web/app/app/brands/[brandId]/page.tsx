@@ -25,7 +25,6 @@ async function startProviderScan(formData: FormData) {
     engineVariants: paidAccess
       ? selectedEngineVariantsFromFormData(formData)
       : [{ provider: "openai", searchEnabled: false }],
-    promptLimit: 5,
     runNow: false,
   });
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);

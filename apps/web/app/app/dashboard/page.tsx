@@ -33,7 +33,7 @@ export default async function AppDashboardPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/ai-visibility-checker">Nov audit</Link>
+          <Link href="/ai-visibility-checker">Nova znamka</Link>
         </Button>
       </div>
       <Card>
