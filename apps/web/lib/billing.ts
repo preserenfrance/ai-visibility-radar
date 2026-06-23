@@ -5,7 +5,10 @@ export type PaidFeatureKey = "competitors" | "citations" | "actions";
 
 type OrganizationPlanAccess = {
   plan: Plan;
-  billingSubscription?: { status: string | null } | null;
+  billingSubscription?: {
+    status: string | null;
+    stripeSubscriptionId?: string | null;
+  } | null;
 };
 
 export const paidFeatureLabels: Record<PaidFeatureKey, string> = {
@@ -17,6 +20,7 @@ export const paidFeatureLabels: Record<PaidFeatureKey, string> = {
 export function hasActivePaidPlan(organization: OrganizationPlanAccess) {
   return (
     organization.plan !== "free" &&
+    Boolean(organization.billingSubscription?.stripeSubscriptionId) &&
     (organization.billingSubscription?.status === "active" ||
       organization.billingSubscription?.status === "trialing")
   );

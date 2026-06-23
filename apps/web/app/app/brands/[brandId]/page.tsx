@@ -70,6 +70,8 @@ export default async function BrandPage({
   const latestScore = brand.scoreSnapshots[0];
   const promptSet = brand.promptSets[0];
   const paidAccess = hasActivePaidPlan(brand.organization);
+  const recurringScanActive =
+    brand.recurringScanActive && hasActivePaidPlan(brand.organization);
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -200,7 +202,7 @@ export default async function BrandPage({
             <div className="flex justify-between">
               <span>Reden scan</span>
               <strong>
-                {brand.recurringScanActive
+                {recurringScanActive
                   ? cadenceLabel(brand.recurringScanCadence)
                   : "ni aktiven"}
               </strong>
@@ -210,7 +212,10 @@ export default async function BrandPage({
               organizationId={brand.organizationId}
               organizationPlan={brand.organization.plan}
               billingStatus={brand.organization.billingSubscription?.status}
-              recurringScanActive={brand.recurringScanActive}
+              stripeSubscriptionId={
+                brand.organization.billingSubscription?.stripeSubscriptionId
+              }
+              recurringScanActive={recurringScanActive}
               hasStripeCustomer={Boolean(brand.organization.stripeCustomerId)}
             />
           </CardContent>

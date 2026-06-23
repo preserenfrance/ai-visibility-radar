@@ -30,7 +30,7 @@ import {
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
-import { promptLimitForOrganization } from "@/lib/billing";
+import { hasActivePaidPlan, promptLimitForOrganization } from "@/lib/billing";
 import { enqueueJob } from "@/lib/queue";
 import { systemPromptContent } from "@/lib/system-prompts";
 
@@ -795,9 +795,18 @@ export function recurringScanEngineVariantsFromJson(
 
 export async function activateRecurringScanForBrand(
   brandId: string,
-  plan: PaidPlan,
+  _plan: PaidPlan,
 ) {
-  const cadence = recurringScanCadenceForPlan(plan);
+  const brand = await prisma.brand.findUnique({
+    where: { id: brandId },
+    include: { organization: { include: { billingSubscription: true } } },
+  });
+  if (!brand) throw new Error("Brand not found");
+  if (!hasActivePaidPlan(brand.organization)) {
+    throw new Error("Bad Request: recurring scan requires an active paid plan");
+  }
+
+  const cadence = recurringScanCadenceForPlan(brand.organization.plan);
   if (!cadence)
     throw new Error("Bad Request: recurring scan requires a paid plan");
   const now = new Date();
@@ -807,7 +816,7 @@ export async function activateRecurringScanForBrand(
     data: {
       recurringScanActive: true,
       recurringScanCadence: cadence,
-      recurringScanPlan: plan,
+      recurringScanPlan: brand.organization.plan,
       recurringScanActivatedAt: now,
       recurringScanNextRunAt: now,
       recurringScanProviderVariants: defaultRecurringScanEngineVariants(),

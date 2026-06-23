@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
+import { hasActivePaidPlan } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -54,61 +55,71 @@ export default async function AppDashboardPage() {
               </TR>
             </THead>
             <TBody>
-              {brands.map((brand) => (
-                <TR key={brand.id}>
-                  <TD>
-                    <Link
-                      className="font-medium text-primary"
-                      href={`/app/brands/${brand.id}`}
-                    >
-                      {brand.name}
-                    </Link>
-                    <div className="text-xs text-muted-foreground">
-                      {brand.domain}
-                    </div>
-                  </TD>
-                  <TD>{brand.organization.name}</TD>
-                  <TD>{brand.scoreSnapshots[0]?.visibilityScore ?? "-"}</TD>
-                  <TD>
-                    {brand.scanRuns[0]?.createdAt.toLocaleString("sl-SI") ??
-                      "-"}
-                  </TD>
-                  <TD>
-                    <Badge variant="secondary">
-                      {brand.scanRuns[0]?.status ?? "brez scana"}
-                    </Badge>
-                  </TD>
-                  <TD>
-                    {brand.recurringScanActive ? (
-                      <div className="grid gap-1">
-                        <Badge>aktiven</Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {cadenceLabel(brand.recurringScanCadence)}
-                          {brand.recurringScanNextRunAt
-                            ? ` · naslednji ${brand.recurringScanNextRunAt.toLocaleDateString("sl-SI")}`
-                            : ""}
-                        </span>
+              {brands.map((brand) => {
+                const recurringScanActive =
+                  brand.recurringScanActive &&
+                  hasActivePaidPlan(brand.organization);
+
+                return (
+                  <TR key={brand.id}>
+                    <TD>
+                      <Link
+                        className="font-medium text-primary"
+                        href={`/app/brands/${brand.id}`}
+                      >
+                        {brand.name}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">
+                        {brand.domain}
                       </div>
-                    ) : (
-                      <Badge variant="secondary">ni aktiven</Badge>
-                    )}
-                  </TD>
-                  <TD>
-                    <RegularScanControls
-                      brandId={brand.id}
-                      organizationId={brand.organizationId}
-                      organizationPlan={brand.organization.plan}
-                      billingStatus={
-                        brand.organization.billingSubscription?.status
-                      }
-                      recurringScanActive={brand.recurringScanActive}
-                      hasStripeCustomer={Boolean(
-                        brand.organization.stripeCustomerId,
+                    </TD>
+                    <TD>{brand.organization.name}</TD>
+                    <TD>{brand.scoreSnapshots[0]?.visibilityScore ?? "-"}</TD>
+                    <TD>
+                      {brand.scanRuns[0]?.createdAt.toLocaleString("sl-SI") ??
+                        "-"}
+                    </TD>
+                    <TD>
+                      <Badge variant="secondary">
+                        {brand.scanRuns[0]?.status ?? "brez scana"}
+                      </Badge>
+                    </TD>
+                    <TD>
+                      {recurringScanActive ? (
+                        <div className="grid gap-1">
+                          <Badge>aktiven</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {cadenceLabel(brand.recurringScanCadence)}
+                            {brand.recurringScanNextRunAt
+                              ? ` · naslednji ${brand.recurringScanNextRunAt.toLocaleDateString("sl-SI")}`
+                              : ""}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge variant="secondary">ni aktiven</Badge>
                       )}
-                    />
-                  </TD>
-                </TR>
-              ))}
+                    </TD>
+                    <TD>
+                      <RegularScanControls
+                        brandId={brand.id}
+                        organizationId={brand.organizationId}
+                        organizationPlan={brand.organization.plan}
+                        billingStatus={
+                          brand.organization.billingSubscription?.status
+                        }
+                        stripeSubscriptionId={
+                          brand.organization.billingSubscription
+                            ?.stripeSubscriptionId
+                        }
+                        recurringScanActive={recurringScanActive}
+                        hasStripeCustomer={Boolean(
+                          brand.organization.stripeCustomerId,
+                        )}
+                      />
+                    </TD>
+                  </TR>
+                );
+              })}
             </TBody>
           </Table>
         </CardContent>

@@ -32,7 +32,11 @@ export async function POST(request: Request) {
     const signature = request.headers.get("stripe-signature");
     if (!signature) return fail("Missing stripe-signature", 400);
     const payload = await request.text();
-    const event = stripe.webhooks.constructEvent(payload, signature, config.STRIPE_WEBHOOK_SECRET);
+    const event = stripe.webhooks.constructEvent(
+      payload,
+      signature,
+      config.STRIPE_WEBHOOK_SECRET,
+    );
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -41,11 +45,14 @@ export async function POST(request: Request) {
         plan: session.metadata?.plan,
         brandId: session.metadata?.brandId,
         intent: session.metadata?.intent,
-        customerId: typeof session.customer === "string" ? session.customer : undefined
+        customerId:
+          typeof session.customer === "string" ? session.customer : undefined,
       };
 
       if (typeof session.subscription === "string") {
-        const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription,
+        );
         await syncStripeSubscription(subscription, fallback);
       } else {
         await syncCheckoutWithoutSubscription(fallback);
@@ -77,30 +84,35 @@ async function syncCheckoutWithoutSubscription(fallback: SubscriptionFallback) {
         upsert: {
           create: {
             plan,
-            status: "active"
+            status: "incomplete",
           },
           update: {
             plan,
-            status: "active"
-          }
-        }
-      }
-    }
+            status: "incomplete",
+          },
+        },
+      },
+    },
   });
-
-  if (fallback.intent === "regular_scan" && fallback.brandId) {
-    await activateRecurringScanForBrand(fallback.brandId, plan);
-  }
 }
 
-async function syncStripeSubscription(subscription: Stripe.Subscription, fallback: SubscriptionFallback = {}) {
+async function syncStripeSubscription(
+  subscription: Stripe.Subscription,
+  fallback: SubscriptionFallback = {},
+) {
   const existing = await prisma.billingSubscription.findUnique({
     where: { stripeSubscriptionId: subscription.id },
-    include: { organization: true }
+    include: { organization: true },
   });
   const priceId = subscription.items.data[0]?.price.id;
-  const organizationId = subscription.metadata.organizationId ?? fallback.organizationId ?? existing?.organizationId;
-  const plan = paidPlan(subscription.metadata.plan) ?? paidPlan(fallback.plan) ?? planFromPriceId(priceId);
+  const organizationId =
+    subscription.metadata.organizationId ??
+    fallback.organizationId ??
+    existing?.organizationId;
+  const plan =
+    paidPlan(subscription.metadata.plan) ??
+    paidPlan(fallback.plan) ??
+    planFromPriceId(priceId);
   if (!organizationId || !plan) return;
 
   const status = billingStatusFromStripe(subscription.status);
@@ -108,7 +120,9 @@ async function syncStripeSubscription(subscription: Stripe.Subscription, fallbac
   const customerId =
     typeof subscription.customer === "string"
       ? subscription.customer
-      : fallback.customerId ?? existing?.organization.stripeCustomerId ?? undefined;
+      : (fallback.customerId ??
+        existing?.organization.stripeCustomerId ??
+        undefined);
 
   await prisma.organization.update({
     where: { id: organizationId },
@@ -122,17 +136,17 @@ async function syncStripeSubscription(subscription: Stripe.Subscription, fallbac
             status,
             stripeSubscriptionId: subscription.id,
             stripePriceId: priceId,
-            currentPeriodEnd: currentPeriodEnd(subscription)
+            currentPeriodEnd: currentPeriodEnd(subscription),
           },
           update: {
             plan,
             status,
             stripePriceId: priceId,
-            currentPeriodEnd: currentPeriodEnd(subscription)
-          }
-        }
-      }
-    }
+            currentPeriodEnd: currentPeriodEnd(subscription),
+          },
+        },
+      },
+    },
   });
 
   const brandId = subscription.metadata.brandId ?? fallback.brandId;
@@ -146,8 +160,8 @@ async function syncStripeSubscription(subscription: Stripe.Subscription, fallbac
       where: { organizationId },
       data: {
         recurringScanActive: false,
-        recurringScanNextRunAt: null
-      }
+        recurringScanNextRunAt: null,
+      },
     });
   }
 }
@@ -164,7 +178,9 @@ function planFromPriceId(priceId: string | undefined): PaidPlan | null {
   return null;
 }
 
-function billingStatusFromStripe(status: Stripe.Subscription.Status): BillingStatusValue {
+function billingStatusFromStripe(
+  status: Stripe.Subscription.Status,
+): BillingStatusValue {
   switch (status) {
     case "active":
     case "trialing":
@@ -182,5 +198,7 @@ function billingStatusFromStripe(status: Stripe.Subscription.Status): BillingSta
 }
 
 function currentPeriodEnd(subscription: Stripe.Subscription) {
-  return subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : undefined;
+  return subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000)
+    : undefined;
 }

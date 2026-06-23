@@ -7,7 +7,7 @@ import {
   nextRecurringScanDate,
   recurringScanCadenceForPlan,
   recurringScanEngineVariantsFromJson,
-  runNextScanStep
+  runNextScanStep,
 } from "@/lib/services";
 
 export const maxDuration = 60;
@@ -25,9 +25,42 @@ export async function POST(request: Request) {
 
 function runRegularScans(request: Request) {
   return route(async () => {
-    if (!isAuthorizedCronRequest(request)) return fail("Cron ni avtoriziran.", 401);
+    if (!isAuthorizedCronRequest(request))
+      return fail("Cron ni avtoriziran.", 401);
 
     const now = new Date();
+    const deactivatedUnpaid = await prisma.brand.updateMany({
+      where: {
+        recurringScanActive: true,
+        organization: {
+          OR: [
+            { plan: "free" },
+            { billingSubscription: { is: null } },
+            {
+              billingSubscription: {
+                is: {
+                  status: { notIn: ["active", "trialing"] },
+                },
+              },
+            },
+            {
+              billingSubscription: {
+                is: {
+                  stripeSubscriptionId: null,
+                },
+              },
+            },
+          ],
+        },
+      },
+      data: {
+        recurringScanActive: false,
+        recurringScanPlan: null,
+        recurringScanCadence: null,
+        recurringScanNextRunAt: null,
+      },
+    });
+
     const dueBrands = await prisma.brand.findMany({
       where: {
         recurringScanActive: true,
@@ -35,20 +68,23 @@ function runRegularScans(request: Request) {
         organization: {
           plan: { in: ["starter", "growth"] },
           billingSubscription: {
-            status: { in: ["active", "trialing"] }
-          }
-        }
+            status: { in: ["active", "trialing"] },
+            stripeSubscriptionId: { not: null },
+          },
+        },
       },
       include: {
-        organization: { include: { billingSubscription: true } }
+        organization: { include: { billingSubscription: true } },
       },
       orderBy: { recurringScanNextRunAt: "asc" },
-      take: MAX_NEW_SCANS_PER_TICK
+      take: MAX_NEW_SCANS_PER_TICK,
     });
 
     const createdScans: string[] = [];
     for (const brand of dueBrands) {
-      const cadence = brand.recurringScanCadence ?? recurringScanCadenceForPlan(brand.organization.plan);
+      const cadence =
+        brand.recurringScanCadence ??
+        recurringScanCadenceForPlan(brand.organization.plan);
       if (!cadence) continue;
       const limits = PLAN_LIMITS[brand.organization.plan];
       const scan = await createScanForBrand(brand.id, {
@@ -56,7 +92,9 @@ function runRegularScans(request: Request) {
         promptLimit: limits.promptsPerBrand,
         repeatCount: 1,
         runNow: false,
-        engineVariants: recurringScanEngineVariantsFromJson(brand.recurringScanProviderVariants)
+        engineVariants: recurringScanEngineVariantsFromJson(
+          brand.recurringScanProviderVariants,
+        ),
       });
       if (scan?.id) createdScans.push(scan.id);
 
@@ -64,19 +102,19 @@ function runRegularScans(request: Request) {
         where: { id: brand.id },
         data: {
           recurringScanLastRunAt: now,
-          recurringScanNextRunAt: nextRecurringScanDate(cadence, now)
-        }
+          recurringScanNextRunAt: nextRecurringScanDate(cadence, now),
+        },
       });
     }
 
     const pendingScans = await prisma.scanRun.findMany({
       where: {
         triggerType: "scheduled",
-        status: { in: ["queued", "running"] }
+        status: { in: ["queued", "running"] },
       },
       orderBy: { createdAt: "asc" },
       select: { id: true },
-      take: MAX_SCAN_STEPS_PER_TICK
+      take: MAX_SCAN_STEPS_PER_TICK,
     });
 
     const processedSteps: string[] = [];
@@ -86,8 +124,9 @@ function runRegularScans(request: Request) {
     }
 
     return ok({
+      deactivatedUnpaid: deactivatedUnpaid.count,
       createdScans,
-      processedSteps
+      processedSteps,
     });
   });
 }
@@ -96,7 +135,9 @@ function isAuthorizedCronRequest(request: Request) {
   const config = getConfig();
   if (!config.CRON_SECRET) return true;
   const authorization = request.headers.get("authorization");
-  const token = authorization?.startsWith("Bearer ") ? authorization.slice("Bearer ".length) : null;
+  const token = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length)
+    : null;
   const querySecret = new URL(request.url).searchParams.get("secret");
   return token === config.CRON_SECRET || querySecret === config.CRON_SECRET;
 }

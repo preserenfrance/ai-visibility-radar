@@ -12,13 +12,15 @@ export function RegularScanControls({
   organizationId,
   organizationPlan,
   billingStatus,
+  stripeSubscriptionId,
   recurringScanActive,
-  hasStripeCustomer
+  hasStripeCustomer,
 }: {
   brandId: string;
   organizationId: string;
   organizationPlan: Plan;
   billingStatus?: string | null;
+  stripeSubscriptionId?: string | null;
   recurringScanActive: boolean;
   hasStripeCustomer: boolean;
 }) {
@@ -26,7 +28,9 @@ export function RegularScanControls({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const paidAndActive =
-    organizationPlan !== "free" && (billingStatus === "active" || billingStatus === "trialing");
+    organizationPlan !== "free" &&
+    Boolean(stripeSubscriptionId) &&
+    (billingStatus === "active" || billingStatus === "trialing");
 
   function run(action: () => Promise<void>) {
     setError(null);
@@ -34,7 +38,11 @@ export function RegularScanControls({
       try {
         await action();
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : "Dejanja trenutno ni bilo mogoče izvesti.");
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Dejanja trenutno ni bilo mogoče izvesti.",
+        );
       }
     });
   }
@@ -48,7 +56,7 @@ export function RegularScanControls({
     const response = await fetch(`/api/brands/${brandId}/recurring-scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "activate" })
+      body: JSON.stringify({ action: "activate" }),
     });
     if (!response.ok) throw new Error(await responseError(response));
     router.refresh();
@@ -58,7 +66,7 @@ export function RegularScanControls({
     const response = await fetch(`/api/brands/${brandId}/recurring-scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "deactivate" })
+      body: JSON.stringify({ action: "deactivate" }),
     });
     if (!response.ok) throw new Error(await responseError(response));
     router.refresh();
@@ -72,12 +80,13 @@ export function RegularScanControls({
         organizationId,
         brandId,
         intent: "regular_scan",
-        plan: organizationPlan === "growth" ? "growth" : "starter"
-      })
+        plan: organizationPlan === "growth" ? "growth" : "starter",
+      }),
     });
     if (!response.ok) throw new Error(await responseError(response));
     const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error("Stripe checkout ni vrnil povezave za plačilo.");
+    if (!data.url)
+      throw new Error("Stripe checkout ni vrnil povezave za plačilo.");
     window.location.href = data.url;
   }
 
@@ -85,7 +94,7 @@ export function RegularScanControls({
     const response = await fetch("/api/billing/portal", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId })
+      body: JSON.stringify({ organizationId }),
     });
     if (!response.ok) throw new Error(await responseError(response));
     const data = (await response.json()) as { url?: string };
@@ -97,27 +106,60 @@ export function RegularScanControls({
     <div className="flex flex-wrap items-center gap-2">
       {recurringScanActive ? (
         <>
-          <Button type="button" size="sm" variant="outline" disabled={isPending || !hasStripeCustomer} onClick={() => run(openPortal)}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isPending || !hasStripeCustomer}
+            onClick={() => run(openPortal)}
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CreditCard className="h-4 w-4" />
+            )}
             Plačilo
           </Button>
-          <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={() => run(deactivate)}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => run(deactivate)}
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <PauseCircle className="h-4 w-4" />
+            )}
             Izklopi
           </Button>
         </>
       ) : (
-        <Button type="button" size="sm" disabled={isPending} onClick={() => run(activate)}>
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
+        <Button
+          type="button"
+          size="sm"
+          disabled={isPending}
+          onClick={() => run(activate)}
+        >
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CalendarClock className="h-4 w-4" />
+          )}
           Aktiviraj reden scan
         </Button>
       )}
-      {error && <div className="basis-full text-xs text-destructive">{error}</div>}
+      {error && (
+        <div className="basis-full text-xs text-destructive">{error}</div>
+      )}
     </div>
   );
 }
 
 async function responseError(response: Response) {
-  const data = (await response.json().catch(() => null)) as { error?: string } | null;
+  const data = (await response.json().catch(() => null)) as {
+    error?: string;
+  } | null;
   return data?.error ?? "Prišlo je do napake.";
 }
