@@ -5,7 +5,7 @@ import {
   type AiEngineAdapter,
   type AiEngineProvider,
   type RunPromptInput,
-  type RunPromptOutput
+  type RunPromptOutput,
 } from "@ai-radar/shared";
 
 export type CreateAiAdapterOptions = {
@@ -17,7 +17,7 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
 export function createAiAdapter(
   provider: AiEngineProvider,
-  options: CreateAiAdapterOptions = {}
+  options: CreateAiAdapterOptions = {},
 ): AiEngineAdapter {
   switch (provider) {
     case "openai":
@@ -36,9 +36,10 @@ export function buildProviderPrompt(input: RunPromptInput): string {
     answerLanguageInstruction(input.language),
     `Use ${input.country} as the buyer's market when the question depends on location.`,
     "Answer naturally as an AI assistant would to a buyer. If you use sources, cite them in the provider-native way.",
+    "Do not ask follow-up questions; the user cannot answer them. Give the best complete answer you can with the available information.",
     "Do not assume any hidden brand, competitor, or evaluation context beyond the user's question.",
     "",
-    input.prompt
+    input.prompt,
   ].join("\n");
 }
 
@@ -57,22 +58,25 @@ class OpenAiResponsesAdapter implements AiEngineAdapter {
 
   async runPrompt(input: RunPromptInput): Promise<RunPromptOutput> {
     const apiKey = this.config.OPENAI_API_KEY;
-    const model = this.options.modelOverride ?? this.config.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
+    const model =
+      this.options.modelOverride ??
+      this.config.OPENAI_MODEL ??
+      DEFAULT_OPENAI_MODEL;
     if (!apiKey) throw new Error("OPENAI_API_KEY is required");
 
     const searchEnabled = this.options.searchEnabled ?? input.searchEnabled;
     const body: Record<string, unknown> = {
       model,
       input: buildProviderPrompt({ ...input, searchEnabled }),
-      include: searchEnabled ? ["web_search_call.action.sources"] : undefined
+      include: searchEnabled ? ["web_search_call.action.sources"] : undefined,
     };
 
     if (searchEnabled) {
       body.tools = [
         {
           type: "web_search",
-          search_context_size: "medium"
-        }
+          search_context_size: "medium",
+        },
       ];
       body.tool_choice = "auto";
     }
@@ -81,14 +85,16 @@ class OpenAiResponsesAdapter implements AiEngineAdapter {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     const rawJson = await response.json();
     if (!response.ok) {
-      throw new Error(`OpenAI Responses API error ${response.status}: ${JSON.stringify(rawJson)}`);
+      throw new Error(
+        `OpenAI Responses API error ${response.status}: ${JSON.stringify(rawJson)}`,
+      );
     }
 
     return {
@@ -98,7 +104,7 @@ class OpenAiResponsesAdapter implements AiEngineAdapter {
       rawJson,
       citations: extractOpenAiCitations(rawJson),
       inputTokens: rawJson?.usage?.input_tokens,
-      outputTokens: rawJson?.usage?.output_tokens
+      outputTokens: rawJson?.usage?.output_tokens,
     };
   }
 }
@@ -124,11 +130,11 @@ class GeminiGroundingAdapter implements AiEngineAdapter {
         ? {
             tools: [
               {
-                googleSearch: {}
-              }
-            ]
+                googleSearch: {},
+              },
+            ],
           }
-        : undefined
+        : undefined,
     });
 
     const rawJson = JSON.parse(JSON.stringify(response));
@@ -139,7 +145,7 @@ class GeminiGroundingAdapter implements AiEngineAdapter {
       rawJson,
       citations: extractGeminiCitations(rawJson),
       inputTokens: rawJson?.usageMetadata?.promptTokenCount,
-      outputTokens: rawJson?.usageMetadata?.candidatesTokenCount
+      outputTokens: rawJson?.usageMetadata?.candidatesTokenCount,
     };
   }
 }
@@ -164,18 +170,18 @@ class ClaudeMessagesAdapter implements AiEngineAdapter {
       messages: [
         {
           role: "user",
-          content: buildProviderPrompt({ ...input, searchEnabled })
-        }
+          content: buildProviderPrompt({ ...input, searchEnabled }),
+        },
       ],
       tools: searchEnabled
         ? [
             {
               type: "web_search_20250305",
               name: "web_search",
-              max_uses: 5
-            }
+              max_uses: 5,
+            },
           ]
-        : undefined
+        : undefined,
     });
 
     const rawJson = JSON.parse(JSON.stringify(message));
@@ -186,7 +192,7 @@ class ClaudeMessagesAdapter implements AiEngineAdapter {
       rawJson,
       citations: extractAnthropicCitations(rawJson),
       inputTokens: rawJson?.usage?.input_tokens,
-      outputTokens: rawJson?.usage?.output_tokens
+      outputTokens: rawJson?.usage?.output_tokens,
     };
   }
 }
@@ -201,26 +207,32 @@ export class MockAiAdapter implements AiEngineAdapter {
     const provider = "mock" as const;
     const model = this.options.modelOverride ?? "mock-ai-visibility-model";
 
-    const brandNotMentioned = lower.includes("brand not mentioned") || lower.includes("not mentioned");
-    const negative = lower.includes("negative sentiment") || lower.includes("negative");
-    const wrong = lower.includes("wrong brand description") || lower.includes("wrong");
-    const competitorMentioned = lower.includes("competitor mentioned") || lower.includes("competitor");
-    const ownedCitation = lower.includes("owned domain cited") || lower.includes("owned");
-    const thirdPartyCitation = lower.includes("third party cited") || lower.includes("third");
+    const brandNotMentioned =
+      lower.includes("brand not mentioned") || lower.includes("not mentioned");
+    const negative =
+      lower.includes("negative sentiment") || lower.includes("negative");
+    const wrong =
+      lower.includes("wrong brand description") || lower.includes("wrong");
+    const competitorMentioned =
+      lower.includes("competitor mentioned") || lower.includes("competitor");
+    const ownedCitation =
+      lower.includes("owned domain cited") || lower.includes("owned");
+    const thirdPartyCitation =
+      lower.includes("third party cited") || lower.includes("third");
 
     const citations: AiCitation[] = [];
     if (ownedCitation || !thirdPartyCitation) {
       citations.push({
         url: `https://${input.brandDomain}/about`,
         title: `${input.brandName} about page`,
-        domain: input.brandDomain
+        domain: input.brandDomain,
       });
     }
     if (thirdPartyCitation || competitorMentioned) {
       citations.push({
         url: "https://example-review-site.test/ai-visibility-market",
         title: "AI visibility market overview",
-        domain: "example-review-site.test"
+        domain: "example-review-site.test",
       });
     }
 
@@ -228,14 +240,20 @@ export class MockAiAdapter implements AiEngineAdapter {
       ? [
           `1. ${competitorName} is often recommended for this buyer need.`,
           "The tested brand is not clearly surfaced in this answer.",
-          thirdPartyCitation ? "Source: example-review-site.test" : ""
+          thirdPartyCitation ? "Source: example-review-site.test" : "",
         ].join("\n")
       : [
-          competitorMentioned ? `1. ${competitorName} is a known alternative.` : "",
+          competitorMentioned
+            ? `1. ${competitorName} is a known alternative.`
+            : "",
           `2. ${input.brandName} is ${negative ? "mentioned with concerns about clarity" : "a strong option"} for the prompt "${input.prompt}".`,
-          wrong ? `${input.brandName} appears to be described as a consumer app, which may be inaccurate.` : "",
+          wrong
+            ? `${input.brandName} appears to be described as a consumer app, which may be inaccurate.`
+            : "",
           ownedCitation ? `The answer cites ${input.brandDomain}.` : "",
-          thirdPartyCitation ? "The answer also cites a third-party market overview." : ""
+          thirdPartyCitation
+            ? "The answer also cites a third-party market overview."
+            : "",
         ]
           .filter(Boolean)
           .join("\n");
@@ -252,13 +270,13 @@ export class MockAiAdapter implements AiEngineAdapter {
           ownedCitation,
           thirdPartyCitation,
           negative,
-          wrong
+          wrong,
         },
-        rawText
+        rawText,
       },
       citations,
       inputTokens: input.prompt.length,
-      outputTokens: rawText.length
+      outputTokens: rawText.length,
     };
   }
 }
@@ -280,7 +298,9 @@ function extractGeminiText(rawJson: any): string {
 function extractAnthropicText(rawJson: any): string {
   return (
     rawJson?.content
-      ?.filter((block: any) => block.type === "text" && typeof block.text === "string")
+      ?.filter(
+        (block: any) => block.type === "text" && typeof block.text === "string",
+      )
       .map((block: any) => block.text)
       .join("\n") ?? ""
   );
@@ -293,14 +313,14 @@ function extractOpenAiCitations(rawJson: any): AiCitation[] {
       citations.push({
         url: value.url,
         title: value.title,
-        domain: domainFromUrl(value.url)
+        domain: domainFromUrl(value.url),
       });
     }
     if (value?.url && value?.type === "source") {
       citations.push({
         url: value.url,
         title: value.title,
-        domain: domainFromUrl(value.url)
+        domain: domainFromUrl(value.url),
       });
     }
   });
@@ -308,7 +328,8 @@ function extractOpenAiCitations(rawJson: any): AiCitation[] {
 }
 
 function extractGeminiCitations(rawJson: any): AiCitation[] {
-  const chunks = rawJson?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const chunks =
+    rawJson?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
   return dedupeCitations(
     chunks
       .map((chunk: any) => chunk.web)
@@ -316,8 +337,8 @@ function extractGeminiCitations(rawJson: any): AiCitation[] {
       .map((web: any) => ({
         url: web.uri,
         title: web.title,
-        domain: domainFromUrl(web.uri)
-      }))
+        domain: domainFromUrl(web.uri),
+      })),
   );
 }
 
@@ -325,10 +346,18 @@ function extractAnthropicCitations(rawJson: any): AiCitation[] {
   const citations: AiCitation[] = [];
   walk(rawJson, (value) => {
     if (value?.type === "web_search_result" && value.url) {
-      citations.push({ url: value.url, title: value.title, domain: domainFromUrl(value.url) });
+      citations.push({
+        url: value.url,
+        title: value.title,
+        domain: domainFromUrl(value.url),
+      });
     }
     if (value?.type === "web_search_result_location" && value.url) {
-      citations.push({ url: value.url, title: value.title, domain: domainFromUrl(value.url) });
+      citations.push({
+        url: value.url,
+        title: value.title,
+        domain: domainFromUrl(value.url),
+      });
     }
   });
   return dedupeCitations(citations);
