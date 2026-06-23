@@ -14,6 +14,7 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { requireBrandAccess } from "@/lib/auth";
 import { promptLimitForOrganization } from "@/lib/billing";
+import { createScanForBrand } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,12 @@ async function addPrompt(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
   const text = String(formData.get("text") ?? "").trim();
+  const promptTexts = promptLinesFromText(text);
 
-  if (text.length < 3) throw new Error("Prompt mora imeti vsaj 3 znake");
+  if (promptTexts.length === 0)
+    throw new Error("Vnesi vsaj en prompt z vsaj 3 znaki");
+  if (promptTexts.some((prompt) => prompt.length < 3))
+    throw new Error("Vsak prompt mora imeti vsaj 3 znake");
 
   const { brand } = await requireBrandAccess(brandId);
   const promptLimit = promptLimitForOrganization(brand.organization);
@@ -52,9 +57,15 @@ async function addPrompt(formData: FormData) {
       isActive: true,
     },
   });
-  if (activePromptCount >= promptLimit) {
+  const availablePromptSlots = promptLimit - activePromptCount;
+  if (availablePromptSlots <= 0) {
     throw new Error(
       `Bad Request: ta paket omogoča največ ${promptLimit} aktivnih promptov na znamko`,
+    );
+  }
+  if (promptTexts.length > availablePromptSlots) {
+    throw new Error(
+      `Bad Request: dodaš lahko še največ ${availablePromptSlots} aktivnih promptov`,
     );
   }
 
@@ -64,20 +75,31 @@ async function addPrompt(formData: FormData) {
     select: { priority: true },
   });
 
-  await prisma.prompt.create({
-    data: {
+  await prisma.prompt.createMany({
+    data: promptTexts.map((promptText, index) => ({
       promptSetId: promptSet.id,
-      text,
+      text: promptText,
       category: DEFAULT_PROMPT_CATEGORY,
       intent: "custom prompt",
       persona: "buyer",
       funnelStage: DEFAULT_FUNNEL_STAGE,
-      priority: (lastPrompt?.priority ?? 0) + 1,
+      priority: (lastPrompt?.priority ?? 0) + index + 1,
       isActive: true,
-    },
+    })),
   });
 
-  redirect(`/app/brands/${brandId}/prompts`);
+  redirect(`/app/brands/${brandId}/prompts?added=1`);
+}
+
+async function startChatGptPromptReview(formData: FormData) {
+  "use server";
+  const brandId = String(formData.get("brandId"));
+  await requireBrandAccess(brandId);
+  const scan = await createScanForBrand(brandId, {
+    engineVariants: [{ provider: "openai", searchEnabled: false }],
+    runNow: false,
+  });
+  redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
 }
 
 async function updatePrompt(formData: FormData) {
@@ -125,10 +147,13 @@ async function deletePrompt(formData: FormData) {
 
 export default async function PromptsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ brandId: string }>;
+  searchParams?: Promise<{ added?: string }>;
 }) {
   const { brandId } = await params;
+  const addedPrompts = (await searchParams)?.added === "1";
   await requireBrandAccess(brandId);
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
@@ -181,16 +206,23 @@ export default async function PromptsPage({
       <BrandMenu brandId={brandId} active="prompts" />
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Dodaj nov prompt</CardTitle>
+          <CardTitle>Dodaj nove prompte</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={addPrompt} className="grid gap-3">
             <input type="hidden" name="brandId" value={brandId} />
+            <p className="text-sm text-muted-foreground">
+              Vsak prompt vpiši v svojo vrstico. Lahko prilepiš več promptov
+              naenkrat in nato enkrat klikneš dodaj.
+            </p>
             <Textarea
               name="text"
-              placeholder="Npr. Kateri ponudniki so najboljša izbira za tehnični SEO v Sloveniji?"
+              placeholder={`Kje lahko kupim kakovostno vrtno pohištvo z dostavo v Sloveniji?
+Katera spletna trgovina ima dobro ponudbo kosilnic za manjši vrt?
+Kje naj kupim visoke grede za domači vrt?`}
               required
               disabled={promptLimitReached}
+              className="min-h-32"
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
@@ -200,10 +232,25 @@ export default async function PromptsPage({
               </p>
               <Button type="submit" disabled={promptLimitReached}>
                 <Plus className="h-4 w-4" />
-                Dodaj prompt
+                Dodaj prompte
               </Button>
             </div>
           </form>
+          {addedPrompts && (
+            <form
+              action={startChatGptPromptReview}
+              className="mt-4 rounded-md border bg-secondary/30 p-4"
+            >
+              <input type="hidden" name="brandId" value={brandId} />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Novi prompti so dodani. Lahko takoj zaženeš pregled v ChatGPT
+                  za aktivne prompte te znamke.
+                </p>
+                <Button type="submit">Zaženi pregled s temi prompti</Button>
+              </div>
+            </form>
+          )}
         </CardContent>
       </Card>
       <Card>
@@ -337,6 +384,13 @@ export default async function PromptsPage({
       </Card>
     </section>
   );
+}
+
+function promptLinesFromText(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function latestByEngine(promptRuns: Array<any>) {

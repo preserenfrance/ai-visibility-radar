@@ -14,6 +14,35 @@ export type CreateAiAdapterOptions = {
 };
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const LANGUAGE_NAMES: Record<string, string> = {
+  sl: "Slovenian",
+  en: "English",
+  de: "German",
+  hr: "Croatian",
+  sr: "Serbian",
+  bs: "Bosnian",
+  it: "Italian",
+  hu: "Hungarian",
+  fr: "French",
+  es: "Spanish",
+  nl: "Dutch",
+  cs: "Czech",
+  sk: "Slovak",
+  pl: "Polish",
+  ro: "Romanian",
+  bg: "Bulgarian",
+  mk: "Macedonian",
+  sq: "Albanian",
+  uk: "Ukrainian",
+  ru: "Russian",
+  pt: "Portuguese",
+  da: "Danish",
+  sv: "Swedish",
+  no: "Norwegian",
+  fi: "Finnish",
+  el: "Greek",
+  tr: "Turkish",
+};
 
 export function createAiAdapter(
   provider: AiEngineProvider,
@@ -44,11 +73,11 @@ export function buildProviderPrompt(input: RunPromptInput): string {
 }
 
 function answerLanguageInstruction(language: string) {
-  const lower = language.toLowerCase();
+  const lower = language.trim().toLowerCase();
   if (lower === "sl" || lower.includes("sloven")) {
     return "Answer in natural Slovenian with correct č, š and ž.";
   }
-  return `Answer in ${language}.`;
+  return `Answer in ${LANGUAGE_NAMES[lower] ?? language}.`;
 }
 
 class OpenAiResponsesAdapter implements AiEngineAdapter {

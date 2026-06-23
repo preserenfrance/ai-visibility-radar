@@ -3,6 +3,7 @@
 import { type FormEvent, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Activity, ArrowRight, Loader2 } from "lucide-react";
+import { LanguageSelect } from "@/components/language-select";
 import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
@@ -161,7 +162,7 @@ export function FreeAuditForm({
           <label htmlFor="auditLanguage" className="text-sm font-medium">
             Jezik odgovorov
           </label>
-          <Input id="auditLanguage" name="language" defaultValue="sl" />
+          <LanguageSelect id="auditLanguage" name="language" />
         </div>
         <div className="grid gap-2">
           <label htmlFor="auditCompetitors" className="text-sm font-medium">

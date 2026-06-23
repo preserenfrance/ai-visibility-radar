@@ -109,67 +109,67 @@ export default async function ScanPage({
               </TR>
             </THead>
             <TBody>
-              {promptGroups.map((group) => (
-                <TR key={group.promptId}>
-                  <TD className="min-w-96">
-                    <details>
-                      <summary className="cursor-pointer font-medium">
-                        {group.promptText}
-                      </summary>
-                      <div className="mt-3 space-y-3 rounded-md border bg-secondary/30 p-3">
-                        {group.runs.map((run) => (
-                          <div
-                            key={run.id}
-                            className="rounded-md border bg-white p-3"
-                          >
-                            <div className="mb-2 flex flex-wrap items-center gap-2">
-                              <Badge variant="secondary">
-                                {run.engine.engineName}
-                              </Badge>
-                              <Badge variant={statusBadgeVariant(run.status)}>
-                                {statusLabel(run.status)}
-                              </Badge>
+              {promptGroups.map((group) => {
+                const status = groupStatus(group.runs);
+
+                return (
+                  <TR key={group.promptId}>
+                    <TD colSpan={5} className="p-0">
+                      <details>
+                        <summary className="grid cursor-pointer gap-3 p-3 md:grid-cols-[minmax(20rem,1.5fr)_1fr_auto_auto_auto] md:items-center">
+                          <span className="font-medium">
+                            {group.promptText}
+                          </span>
+                          <ModelMentionBadges
+                            runs={modelSummaries(group.runs)}
+                          />
+                          <CompetitorMentionCount
+                            names={competitorNamesForRuns(group.runs)}
+                          />
+                          <span>{bestBrandRank(group.runs) ?? "-"}</span>
+                          <Badge variant={statusBadgeVariant(status)}>
+                            {statusLabel(status)}
+                          </Badge>
+                        </summary>
+                        <div className="space-y-3 border-t bg-secondary/20 p-3">
+                          {group.runs.map((run) => (
+                            <div
+                              key={run.id}
+                              className="rounded-md border bg-white p-3"
+                            >
+                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary">
+                                  {run.engine.engineName}
+                                </Badge>
+                                <Badge variant={statusBadgeVariant(run.status)}>
+                                  {statusLabel(run.status)}
+                                </Badge>
+                              </div>
+                              <div className="text-sm font-semibold">
+                                Izvorni odgovor
+                              </div>
+                              <pre className="mt-1 max-h-72 w-full overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
+                                {run.aiResponse?.rawText ??
+                                  run.errorMessage ??
+                                  "Ni odgovora"}
+                              </pre>
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                Citati:{" "}
+                                {run.aiResponse?.citations
+                                  .map(
+                                    (citation: { domain: string | null }) =>
+                                      citation.domain,
+                                  )
+                                  .join(", ") || "-"}
+                              </div>
                             </div>
-                            <div className="text-sm font-semibold">
-                              Izvorni odgovor
-                            </div>
-                            <pre className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
-                              {run.aiResponse?.rawText ??
-                                run.errorMessage ??
-                                "Ni odgovora"}
-                            </pre>
-                            <div className="mt-2 text-xs text-muted-foreground">
-                              Citati:{" "}
-                              {run.aiResponse?.citations
-                                .map(
-                                  (citation: { domain: string | null }) =>
-                                    citation.domain,
-                                )
-                                .join(", ") || "-"}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  </TD>
-                  <TD>
-                    <ModelMentionBadges runs={modelSummaries(group.runs)} />
-                  </TD>
-                  <TD>
-                    <CompetitorMentionCount
-                      names={competitorNamesForRuns(group.runs)}
-                    />
-                  </TD>
-                  <TD>{bestBrandRank(group.runs) ?? "-"}</TD>
-                  <TD>
-                    <Badge
-                      variant={statusBadgeVariant(groupStatus(group.runs))}
-                    >
-                      {statusLabel(groupStatus(group.runs))}
-                    </Badge>
-                  </TD>
-                </TR>
-              ))}
+                          ))}
+                        </div>
+                      </details>
+                    </TD>
+                  </TR>
+                );
+              })}
             </TBody>
           </Table>
         </CardContent>

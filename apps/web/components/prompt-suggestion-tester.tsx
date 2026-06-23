@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { Loader2, WandSparkles } from "lucide-react";
+import { LanguageSelect } from "@/components/language-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,7 +67,7 @@ export function PromptSuggestionTester() {
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <Input name="country" defaultValue="Slovenija" />
-          <Input name="language" defaultValue="sl" />
+          <LanguageSelect name="language" />
         </div>
         <Textarea
           name="competitors"

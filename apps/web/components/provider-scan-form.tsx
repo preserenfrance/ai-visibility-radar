@@ -127,7 +127,7 @@ function SubmitButton() {
       ) : (
         <>
           <PlayCircle className="h-4 w-4" />
-          Zaženi izbrane modele
+          Ponovno preglej ali me ima AI rada
         </>
       )}
     </Button>
