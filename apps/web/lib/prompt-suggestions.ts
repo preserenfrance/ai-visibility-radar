@@ -1,7 +1,7 @@
 import { createAiAdapter } from "@ai-radar/ai";
 import { parseJsonObject } from "@ai-radar/parser";
 import { normalizeDomain } from "@ai-radar/shared";
-import { aiModelSettings } from "@/lib/ai-model-settings";
+import { aiModelForProvider, aiModelSettings } from "@/lib/ai-model-settings";
 import { systemPromptContent } from "@/lib/system-prompts";
 
 export type PromptSuggestionInput = {
@@ -31,7 +31,7 @@ export async function suggestAuditPrompts(input: PromptSuggestionInput) {
     aiModelSettings(),
   ]);
   const adapter = createAiAdapter("openai", {
-    modelOverride: models.openai,
+    modelOverride: aiModelForProvider(models, "openai", true),
     searchEnabled: true,
   });
   const output = await adapter.runPrompt({

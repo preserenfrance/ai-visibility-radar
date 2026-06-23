@@ -29,7 +29,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
         <Link
-          href={user ? "/app/dashboard" : "/"}
+          href="/"
           className="flex items-center gap-2 text-sm font-semibold"
         >
           <Radar className="h-5 w-5 text-primary" />

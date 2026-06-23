@@ -30,7 +30,7 @@ import {
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
-import { aiModelSettings } from "@/lib/ai-model-settings";
+import { aiModelForProvider, aiModelSettings } from "@/lib/ai-model-settings";
 import { hasActivePaidPlan, promptLimitForOrganization } from "@/lib/billing";
 import { enqueueJob } from "@/lib/queue";
 import { systemPromptContent } from "@/lib/system-prompts";
@@ -438,7 +438,7 @@ async function generatePromptSetWithChatGpt(
 
   const models = await aiModelSettings();
   const adapter = createAiAdapter("openai", {
-    modelOverride: models.openai ?? config.OPENAI_MODEL,
+    modelOverride: aiModelForProvider(models, "openai", false),
     searchEnabled: false,
   });
 
@@ -622,26 +622,24 @@ export type PaidPlan = Exclude<Plan, "free">;
 export type RecurringScanCadence = "weekly" | "daily";
 
 export async function ensureEngineVariants(selections: EngineSelection[]) {
-  const config = getConfig();
   const modelSettings = await aiModelSettings();
-  const models: Record<AiEngineProvider, string | undefined> = {
-    openai: modelSettings.openai ?? config.OPENAI_MODEL,
-    google: modelSettings.google ?? config.GEMINI_MODEL,
-    anthropic: modelSettings.anthropic ?? config.CLAUDE_MODEL,
-    mock: "mock-ai-visibility-model",
-  };
 
   return Promise.all(
     uniqueEngineSelections(
       selections.length
         ? selections
         : ENGINE_PROVIDERS.map((provider) => ({ provider })),
-    ).map(({ provider, searchEnabled }) =>
-      prisma.engine.upsert({
+    ).map(({ provider, searchEnabled }) => {
+      const model =
+        provider === "mock"
+          ? "mock-ai-visibility-model"
+          : aiModelForProvider(modelSettings, provider, searchEnabled);
+
+      return prisma.engine.upsert({
         where: {
           provider_model_searchEnabled: {
             provider,
-            model: models[provider] ?? `env:${provider}`,
+            model,
             searchEnabled,
           },
         },
@@ -651,13 +649,13 @@ export async function ensureEngineVariants(selections: EngineSelection[]) {
         },
         create: {
           provider,
-          model: models[provider] ?? `env:${provider}`,
+          model,
           engineName: engineName(provider, searchEnabled),
           searchEnabled,
           isActive: true,
         },
-      }),
-    ),
+      });
+    }),
   );
 }
 

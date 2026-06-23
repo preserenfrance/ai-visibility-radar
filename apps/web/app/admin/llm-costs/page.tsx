@@ -26,9 +26,16 @@ async function saveModelSettings(formData: FormData) {
   const user = await requireAdminUser();
   await saveAiModelSettings(
     {
-      openai: String(formData.get("openai") ?? "").trim(),
-      google: String(formData.get("google") ?? "").trim(),
-      anthropic: String(formData.get("anthropic") ?? "").trim(),
+      classic: {
+        openai: String(formData.get("classic_openai") ?? "").trim(),
+        google: String(formData.get("classic_google") ?? "").trim(),
+        anthropic: String(formData.get("classic_anthropic") ?? "").trim(),
+      },
+      search: {
+        openai: String(formData.get("search_openai") ?? "").trim(),
+        google: String(formData.get("search_google") ?? "").trim(),
+        anthropic: String(formData.get("search_anthropic") ?? "").trim(),
+      },
     },
     user.email,
   );
@@ -259,27 +266,39 @@ function ModelSettingsCard({
       </CardHeader>
       <CardContent>
         <form action={saveModelSettings} className="grid gap-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            {options.map((group) => (
-              <label key={group.provider} className="grid gap-2 text-sm">
-                <span className="font-medium">{group.label}</span>
-                <select
-                  name={group.provider}
-                  defaultValue={group.currentModel}
-                  className="h-10 rounded-md border bg-background px-3 py-2 text-sm"
-                >
-                  {group.models.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-                {group.error && (
-                  <span className="text-xs text-amber-700">{group.error}</span>
-                )}
-              </label>
-            ))}
-          </div>
+          {options.map((group) => (
+            <div key={group.mode} className="rounded-lg border p-4">
+              <div className="mb-3">
+                <h3 className="font-medium">{group.label}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {group.description}
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {group.options.map((option) => (
+                  <label key={option.fieldName} className="grid gap-2 text-sm">
+                    <span className="font-medium">{option.label}</span>
+                    <select
+                      name={option.fieldName}
+                      defaultValue={option.currentModel}
+                      className="h-10 rounded-md border bg-background px-3 py-2 text-sm"
+                    >
+                      {option.models.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
+                    {option.error && (
+                      <span className="text-xs text-amber-700">
+                        {option.error}
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
           <Button type="submit" className="w-fit">
             Shrani globalne modele
           </Button>
