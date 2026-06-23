@@ -7,12 +7,16 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().optional(),
   ADMIN_EMAILS: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_ADMIN_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_ADMIN_API_KEY: z.string().optional(),
   CLAUDE_MODEL: z.string().optional(),
-  PARSER_PROVIDER: z.enum(["openai", "google", "anthropic", "mock"]).default("mock"),
+  PARSER_PROVIDER: z
+    .enum(["openai", "google", "anthropic", "mock"])
+    .default("mock"),
   PARSER_MODEL: z.string().default("mock-parser"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -26,10 +30,13 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
-  POSTHOG_KEY: z.string().optional()
+  POSTHOG_KEY: z.string().optional(),
 });
 
-export type AppConfig = Omit<z.infer<typeof envSchema>, "NEXT_PUBLIC_APP_URL"> & {
+export type AppConfig = Omit<
+  z.infer<typeof envSchema>,
+  "NEXT_PUBLIC_APP_URL"
+> & {
   NEXT_PUBLIC_APP_URL: string;
 };
 
@@ -38,7 +45,8 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     ...parsed,
     NEXT_PUBLIC_APP_URL:
-      parsed.NEXT_PUBLIC_APP_URL ?? (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : "http://localhost:3000")
+      parsed.NEXT_PUBLIC_APP_URL ??
+      (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : "http://localhost:3000"),
   };
 }
 

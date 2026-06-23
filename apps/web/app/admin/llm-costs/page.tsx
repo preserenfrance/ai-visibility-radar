@@ -12,10 +12,11 @@ import {
 } from "@/lib/ai-model-settings";
 import {
   estimatedAiCostUsd,
+  fetchLlmProviderApiCosts,
   formatMoney,
   LLM_COST_PROVIDER_LABELS,
   LLM_COST_PROVIDERS,
-  providerRateLabel,
+  type LlmProviderApiCostReport,
   type LlmCostProvider,
 } from "@/lib/llm-costs";
 
@@ -71,6 +72,7 @@ export default async function AdminLlmCostsPage({
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const providerReportEnd = now;
   const days = daysInMonthToDate(now);
   const responses = await prisma.aiResponse.findMany({
     where: {
@@ -90,22 +92,32 @@ export default async function AdminLlmCostsPage({
     },
   });
 
-  const [summaries, modelOptions] = await Promise.all([
+  const [summaries, modelOptions, apiCostReports] = await Promise.all([
     Promise.resolve(buildProviderSummaries(days, responses)),
     availableAiModels(),
+    fetchLlmProviderApiCosts({
+      monthStart,
+      nextMonthStart: providerReportEnd,
+      days,
+    }),
   ]);
-  const monthTotal = summaries.reduce((sum, item) => sum + item.totalUsd, 0);
+  const apiCostByProvider = Object.fromEntries(
+    apiCostReports.map((report) => [report.provider, report]),
+  ) as Record<LlmCostProvider, LlmProviderApiCostReport>;
+  const realMonthTotal = apiCostReports.reduce(
+    (sum, item) => sum + (item.totalUsd ?? 0),
+    0,
+  );
+  const realProviderCount = apiCostReports.filter(
+    (item) => item.status === "ok",
+  ).length;
+  const localMonthTotal = summaries.reduce(
+    (sum, item) => sum + item.totalUsd,
+    0,
+  );
   const storedTotal = summaries.reduce((sum, item) => sum + item.storedUsd, 0);
   const estimatedTotal = summaries.reduce(
     (sum, item) => sum + item.estimatedUsd,
-    0,
-  );
-  const responseTotal = summaries.reduce(
-    (sum, item) => sum + item.responseCount,
-    0,
-  );
-  const estimatedResponseTotal = summaries.reduce(
-    (sum, item) => sum + item.estimatedResponseCount,
     0,
   );
   const inputTokenTotal = summaries.reduce(
@@ -126,34 +138,35 @@ export default async function AdminLlmCostsPage({
             Admin analitika
           </div>
           <h1 className="text-3xl font-semibold">
-            LLM poraba in ocena stroškov
+            Realna LLM poraba iz API-jev
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Dnevna poraba po providerju in skupna ocena v tekočem mesecu. Zneski
-            niso račun providerjev; temeljijo na shranjenih AI odgovorih in
-            tokenih v aplikaciji.
+            Poraba v tekočem mesecu po providerjih, prebrana iz billing oziroma
+            cost API-jev tam, kjer jih provider omogoča. Lokalna ocena iz
+            shranjenih odgovorov je prikazana samo za primerjavo.
           </p>
         </div>
         <div className="rounded-lg border bg-white px-5 py-4 text-right">
           <div className="text-xs font-semibold uppercase text-muted-foreground">
-            Ocenjeno skupaj ta mesec
+            Provider API skupaj ta mesec
           </div>
           <div className="mt-1 text-3xl font-semibold">
-            ${formatMoney(monthTotal)}
+            ${formatMoney(realMonthTotal)}
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
-            {responseTotal} AI odgovorov
+            {realProviderCount}/{apiCostReports.length} providerjev povezanih
           </div>
         </div>
       </div>
 
       <Card className="mb-6 border-amber-300 bg-amber-50">
         <CardContent className="p-4 text-sm text-amber-950">
-          Ta stran ni natančen obračun dobaviteljev. Natančna je samo toliko,
-          kolikor so v bazi shranjeni provider stroški. Če `AiResponse.cost` ni
-          shranjen, uporabimo oceno iz input/output tokenov. Pomožni klici, ki
-          se ne shranijo kot `AiResponse` (na primer predlaganje promptov), v
-          tem prikazu niso zajeti.
+          OpenAI porabo beremo iz OpenAI Costs API-ja, Claude porabo iz
+          Anthropic Cost API-ja. Za to sta potrebna admin ključa
+          `OPENAI_ADMIN_API_KEY` in `ANTHROPIC_ADMIN_API_KEY`. Gemini API
+          trenutno nima enakega programskega cost endpointa prek API keyja, zato
+          je pri Gemini prikazana lokalna ocena iz shranjenih odgovorov in
+          navodilo za AI Studio oziroma Cloud Billing.
         </CardContent>
       </Card>
 
@@ -164,20 +177,20 @@ export default async function AdminLlmCostsPage({
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
-          label="Zabeleženo iz providerja"
+          label="Provider API poraba"
+          value={`$${formatMoney(realMonthTotal)}`}
+        />
+        <MetricCard
+          label="Lokalna ocena"
+          value={`$${formatMoney(localMonthTotal)}`}
+        />
+        <MetricCard
+          label="Zabeleženo v bazi"
           value={`$${formatMoney(storedTotal)}`}
         />
         <MetricCard
           label="Ocenjeno iz tokenov"
           value={`$${formatMoney(estimatedTotal)}`}
-        />
-        <MetricCard
-          label="Odgovori brez shranjenega cost"
-          value={estimatedResponseTotal.toLocaleString("sl-SI")}
-        />
-        <MetricCard
-          label="Povprečna ocena na odgovor"
-          value={`$${formatMoney(responseTotal ? monthTotal / responseTotal : 0)}`}
         />
       </div>
 
@@ -194,7 +207,11 @@ export default async function AdminLlmCostsPage({
 
       <div className="grid gap-4">
         {summaries.map((summary) => (
-          <ProviderCostCard key={summary.provider} summary={summary} />
+          <ProviderCostCard
+            key={summary.provider}
+            summary={summary}
+            apiReport={apiCostByProvider[summary.provider]}
+          />
         ))}
       </div>
 
@@ -207,29 +224,42 @@ export default async function AdminLlmCostsPage({
             <THead>
               <TR>
                 <TH>Provider</TH>
-                <TH>Poraba ta mesec</TH>
+                <TH>Provider API poraba</TH>
+                <TH>Lokalna ocena</TH>
+                <TH>Status vira</TH>
                 <TH>Odgovori</TH>
                 <TH>Input tokeni</TH>
                 <TH>Output tokeni</TH>
-                <TH>Vir stroška</TH>
                 <TH>Modeli</TH>
               </TR>
             </THead>
             <TBody>
-              {summaries.map((summary) => (
-                <TR key={summary.provider}>
-                  <TD>{summary.label}</TD>
-                  <TD>${formatMoney(summary.totalUsd)}</TD>
-                  <TD>{summary.responseCount}</TD>
-                  <TD>{summary.inputTokens.toLocaleString("sl-SI")}</TD>
-                  <TD>{summary.outputTokens.toLocaleString("sl-SI")}</TD>
-                  <TD>
-                    {summary.storedResponseCount} zabeleženih,{" "}
-                    {summary.estimatedResponseCount} ocenjenih
-                  </TD>
-                  <TD>{Array.from(summary.models).join(", ") || "-"}</TD>
-                </TR>
-              ))}
+              {summaries.map((summary) => {
+                const apiReport = apiCostByProvider[summary.provider];
+                return (
+                  <TR key={summary.provider}>
+                    <TD>{summary.label}</TD>
+                    <TD>
+                      {apiReport.totalUsd === null
+                        ? "-"
+                        : `$${formatMoney(apiReport.totalUsd)}`}
+                    </TD>
+                    <TD>${formatMoney(summary.totalUsd)}</TD>
+                    <TD>
+                      {apiReport.sourceLabel}
+                      {apiReport.message ? (
+                        <div className="max-w-xs text-xs text-muted-foreground">
+                          {apiReport.message}
+                        </div>
+                      ) : null}
+                    </TD>
+                    <TD>{summary.responseCount}</TD>
+                    <TD>{summary.inputTokens.toLocaleString("sl-SI")}</TD>
+                    <TD>{summary.outputTokens.toLocaleString("sl-SI")}</TD>
+                    <TD>{Array.from(summary.models).join(", ") || "-"}</TD>
+                  </TR>
+                );
+              })}
             </TBody>
           </Table>
         </CardContent>
@@ -308,8 +338,17 @@ function ModelSettingsCard({
   );
 }
 
-function ProviderCostCard({ summary }: { summary: ProviderSummary }) {
-  const maxDaily = Math.max(...summary.daily.map((day) => day.value), 0);
+function ProviderCostCard({
+  summary,
+  apiReport,
+}: {
+  summary: ProviderSummary;
+  apiReport: LlmProviderApiCostReport;
+}) {
+  const chartDays = apiReport.status === "ok" ? apiReport.daily : summary.daily;
+  const displayTotal =
+    apiReport.totalUsd === null ? summary.totalUsd : apiReport.totalUsd;
+  const maxDaily = Math.max(...chartDays.map((day) => day.value), 0);
   return (
     <Card>
       <CardHeader>
@@ -320,18 +359,17 @@ function ProviderCostCard({ summary }: { summary: ProviderSummary }) {
               {summary.label}
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              {providerRateLabel(
-                summary.provider,
-                Array.from(summary.models)[0],
-              )}
+              {apiReport.status === "ok"
+                ? apiReport.sourceLabel
+                : apiReport.message}
             </p>
           </div>
           <div className="text-right">
             <div className="text-xs font-semibold uppercase text-muted-foreground">
-              Ocenjeno ta mesec
+              {apiReport.status === "ok" ? "Realno ta mesec" : "Lokalna ocena"}
             </div>
             <div className="text-2xl font-semibold">
-              ${formatMoney(summary.totalUsd)}
+              ${formatMoney(displayTotal)}
             </div>
             <div className="text-xs text-muted-foreground">
               ${formatMoney(summary.storedUsd)} zabeleženo · $
@@ -341,7 +379,7 @@ function ProviderCostCard({ summary }: { summary: ProviderSummary }) {
         </div>
       </CardHeader>
       <CardContent>
-        <DailyBarChart days={summary.daily} maxDaily={maxDaily} />
+        <DailyBarChart days={chartDays} maxDaily={maxDaily} />
       </CardContent>
     </Card>
   );
