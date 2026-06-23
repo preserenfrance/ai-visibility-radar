@@ -4,6 +4,7 @@ import {
   BarChart3,
   ClipboardList,
   DollarSign,
+  HelpCircle,
   LogOut,
   Radar,
   SearchCheck,
@@ -46,6 +47,11 @@ export async function SiteHeader() {
                 href="/ai-visibility-checker"
                 icon={<SearchCheck className="h-4 w-4" />}
                 label="Nova znamka"
+              />
+              <Nav
+                href="/faq"
+                icon={<HelpCircle className="h-4 w-4" />}
+                label="FAQ"
               />
               {admin && (
                 <Nav
@@ -94,6 +100,7 @@ export async function SiteHeader() {
             <>
               <Nav href="/ai-visibility-checker" label="Brezplačen audit" />
               <Nav href="/pricing" label="Cenik" />
+              <Nav href="/faq" label="FAQ" />
               <Button asChild size="sm">
                 <Link href="/login">Vstop</Link>
               </Button>

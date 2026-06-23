@@ -10,11 +10,23 @@ export function SiteFooter() {
           AI Visibility Radar
         </div>
         <div className="flex flex-wrap gap-4">
-          <Link href="/ai-visibility-checker" className="hover:text-foreground">Brezplačen audit</Link>
-          <Link href="/pricing" className="hover:text-foreground">Cenik</Link>
-          <Link href="/login" className="hover:text-foreground">Vstop</Link>
+          <Link href="/ai-visibility-checker" className="hover:text-foreground">
+            Brezplačen audit
+          </Link>
+          <Link href="/pricing" className="hover:text-foreground">
+            Cenik
+          </Link>
+          <Link href="/faq" className="hover:text-foreground">
+            FAQ
+          </Link>
+          <Link href="/login" className="hover:text-foreground">
+            Vstop
+          </Link>
         </div>
-        <div>© 2026 AI Visibility Radar. Portal je v lasti SEOS group d.o.o. Vse pravice pridržane.</div>
+        <div>
+          © 2026 AI Visibility Radar. Portal je v lasti SEOS group d.o.o. Vse
+          pravice pridržane.
+        </div>
       </div>
     </footer>
   );
