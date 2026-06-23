@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { Plus, Trash2 } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
+import {
+  CompetitorMentionCount,
+  ModelMentionBadges,
+} from "@/components/model-mention-badges";
 import { PromptActiveToggle } from "@/components/prompt-active-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +31,7 @@ async function addPrompt(formData: FormData) {
   const promptLimit = promptLimitForOrganization(brand.organization);
   let promptSet = await prisma.promptSet.findFirst({
     where: { brandId, status: "active" },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 
   if (!promptSet) {
@@ -37,25 +41,27 @@ async function addPrompt(formData: FormData) {
         name: `${brand.name} ročni prompti`,
         language: brand.language,
         country: brand.country,
-        status: "active"
-      }
+        status: "active",
+      },
     });
   }
 
   const activePromptCount = await prisma.prompt.count({
     where: {
       promptSetId: promptSet.id,
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   if (activePromptCount >= promptLimit) {
-    throw new Error(`Bad Request: ta paket omogoča največ ${promptLimit} aktivnih promptov na znamko`);
+    throw new Error(
+      `Bad Request: ta paket omogoča največ ${promptLimit} aktivnih promptov na znamko`,
+    );
   }
 
   const lastPrompt = await prisma.prompt.findFirst({
     where: { promptSetId: promptSet.id },
     orderBy: { priority: "desc" },
-    select: { priority: true }
+    select: { priority: true },
   });
 
   await prisma.prompt.create({
@@ -67,8 +73,8 @@ async function addPrompt(formData: FormData) {
       persona: "buyer",
       funnelStage: DEFAULT_FUNNEL_STAGE,
       priority: (lastPrompt?.priority ?? 0) + 1,
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 
   redirect(`/app/brands/${brandId}/prompts`);
@@ -77,14 +83,17 @@ async function addPrompt(formData: FormData) {
 async function updatePrompt(formData: FormData) {
   "use server";
   const promptId = String(formData.get("promptId"));
-  const prompt = await prisma.prompt.findUnique({ where: { id: promptId }, include: { promptSet: true } });
+  const prompt = await prisma.prompt.findUnique({
+    where: { id: promptId },
+    include: { promptSet: true },
+  });
   if (!prompt) throw new Error("Prompt ni najden");
   await requireBrandAccess(prompt.promptSet.brandId);
   await prisma.prompt.update({
     where: { id: promptId },
     data: {
-      text: String(formData.get("text") ?? prompt.text)
-    }
+      text: String(formData.get("text") ?? prompt.text),
+    },
   });
   redirect(`/app/brands/${prompt.promptSet.brandId}/prompts`);
 }
@@ -96,8 +105,8 @@ async function deletePrompt(formData: FormData) {
     where: { id: promptId },
     include: {
       promptSet: true,
-      _count: { select: { promptRuns: true } }
-    }
+      _count: { select: { promptRuns: true } },
+    },
   });
   if (!prompt) throw new Error("Prompt ni najden");
   await requireBrandAccess(prompt.promptSet.brandId);
@@ -105,7 +114,7 @@ async function deletePrompt(formData: FormData) {
   if (prompt._count.promptRuns > 0) {
     await prisma.prompt.update({
       where: { id: promptId },
-      data: { isActive: false }
+      data: { isActive: false },
     });
   } else {
     await prisma.prompt.delete({ where: { id: promptId } });
@@ -114,7 +123,11 @@ async function deletePrompt(formData: FormData) {
   redirect(`/app/brands/${prompt.promptSet.brandId}/prompts`);
 }
 
-export default async function PromptsPage({ params }: { params: Promise<{ brandId: string }> }) {
+export default async function PromptsPage({
+  params,
+}: {
+  params: Promise<{ brandId: string }>;
+}) {
   const { brandId } = await params;
   await requireBrandAccess(brandId);
   const brand = await prisma.brand.findUnique({
@@ -131,18 +144,30 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
             include: {
               promptRuns: {
                 orderBy: { createdAt: "desc" },
-                include: { engine: true, aiResponse: { include: { parsedResult: true, citations: true, mentions: true } } },
-                take: 12
-              }
-            }
-          }
-        }
-      }
-    }
+                include: {
+                  engine: true,
+                  aiResponse: {
+                    include: {
+                      parsedResult: true,
+                      citations: true,
+                      mentions: true,
+                    },
+                  },
+                },
+                take: 12,
+              },
+            },
+          },
+        },
+      },
+    },
   });
   const promptSet = brand?.promptSets[0];
-  const promptLimit = brand ? promptLimitForOrganization(brand.organization) : 10;
-  const activePromptCount = promptSet?.prompts.filter((prompt) => prompt.isActive).length ?? 0;
+  const promptLimit = brand
+    ? promptLimitForOrganization(brand.organization)
+    : 10;
+  const activePromptCount =
+    promptSet?.prompts.filter((prompt) => prompt.isActive).length ?? 0;
   const promptLimitReached = activePromptCount >= promptLimit;
 
   return (
@@ -190,12 +215,9 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
             <THead>
               <TR>
                 <TH>Prompt</TH>
-                <TH>Rezultat ChatGPT</TH>
-                <TH>Rezultat Gemini</TH>
-                <TH>Rezultat Claude</TH>
-                <TH>Rang znamke</TH>
-                <TH>Znamka omenjena</TH>
-                <TH>Glavni konkurent</TH>
+                <TH>Modeli</TH>
+                <TH>Konkurenti</TH>
+                <TH>Najboljši rang</TH>
                 <TH>Zadnja izvedba</TH>
                 <TH>Aktiven</TH>
                 <TH>Upravljanje</TH>
@@ -203,41 +225,69 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
             </THead>
             <TBody>
               {promptSet?.prompts.map((prompt) => {
-                const latestRuns = latestByEngine(prompt.promptRuns);
-                const allParsed = prompt.promptRuns
-                  .map((run) => run.aiResponse?.parsedResult?.parsedJson as any)
-                  .filter(Boolean);
-                const firstParsed = allParsed[0];
+                const latestRuns = Object.values(
+                  latestByEngine(prompt.promptRuns),
+                );
                 return (
                   <TR key={prompt.id}>
                     <TD className="min-w-80">
                       <details>
-                        <summary className="cursor-pointer font-medium">{prompt.text}</summary>
+                        <summary className="cursor-pointer font-medium">
+                          {prompt.text}
+                        </summary>
                         <div className="mt-3 space-y-4 rounded-md border bg-secondary/30 p-3">
                           <form action={updatePrompt} className="space-y-2">
-                            <input type="hidden" name="promptId" value={prompt.id} />
+                            <input
+                              type="hidden"
+                              name="promptId"
+                              value={prompt.id}
+                            />
                             <Textarea name="text" defaultValue={prompt.text} />
-                            <Button size="sm" type="submit">Shrani prompt</Button>
+                            <Button size="sm" type="submit">
+                              Shrani prompt
+                            </Button>
                           </form>
                           {prompt.promptRuns.slice(0, 3).map((run) => {
-                            const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
+                            const parsed = run.aiResponse?.parsedResult
+                              ?.parsedJson as any;
                             return (
-                              <div key={run.id} className="rounded-md border bg-white p-3">
+                              <div
+                                key={run.id}
+                                className="rounded-md border bg-white p-3"
+                              >
                                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                                  <Badge variant="secondary">{run.engine.engineName}</Badge>
-                                  <span className="text-xs text-muted-foreground">zaupanje {parsed?.confidence ?? "-"}</span>
+                                  <Badge variant="secondary">
+                                    {run.engine.engineName}
+                                  </Badge>
+                                  <Badge
+                                    variant={statusBadgeVariant(run.status)}
+                                  >
+                                    {statusLabel(run.status)}
+                                  </Badge>
                                 </div>
-                                <div className="text-sm font-medium">Izvorni odgovor</div>
+                                <div className="text-sm font-medium">
+                                  Izvorni odgovor
+                                </div>
                                 <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
-                                  {run.aiResponse?.rawText ?? run.errorMessage ?? "Ni odgovora"}
+                                  {run.aiResponse?.rawText ??
+                                    run.errorMessage ??
+                                    "Ni odgovora"}
                                 </pre>
                                 <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
                                   <div>Rang: {parsed?.brandRank ?? "-"}</div>
-                                  <div>Sentiment: {parsed?.sentiment ?? "-"}</div>
-                                  <div>Točnost: {parsed?.accuracyScore ?? "-"}</div>
+                                  <div>
+                                    Znamka omenjena:{" "}
+                                    {parsed?.brandMentioned ? "da" : "ne"}
+                                  </div>
+                                  <div>
+                                    Točnost: {parsed?.accuracyScore ?? "-"}
+                                  </div>
                                 </div>
                                 <div className="mt-2 text-xs text-muted-foreground">
-                                  Citati: {run.aiResponse?.citations.map((citation) => citation.domain).join(", ") || "-"}
+                                  Citati:{" "}
+                                  {run.aiResponse?.citations
+                                    .map((citation) => citation.domain)
+                                    .join(", ") || "-"}
                                 </div>
                               </div>
                             );
@@ -245,17 +295,33 @@ export default async function PromptsPage({ params }: { params: Promise<{ brandI
                         </div>
                       </details>
                     </TD>
-                    <TD>{engineCell(latestRuns.ChatGPT)}</TD>
-                    <TD>{engineCell(latestRuns.Gemini)}</TD>
-                    <TD>{engineCell(latestRuns.Claude)}</TD>
-                    <TD>{firstParsed?.brandRank ?? "-"}</TD>
-                    <TD>{firstParsed?.brandMentioned ? "da" : "ne"}</TD>
-                    <TD>{firstParsed?.competitorsMentioned?.[0]?.name ?? "-"}</TD>
-                    <TD>{prompt.promptRuns[0]?.createdAt.toLocaleString("sl-SI") ?? "-"}</TD>
-                    <TD><PromptActiveToggle promptId={prompt.id} isActive={prompt.isActive} /></TD>
+                    <TD>
+                      <ModelMentionBadges runs={modelSummaries(latestRuns)} />
+                    </TD>
+                    <TD>
+                      <CompetitorMentionCount
+                        names={competitorNamesForRuns(latestRuns)}
+                      />
+                    </TD>
+                    <TD>{bestBrandRank(latestRuns) ?? "-"}</TD>
+                    <TD>
+                      {prompt.promptRuns[0]?.createdAt.toLocaleString(
+                        "sl-SI",
+                      ) ?? "-"}
+                    </TD>
+                    <TD>
+                      <PromptActiveToggle
+                        promptId={prompt.id}
+                        isActive={prompt.isActive}
+                      />
+                    </TD>
                     <TD>
                       <form action={deletePrompt}>
-                        <input type="hidden" name="promptId" value={prompt.id} />
+                        <input
+                          type="hidden"
+                          name="promptId"
+                          value={prompt.id}
+                        />
                         <Button size="sm" variant="destructive" type="submit">
                           <Trash2 className="h-4 w-4" />
                           Izbriši
@@ -281,10 +347,62 @@ function latestByEngine(promptRuns: Array<any>) {
   }, {});
 }
 
-function engineCell(run?: any) {
-  if (!run) return "-";
-  const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
-  if (run.status === "failed") return "napaka";
-  if (!parsed) return run.status;
-  return parsed.brandMentioned ? `rang ${parsed.brandRank ?? "-"}` : "ni omenjeno";
+function modelSummaries(runs: Array<any>) {
+  return runs.map((run) => {
+    const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
+    return {
+      id: run.id,
+      engineName: run.engine.engineName,
+      status: run.status,
+      brandMentioned:
+        typeof parsed?.brandMentioned === "boolean"
+          ? parsed.brandMentioned
+          : null,
+      brandRank:
+        typeof parsed?.brandRank === "number" ? parsed.brandRank : null,
+    };
+  });
+}
+
+function competitorNamesForRuns(runs: Array<any>) {
+  return runs.flatMap((run) =>
+    (run.aiResponse?.mentions ?? [])
+      .filter((mention: any) => mention.entityType === "competitor")
+      .map((mention: any) => mention.entityName),
+  );
+}
+
+function bestBrandRank(runs: Array<any>) {
+  const ranks = runs
+    .map((run) => {
+      const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
+      return typeof parsed?.brandRank === "number" ? parsed.brandRank : null;
+    })
+    .filter((rank): rank is number => typeof rank === "number");
+  return ranks.length ? Math.min(...ranks) : null;
+}
+
+type BadgeVariant = "default" | "secondary" | "warning" | "danger" | "success";
+
+function statusLabel(status: string) {
+  switch (status) {
+    case "queued":
+    case "running":
+      return "v delu";
+    case "completed":
+      return "končano";
+    case "failed":
+      return "napaka";
+    case "canceled":
+      return "preklicano";
+    default:
+      return status;
+  }
+}
+
+function statusBadgeVariant(status: string): BadgeVariant {
+  if (status === "queued" || status === "running") return "warning";
+  if (status === "completed") return "success";
+  if (status === "failed") return "danger";
+  return "secondary";
 }

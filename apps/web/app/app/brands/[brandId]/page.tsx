@@ -2,10 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { BrandMenu } from "@/components/brand-menu";
+import { MetricCard } from "@/components/metric-card";
 import { ProviderScanForm } from "@/components/provider-scan-form";
 import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
@@ -69,83 +69,92 @@ export default async function BrandPage({
 
   const latestScan = brand.scanRuns[0];
   const latestScore = brand.scoreSnapshots[0];
-  const previousScore = brand.scoreSnapshots[1];
-  const trend =
-    latestScore && previousScore
-      ? latestScore.visibilityScore - previousScore.visibilityScore
-      : null;
   const promptSet = brand.promptSets[0];
   const paidAccess = hasActivePaidPlan(brand.organization);
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-semibold">{brand.name}</h1>
-          <p className="text-muted-foreground">{brand.domain}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
+      <Card className="mb-6">
+        <CardContent className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <div className="text-xs font-semibold uppercase text-muted-foreground">
+              Znamka
+            </div>
+            <h1 className="mt-1 text-3xl font-semibold">{brand.name}</h1>
+            <p className="text-muted-foreground">{brand.domain}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 md:justify-end">
             <Badge variant="secondary">{brand.country}</Badge>
             <Badge variant="secondary">{brand.language}</Badge>
             {brand.industry && <Badge>{brand.industry}</Badge>}
           </div>
-        </div>
-        <div className="grid gap-3 sm:min-w-[24rem]">
-          <ProviderScanForm
-            brandId={brand.id}
-            action={startProviderScan}
-            paidAccess={paidAccess}
-          />
-          <div className="grid gap-2 rounded-lg border bg-white p-4 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="font-semibold">Reden scan</div>
-                <p className="text-muted-foreground">
-                  {brand.recurringScanActive
-                    ? `Aktiven ${cadenceLabel(brand.recurringScanCadence)}.`
-                    : "Aktiviraj plačljiv paket in samodejno spremljanje znamke."}
-                </p>
-              </div>
-              {brand.recurringScanActive && <Badge>aktiven</Badge>}
-            </div>
-            <RegularScanControls
-              brandId={brand.id}
-              organizationId={brand.organizationId}
-              organizationPlan={brand.organization.plan}
-              billingStatus={brand.organization.billingSubscription?.status}
-              recurringScanActive={brand.recurringScanActive}
-              hasStripeCustomer={Boolean(brand.organization.stripeCustomerId)}
-            />
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
       <BrandMenu brandId={brand.id} active="overview" />
-      <div className="grid gap-4 md:grid-cols-5">
-        <Metric
-          label="AI Visibility Score"
-          value={latestScore?.visibilityScore ?? 0}
-          suffix="/100"
-        />
-        <Metric
-          label="Trend"
-          value={trend ?? 0}
-          prefix={trend !== null && trend > 0 ? "+" : ""}
-        />
-        <Metric
-          label="Delež omemb"
-          value={latestScore?.mentionScore ?? 0}
-          suffix="/100"
-        />
-        <Metric
-          label="Delež citatov"
-          value={latestScore?.citationScore ?? 0}
-          suffix="/100"
-        />
-        <Metric
-          label="Točnost"
-          value={latestScore?.accuracyScore ?? 0}
-          suffix="/100"
+
+      <div className="mb-6">
+        <ProviderScanForm
+          brandId={brand.id}
+          action={startProviderScan}
+          paidAccess={paidAccess}
         />
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Zadnji scani</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Začetek</TH>
+                <TH>Status</TH>
+                <TH>Vidnost</TH>
+                <TH>Izvedbe</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {brand.scanRuns.map((scan) => (
+                <TR key={scan.id}>
+                  <TD>
+                    <Link
+                      className="text-primary"
+                      href={`/app/brands/${brand.id}/scans/${scan.id}`}
+                    >
+                      {scan.createdAt.toLocaleString("sl-SI")}
+                    </Link>
+                  </TD>
+                  <TD>
+                    <Badge variant={statusBadgeVariant(scan.status)}>
+                      {statusLabel(scan.status)}
+                    </Badge>
+                  </TD>
+                  <TD>{scan.scoreSnapshot?.visibilityScore ?? "-"}</TD>
+                  <TD>
+                    {scan.completedPromptRuns}/{scan.totalPromptRuns}
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <MetricCard
+          metric="visibility"
+          value={latestScore?.visibilityScore ?? 0}
+        />
+        <MetricCard metric="mentions" value={latestScore?.mentionScore ?? 0} />
+        <MetricCard
+          metric="shareOfVoice"
+          value={latestScore?.shareOfVoiceScore ?? 0}
+        />
+        <MetricCard metric="accuracy" value={latestScore?.accuracyScore ?? 0} />
+      </div>
+
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
@@ -190,78 +199,25 @@ export default async function BrandPage({
               <strong>{promptSet?.prompts.length ?? 0}</strong>
             </div>
             <div className="flex justify-between">
-              <span>Zadnji scan</span>
-              <strong>{latestScan?.status ?? "brez"}</strong>
+              <span>Reden scan</span>
+              <strong>
+                {brand.recurringScanActive
+                  ? cadenceLabel(brand.recurringScanCadence)
+                  : "ni aktiven"}
+              </strong>
             </div>
+            <RegularScanControls
+              brandId={brand.id}
+              organizationId={brand.organizationId}
+              organizationPlan={brand.organization.plan}
+              billingStatus={brand.organization.billingSubscription?.status}
+              recurringScanActive={brand.recurringScanActive}
+              hasStripeCustomer={Boolean(brand.organization.stripeCustomerId)}
+            />
           </CardContent>
         </Card>
       </div>
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Zadnji scani</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <THead>
-              <TR>
-                <TH>Začetek</TH>
-                <TH>Status</TH>
-                <TH>Score</TH>
-                <TH>Izvedbe</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {brand.scanRuns.map((scan) => (
-                <TR key={scan.id}>
-                  <TD>
-                    <Link
-                      className="text-primary"
-                      href={`/app/brands/${brand.id}/scans/${scan.id}`}
-                    >
-                      {scan.createdAt.toLocaleString("sl-SI")}
-                    </Link>
-                  </TD>
-                  <TD>
-                    <Badge variant="secondary">{scan.status}</Badge>
-                  </TD>
-                  <TD>{scan.scoreSnapshot?.visibilityScore ?? "-"}</TD>
-                  <TD>
-                    {scan.completedPromptRuns}/{scan.totalPromptRuns}
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
-        </CardContent>
-      </Card>
     </section>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  suffix = "",
-  prefix = "",
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-  prefix?: string;
-}) {
-  return (
-    <Card>
-      <CardHeader className="p-4 pb-2">
-        <CardTitle className="text-xs text-muted-foreground">{label}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="text-2xl font-semibold">
-          {prefix}
-          {value}
-          {suffix}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -283,4 +239,27 @@ function cadenceLabel(value: "weekly" | "daily" | null) {
   if (value === "daily") return "dnevno";
   if (value === "weekly") return "tedensko";
   return "po urniku";
+}
+
+function statusLabel(status: string) {
+  switch (status) {
+    case "queued":
+    case "running":
+      return "v delu";
+    case "completed":
+      return "končano";
+    case "failed":
+      return "napaka";
+    case "canceled":
+      return "preklicano";
+    default:
+      return status;
+  }
+}
+
+function statusBadgeVariant(status: string) {
+  if (status === "queued" || status === "running") return "warning";
+  if (status === "completed") return "success";
+  if (status === "failed") return "danger";
+  return "secondary";
 }

@@ -115,6 +115,16 @@ export default async function CompetitorsPage({
     (sum, item) => sum + item._count.entityName,
     0,
   );
+  const brandMentionCount = await prisma.mention.count({
+    where: {
+      entityType: "brand",
+      aiResponse: { promptRun: { scanRun: { brandId } } },
+    },
+  });
+  const totalVoiceMentions = totalMentions + brandMentionCount;
+  const brandShareOfVoice = totalVoiceMentions
+    ? Math.round((brandMentionCount / totalVoiceMentions) * 100)
+    : 0;
   const losingRuns = await prisma.promptRun.findMany({
     where: {
       scanRun: { brandId },
@@ -187,7 +197,8 @@ export default async function CompetitorsPage({
                 <TH>Ime konkurenta</TH>
                 <TH>Število omemb</TH>
                 <TH>Povprečni rang</TH>
-                <TH>Delež glasu</TH>
+                <TH>Konkurentov delež glasu</TH>
+                <TH>Naš delež glasu</TH>
                 <TH>Sentiment</TH>
                 <TH>Prompti, kjer konkurent zmaga</TH>
                 <TH>Citati, ki podpirajo konkurenta</TH>
@@ -278,14 +289,16 @@ export default async function CompetitorsPage({
                     <TD>{group?._count.entityName ?? 0}</TD>
                     <TD>{group?._avg.rankPosition?.toFixed(1) ?? "-"}</TD>
                     <TD>
-                      {totalMentions
+                      {totalVoiceMentions
                         ? Math.round(
-                            ((group?._count.entityName ?? 0) / totalMentions) *
+                            ((group?._count.entityName ?? 0) /
+                              totalVoiceMentions) *
                               100,
                           )
                         : 0}
                       %
                     </TD>
+                    <TD>{brandShareOfVoice}%</TD>
                     <TD>
                       <Badge variant="secondary">
                         {sentimentForRuns(runs)}

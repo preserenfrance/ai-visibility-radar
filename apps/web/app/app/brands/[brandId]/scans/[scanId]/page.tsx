@@ -2,6 +2,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { Activity } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
+import { MetricCard } from "@/components/metric-card";
+import {
+  CompetitorMentionCount,
+  ModelMentionBadges,
+} from "@/components/model-mention-badges";
 import { ScanRunner } from "@/components/scan-runner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +46,7 @@ export default async function ScanPage({
   });
   if (!scan) return null;
   const scanPending = scan.status === "queued" || scan.status === "running";
+  const promptGroups = groupPromptRuns(scan.promptRuns);
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -70,25 +76,21 @@ export default async function ScanPage({
         </Card>
       )}
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <Metric
-          label="Vidnost"
+        <MetricCard
+          metric="visibility"
           value={scan.scoreSnapshot?.visibilityScore ?? 0}
-          description="Skupna ocena AI prisotnosti znamke skozi omembe, rang, citate, delež glasu, sentiment in točnost."
         />
-        <Metric
-          label="Omembe"
+        <MetricCard
+          metric="mentions"
           value={scan.scoreSnapshot?.mentionScore ?? 0}
-          description="Kako pogosto AI modeli v odgovorih sploh omenijo tvojo znamko."
         />
-        <Metric
-          label="Delež glasu"
+        <MetricCard
+          metric="shareOfVoice"
           value={scan.scoreSnapshot?.shareOfVoiceScore ?? 0}
-          description="Kolikšen delež vseh zaznanih omemb pripada tvoji znamki v primerjavi s konkurenti."
         />
-        <Metric
-          label="Točnost"
+        <MetricCard
+          metric="accuracy"
           value={scan.scoreSnapshot?.accuracyScore ?? 0}
-          description="Kako pravilne in zanesljive so navedbe o tvoji znamki, ko jo AI model omeni."
         />
       </div>
       <Card>
@@ -100,74 +102,74 @@ export default async function ScanPage({
             <THead>
               <TR>
                 <TH>Prompt</TH>
-                <TH>Model</TH>
+                <TH>Modeli</TH>
+                <TH>Konkurenti</TH>
+                <TH>Najboljši rang</TH>
                 <TH>Status</TH>
-                <TH>Znamka</TH>
-                <TH>Rang</TH>
-                <TH>Sentiment</TH>
-                <TH>Zaupanje</TH>
               </TR>
             </THead>
             <TBody>
-              {scan.promptRuns.map((run) => {
-                const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
-                const resultReady = run.status === "completed" && parsed;
-                return (
-                  <TR key={run.id}>
-                    <TD className="min-w-96">
-                      <details>
-                        <summary className="cursor-pointer font-medium">
-                          {run.prompt.text}
-                        </summary>
-                        <div className="mt-3 space-y-3 rounded-md border bg-secondary/30 p-3">
-                          <div className="text-sm font-semibold">
-                            Izvorni odgovor
+              {promptGroups.map((group) => (
+                <TR key={group.promptId}>
+                  <TD className="min-w-96">
+                    <details>
+                      <summary className="cursor-pointer font-medium">
+                        {group.promptText}
+                      </summary>
+                      <div className="mt-3 space-y-3 rounded-md border bg-secondary/30 p-3">
+                        {group.runs.map((run) => (
+                          <div
+                            key={run.id}
+                            className="rounded-md border bg-white p-3"
+                          >
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary">
+                                {run.engine.engineName}
+                              </Badge>
+                              <Badge variant={statusBadgeVariant(run.status)}>
+                                {statusLabel(run.status)}
+                              </Badge>
+                            </div>
+                            <div className="text-sm font-semibold">
+                              Izvorni odgovor
+                            </div>
+                            <pre className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
+                              {run.aiResponse?.rawText ??
+                                run.errorMessage ??
+                                "Ni odgovora"}
+                            </pre>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Citati:{" "}
+                              {run.aiResponse?.citations
+                                .map(
+                                  (citation: { domain: string | null }) =>
+                                    citation.domain,
+                                )
+                                .join(", ") || "-"}
+                            </div>
                           </div>
-                          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
-                            {run.aiResponse?.rawText ??
-                              run.errorMessage ??
-                              "Ni odgovora"}
-                          </pre>
-                          <div className="text-sm">
-                            Citati:{" "}
-                            {run.aiResponse?.citations
-                              .map((citation) => citation.domain)
-                              .join(", ") || "-"}
-                          </div>
-                          <div className="text-sm">
-                            Konkurenti:{" "}
-                            {run.aiResponse?.mentions
-                              .filter(
-                                (mention) =>
-                                  mention.entityType === "competitor",
-                              )
-                              .map((mention) => mention.entityName)
-                              .join(", ") || "-"}
-                          </div>
-                        </div>
-                      </details>
-                    </TD>
-                    <TD>{run.engine.engineName}</TD>
-                    <TD>
-                      <Badge variant={statusBadgeVariant(run.status)}>
-                        {statusLabel(run.status)}
-                      </Badge>
-                    </TD>
-                    <TD>
-                      {resultReady ? (
-                        <Badge
-                          variant={mentionBadgeVariant(parsed.brandMentioned)}
-                        >
-                          {parsed.brandMentioned ? "omenjena" : "ni omenjena"}
-                        </Badge>
-                      ) : null}
-                    </TD>
-                    <TD>{resultReady ? (parsed.brandRank ?? "-") : null}</TD>
-                    <TD>{resultReady ? (parsed.sentiment ?? "-") : null}</TD>
-                    <TD>{resultReady ? (parsed.confidence ?? "-") : null}</TD>
-                  </TR>
-                );
-              })}
+                        ))}
+                      </div>
+                    </details>
+                  </TD>
+                  <TD>
+                    <ModelMentionBadges runs={modelSummaries(group.runs)} />
+                  </TD>
+                  <TD>
+                    <CompetitorMentionCount
+                      names={competitorNamesForRuns(group.runs)}
+                    />
+                  </TD>
+                  <TD>{bestBrandRank(group.runs) ?? "-"}</TD>
+                  <TD>
+                    <Badge
+                      variant={statusBadgeVariant(groupStatus(group.runs))}
+                    >
+                      {statusLabel(groupStatus(group.runs))}
+                    </Badge>
+                  </TD>
+                </TR>
+              ))}
             </TBody>
           </Table>
         </CardContent>
@@ -177,6 +179,71 @@ export default async function ScanPage({
 }
 
 type BadgeVariant = "default" | "secondary" | "warning" | "danger" | "success";
+
+function groupPromptRuns(promptRuns: Array<any>) {
+  const groups = new Map<
+    string,
+    { promptId: string; promptText: string; runs: any[] }
+  >();
+
+  for (const run of promptRuns) {
+    const promptId = run.prompt.id;
+    const group =
+      groups.get(promptId) ??
+      ({
+        promptId,
+        promptText: run.prompt.text,
+        runs: [],
+      } as { promptId: string; promptText: string; runs: any[] });
+    group.runs.push(run);
+    groups.set(promptId, group);
+  }
+
+  return Array.from(groups.values());
+}
+
+function modelSummaries(runs: Array<any>) {
+  return runs.map((run) => {
+    const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
+    return {
+      id: run.id,
+      engineName: run.engine.engineName,
+      status: run.status,
+      brandMentioned:
+        typeof parsed?.brandMentioned === "boolean"
+          ? parsed.brandMentioned
+          : null,
+      brandRank:
+        typeof parsed?.brandRank === "number" ? parsed.brandRank : null,
+    };
+  });
+}
+
+function competitorNamesForRuns(runs: Array<any>) {
+  return runs.flatMap((run) =>
+    (run.aiResponse?.mentions ?? [])
+      .filter((mention: any) => mention.entityType === "competitor")
+      .map((mention: any) => mention.entityName),
+  );
+}
+
+function bestBrandRank(runs: Array<any>) {
+  const ranks = runs
+    .map((run) => {
+      const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
+      return typeof parsed?.brandRank === "number" ? parsed.brandRank : null;
+    })
+    .filter((rank): rank is number => typeof rank === "number");
+  return ranks.length ? Math.min(...ranks) : null;
+}
+
+function groupStatus(runs: Array<any>) {
+  if (runs.some((run) => run.status === "running" || run.status === "queued"))
+    return "running";
+  if (runs.every((run) => run.status === "failed")) return "failed";
+  if (runs.some((run) => run.status === "completed")) return "completed";
+  return runs[0]?.status ?? "queued";
+}
 
 function statusLabel(status: string) {
   switch (status) {
@@ -199,53 +266,4 @@ function statusBadgeVariant(status: string): BadgeVariant {
   if (status === "completed") return "success";
   if (status === "failed") return "danger";
   return "secondary";
-}
-
-function mentionBadgeVariant(brandMentioned: boolean): BadgeVariant {
-  return brandMentioned ? "success" : "danger";
-}
-
-function Metric({
-  label,
-  value,
-  description,
-}: {
-  label: string;
-  value: number;
-  description: string;
-}) {
-  const boundedValue = Math.max(0, Math.min(100, value));
-
-  return (
-    <Card>
-      <CardHeader className="p-4 pb-2">
-        <CardTitle className="text-sm">{label}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 p-4 pt-0">
-        <div className="flex items-end justify-between gap-3">
-          <div className="text-2xl font-semibold">{boundedValue}/100</div>
-          <div className="text-xs text-muted-foreground">
-            {scoreBandLabel(boundedValue)}
-          </div>
-        </div>
-        <div
-          className="h-2 overflow-hidden rounded-full bg-secondary"
-          aria-hidden="true"
-        >
-          <div
-            className="h-full rounded-full bg-primary"
-            style={{ width: `${boundedValue}%` }}
-          />
-        </div>
-        <p className="text-xs leading-5 text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function scoreBandLabel(value: number) {
-  if (value >= 80) return "močno";
-  if (value >= 50) return "srednje";
-  if (value > 0) return "šibko";
-  return "brez podatka";
 }

@@ -83,6 +83,7 @@ export default async function ActionsPage({
                 <TH>Zahtevnost</TH>
                 <TH>Status</TH>
                 <TH>Povezani prompti</TH>
+                <TH>Navodila za prompt</TH>
                 <TH>Povezani modeli</TH>
                 <TH>Posodobi</TH>
               </TR>
@@ -101,6 +102,27 @@ export default async function ActionsPage({
                     {jsonArray(item.affectedPromptsJson)
                       .slice(0, 3)
                       .join(" · ") || "-"}
+                  </TD>
+                  <TD className="max-w-md">
+                    <div className="grid gap-2">
+                      {promptInstructionsForRecommendation(item).map(
+                        (instruction) => (
+                          <div
+                            key={instruction.prompt}
+                            className="rounded-md border bg-secondary/30 p-2 text-xs"
+                          >
+                            <div className="font-medium">
+                              {instruction.prompt}
+                            </div>
+                            <div className="mt-1 text-muted-foreground">
+                              {instruction.text}
+                            </div>
+                          </div>
+                        ),
+                      )}
+                      {promptInstructionsForRecommendation(item).length === 0 &&
+                        "-"}
+                    </div>
                   </TD>
                   <TD>
                     {jsonArray(item.affectedEnginesJson).join(", ") || "-"}
@@ -141,4 +163,31 @@ function jsonArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function promptInstructionsForRecommendation(item: {
+  title: string;
+  description: string;
+  affectedPromptsJson: unknown;
+}) {
+  return jsonArray(item.affectedPromptsJson)
+    .slice(0, 5)
+    .map((prompt) => ({
+      prompt,
+      text: instructionForPrompt(item.title, item.description),
+    }));
+}
+
+function instructionForPrompt(title: string, description: string) {
+  const text = `${title} ${description}`.toLowerCase();
+  if (text.includes("citat") || text.includes("vir")) {
+    return "Dodaj ali izboljšaj stran, ki neposredno odgovori na ta prompt, z jasnimi podatki, primeri uporabe, cenami in dokazili, da jo lahko AI modeli citirajo.";
+  }
+  if (text.includes("konkurent") || text.includes("zmaga")) {
+    return "Okrepi vsebino za ta nakupni primer: jasno povej za koga je produkt primeren, kje ga kupiti, prednosti izbire in zakaj je boljša izbira od pogosto omenjenih alternativ.";
+  }
+  if (text.includes("točnost") || text.includes("napa")) {
+    return "Preveri, ali ima spletna stran za ta primer sveže, enoznačne informacije; popravi nejasne trditve in dodaj strukturirane podatke, ki zmanjšajo možnost napačnega AI odgovora.";
+  }
+  return "Za ta prompt pripravi namensko vsebino, ki v eni strani jasno odgovori na vprašanje kupca, navede konkretne produkte ali storitve, lokacijo nakupa in dokazila za priporočilo.";
 }
