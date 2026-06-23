@@ -1,5 +1,5 @@
 import { crawlDomain } from "@ai-radar/crawler";
-import { prisma } from "@ai-radar/db";
+import { prisma, tryStartScanRun } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { createAiAdapter } from "@ai-radar/ai";
 import { parseAiResponse, parseJsonObject } from "@ai-radar/parser";
@@ -821,12 +821,16 @@ export async function deactivateRecurringScanForBrand(brandId: string) {
 }
 
 export async function runScanNow(scanRunId: string) {
-  const scan = await prisma.scanRun.update({
+  const slot = await tryStartScanRun(scanRunId);
+  if (!slot.started) {
+    return prisma.scanRun.findUnique({
+      where: { id: scanRunId },
+      include: { promptRuns: true, scoreSnapshot: true },
+    });
+  }
+
+  const scan = await prisma.scanRun.findUnique({
     where: { id: scanRunId },
-    data: {
-      status: "running",
-      startedAt: new Date(),
-    },
     include: {
       brand: { include: { competitors: true } },
       promptRuns: {
@@ -838,12 +842,13 @@ export async function runScanNow(scanRunId: string) {
       },
     },
   });
+  if (!scan) throw new Error("Scan not found");
 
-  await Promise.allSettled(
-    scan.promptRuns
-      .filter((promptRun) => !promptRun.aiResponse)
-      .map((promptRun) => runPromptRun(promptRun.id)),
-  );
+  for (const promptRun of scan.promptRuns.filter(
+    (promptRun) => !promptRun.aiResponse,
+  )) {
+    await runPromptRun(promptRun.id).catch(() => null);
+  }
 
   return scoreScan(scanRunId);
 }
@@ -876,23 +881,31 @@ export async function runNextScanStep(scanRunId: string) {
   });
 
   if (scan.status === "queued") {
-    await prisma.scanRun.update({
-      where: { id: scanRunId },
-      data: {
-        status: "running",
-        startedAt: scan.startedAt ?? new Date(),
-      },
-    });
+    const slot = await tryStartScanRun(scanRunId);
+    if (!slot.started) {
+      return prisma.scanRun.findUnique({
+        where: { id: scanRunId },
+        include: { scoreSnapshot: true },
+      });
+    }
   }
 
-  const nextPromptRun = await prisma.promptRun.findFirst({
-    where: { scanRunId, status: "queued" },
-    orderBy: { createdAt: "asc" },
+  const activePromptRun = await prisma.promptRun.findFirst({
+    where: { scanRunId, status: "running" },
+    orderBy: { startedAt: "asc" },
     select: { id: true },
   });
 
-  if (nextPromptRun) {
-    await runPromptRun(nextPromptRun.id).catch(() => null);
+  if (!activePromptRun) {
+    const nextPromptRun = await prisma.promptRun.findFirst({
+      where: { scanRunId, status: "queued" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+
+    if (nextPromptRun) {
+      await runPromptRun(nextPromptRun.id).catch(() => null);
+    }
   }
 
   const remainingPromptRuns = await prisma.promptRun.count({
@@ -928,11 +941,17 @@ export async function runPromptRun(promptRunId: string) {
   });
   if (!promptRun) throw new Error("Prompt run not found");
   if (promptRun.aiResponse) return promptRun.aiResponse;
+  if (promptRun.status !== "queued") {
+    throw new Error(`Prompt run is already ${promptRun.status}`);
+  }
 
-  await prisma.promptRun.update({
-    where: { id: promptRunId },
+  const claimed = await prisma.promptRun.updateMany({
+    where: { id: promptRunId, status: "queued" },
     data: { status: "running", startedAt: new Date() },
   });
+  if (claimed.count === 0) {
+    throw new Error("Prompt run is already being processed");
+  }
 
   try {
     const adapter = createAiAdapter(promptRun.engine.provider, {

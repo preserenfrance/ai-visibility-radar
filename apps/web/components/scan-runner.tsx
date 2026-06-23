@@ -4,10 +4,21 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const DONE_STATUSES = new Set(["completed", "failed", "canceled"]);
+const QUEUED_RETRY_MULTIPLIER = 4;
 
 type ScanRunnerProps =
-  | { scanId: string; endpoint?: never; intervalMs?: number; refreshOnStep?: boolean }
-  | { endpoint: string; scanId?: never; intervalMs?: number; refreshOnStep?: boolean };
+  | {
+      scanId: string;
+      endpoint?: never;
+      intervalMs?: number;
+      refreshOnStep?: boolean;
+    }
+  | {
+      endpoint: string;
+      scanId?: never;
+      intervalMs?: number;
+      refreshOnStep?: boolean;
+    };
 
 export function ScanRunner(props: ScanRunnerProps) {
   const router = useRouter();
@@ -23,7 +34,7 @@ export function ScanRunner(props: ScanRunnerProps) {
       try {
         const response = await fetch(endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
         });
         const data = await response.json().catch(() => ({}));
         if (cancelled) return;
@@ -33,7 +44,12 @@ export function ScanRunner(props: ScanRunnerProps) {
         }
         const status = data?.scan?.status;
         if (!DONE_STATUSES.has(status)) {
-          timer = window.setTimeout(runNextStep, intervalMs);
+          timer = window.setTimeout(
+            runNextStep,
+            status === "queued"
+              ? intervalMs * QUEUED_RETRY_MULTIPLIER
+              : intervalMs,
+          );
         }
       } catch {
         if (!cancelled) {

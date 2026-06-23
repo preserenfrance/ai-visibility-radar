@@ -3,7 +3,7 @@ import IORedis from "ioredis";
 import { createAiAdapter } from "@ai-radar/ai";
 import { getConfig } from "@ai-radar/config";
 import { crawlDomain } from "@ai-radar/crawler";
-import { prisma } from "@ai-radar/db";
+import { prisma, scanConcurrencyLimit, tryStartScanRun } from "@ai-radar/db";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { parseAiResponse } from "@ai-radar/parser";
 import { generatePromptSet } from "@ai-radar/prompts";
@@ -11,14 +11,14 @@ import { generateSalesBrief } from "@ai-radar/reports";
 import {
   calculateLeadScore,
   calculateVisibilityScore,
-  generateRecommendationDrafts
+  generateRecommendationDrafts,
 } from "@ai-radar/scoring";
 import {
   JOB_NAMES,
   normalizeDomain,
   type CrawledPageSnapshot,
   type ParsedAiResult,
-  type ScoreInputResult
+  type ScoreInputResult,
 } from "@ai-radar/shared";
 
 const config = getConfig();
@@ -26,7 +26,7 @@ if (!config.REDIS_URL) {
   throw new Error("REDIS_URL is required for the worker process");
 }
 const connection = new IORedis(config.REDIS_URL, {
-  maxRetriesPerRequest: null
+  maxRetriesPerRequest: null,
 });
 
 const worker = new Worker(
@@ -57,8 +57,8 @@ const worker = new Worker(
   },
   {
     connection,
-    concurrency: 4
-  }
+    concurrency: scanConcurrencyLimit(),
+  },
 );
 
 worker.on("completed", (job) => {
@@ -74,7 +74,7 @@ async function processCrawlDomain(brandId: string, maxPages: number) {
   if (!brand) throw new Error("Brand not found");
   const existingRunning = await prisma.crawlSnapshot.findFirst({
     where: { brandId, status: "running" },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
   const snapshot =
     existingRunning ??
@@ -82,11 +82,13 @@ async function processCrawlDomain(brandId: string, maxPages: number) {
       data: {
         brandId,
         status: "running",
-        maxPages
-      }
+        maxPages,
+      },
     }));
   const result = await crawlDomain({ domain: brand.domain, maxPages });
-  await prisma.crawledPage.deleteMany({ where: { crawlSnapshotId: snapshot.id } });
+  await prisma.crawledPage.deleteMany({
+    where: { crawlSnapshotId: snapshot.id },
+  });
   await prisma.crawlSnapshot.update({
     where: { id: snapshot.id },
     data: {
@@ -103,13 +105,16 @@ async function processCrawlDomain(brandId: string, maxPages: number) {
           h1: page.h1,
           h2: page.h2,
           mainText: page.mainText,
-          schemaJson: page.schemaJson === undefined ? undefined : JSON.parse(JSON.stringify(page.schemaJson)),
+          schemaJson:
+            page.schemaJson === undefined
+              ? undefined
+              : JSON.parse(JSON.stringify(page.schemaJson)),
           statusCode: page.statusCode,
           canonicalUrl: page.canonicalUrl,
-          discoveredAt: new Date(page.discoveredAt)
-        }))
-      }
-    }
+          discoveredAt: new Date(page.discoveredAt),
+        })),
+      },
+    },
   });
   return { snapshotId: snapshot.id, pages: result.pages.length };
 }
@@ -122,14 +127,14 @@ async function processGeneratePrompts(brandId: string, count: number) {
       crawlSnapshots: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        include: { pages: true }
-      }
-    }
+        include: { pages: true },
+      },
+    },
   });
   if (!brand) throw new Error("Brand not found");
   const existing = await prisma.promptSet.findFirst({
     where: { brandId, status: "active" },
-    include: { prompts: true }
+    include: { prompts: true },
   });
   if (existing && existing.prompts.length >= count) return existing;
 
@@ -144,7 +149,7 @@ async function processGeneratePrompts(brandId: string, count: number) {
       schemaJson: page.schemaJson,
       statusCode: page.statusCode,
       canonicalUrl: page.canonicalUrl ?? undefined,
-      discoveredAt: page.discoveredAt.toISOString()
+      discoveredAt: page.discoveredAt.toISOString(),
     })) ?? [];
   const generated = generatePromptSet({
     brandName: brand.name,
@@ -154,11 +159,11 @@ async function processGeneratePrompts(brandId: string, count: number) {
     language: brand.language,
     competitors: brand.competitors,
     pages,
-    count
+    count,
   });
   await prisma.promptSet.updateMany({
     where: { brandId, status: "active" },
-    data: { status: "archived" }
+    data: { status: "archived" },
   });
   return prisma.promptSet.create({
     data: {
@@ -174,25 +179,58 @@ async function processGeneratePrompts(brandId: string, count: number) {
           intent: prompt.intent,
           persona: prompt.persona,
           funnelStage: prompt.funnelStage,
-          priority: prompt.priority
-        }))
-      }
-    }
+          priority: prompt.priority,
+        })),
+      },
+    },
   });
 }
 
 async function processCreateScan(scanRunId: string) {
-  const scan = await prisma.scanRun.update({
+  const slot = await waitForScanSlot(scanRunId);
+  if (!slot.started) return { scanRunId, skipped: slot.reason };
+
+  const scan = await prisma.scanRun.findUnique({
     where: { id: scanRunId },
-    data: { status: "running", startedAt: new Date() },
-    include: { promptRuns: true }
+    include: { promptRuns: true },
   });
+  if (!scan) throw new Error("Scan not found");
+
   for (const promptRun of scan.promptRuns) {
     await processRunPrompt(promptRun.id).catch(() => null);
   }
   await processScoreScan(scanRunId);
   await processGenerateRecommendations(scanRunId);
   return { scanRunId };
+}
+
+async function waitForScanSlot(scanRunId: string) {
+  const timeoutMs = positiveNumber(
+    process.env.SCAN_SLOT_WAIT_MS,
+    30 * 60 * 1000,
+  );
+  const retryMs = positiveNumber(process.env.SCAN_SLOT_RETRY_MS, 15 * 1000);
+  const deadline = Date.now() + timeoutMs;
+
+  while (true) {
+    const slot = await tryStartScanRun(scanRunId);
+    if (slot.started || slot.reason === "terminal") return slot;
+    if (Date.now() + retryMs > deadline) {
+      throw new Error(
+        `Scan concurrency limit reached (${slot.runningCount}/${slot.limit}) for ${scanRunId}`,
+      );
+    }
+    await sleep(retryMs);
+  }
+}
+
+function positiveNumber(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function processRunPrompt(promptRunId: string) {
@@ -205,24 +243,32 @@ async function processRunPrompt(promptRunId: string) {
       scanRun: {
         include: {
           brand: {
-            include: { competitors: true }
-          }
-        }
-      }
-    }
+            include: { competitors: true },
+          },
+        },
+      },
+    },
   });
   if (!promptRun) throw new Error("Prompt run not found");
   if (promptRun.aiResponse) return promptRun.aiResponse;
+  if (promptRun.status !== "queued") {
+    throw new Error(`Prompt run is already ${promptRun.status}`);
+  }
 
-  await prisma.promptRun.update({
-    where: { id: promptRunId },
-    data: { status: "running", startedAt: new Date() }
+  const claimed = await prisma.promptRun.updateMany({
+    where: { id: promptRunId, status: "queued" },
+    data: { status: "running", startedAt: new Date() },
   });
+  if (claimed.count === 0) {
+    throw new Error("Prompt run is already being processed");
+  }
 
   try {
     const adapter = createAiAdapter(promptRun.engine.provider, {
-      modelOverride: promptRun.engine.model.startsWith("env:") ? undefined : promptRun.engine.model,
-      searchEnabled: promptRun.engine.searchEnabled
+      modelOverride: promptRun.engine.model.startsWith("env:")
+        ? undefined
+        : promptRun.engine.model,
+      searchEnabled: promptRun.engine.searchEnabled,
     });
     const output = await adapter.runPrompt({
       prompt: promptRun.prompt.text,
@@ -232,9 +278,9 @@ async function processRunPrompt(promptRunId: string) {
       brandDomain: promptRun.scanRun.brand.domain,
       competitors: promptRun.scanRun.brand.competitors.map((competitor) => ({
         name: competitor.name,
-        domain: competitor.domain ?? undefined
+        domain: competitor.domain ?? undefined,
       })),
-      searchEnabled: promptRun.engine.searchEnabled
+      searchEnabled: promptRun.engine.searchEnabled,
     });
     const aiResponse = await prisma.aiResponse.create({
       data: {
@@ -246,13 +292,13 @@ async function processRunPrompt(promptRunId: string) {
         citationsJson: output.citations,
         inputTokens: output.inputTokens,
         outputTokens: output.outputTokens,
-        cost: output.cost
-      }
+        cost: output.cost,
+      },
     });
     await processParseResponse(aiResponse.id);
     await prisma.promptRun.update({
       where: { id: promptRunId },
-      data: { status: "completed", finishedAt: new Date() }
+      data: { status: "completed", finishedAt: new Date() },
     });
     return aiResponse;
   } catch (error) {
@@ -261,8 +307,9 @@ async function processRunPrompt(promptRunId: string) {
       data: {
         status: "failed",
         finishedAt: new Date(),
-        errorMessage: error instanceof Error ? error.message : "Unknown provider error"
-      }
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown provider error",
+      },
     });
     throw error;
   }
@@ -278,12 +325,12 @@ async function processParseResponse(aiResponseId: string) {
           prompt: true,
           scanRun: {
             include: {
-              brand: { include: { competitors: true } }
-            }
-          }
-        }
-      }
-    }
+              brand: { include: { competitors: true } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!aiResponse) throw new Error("AI response not found");
   if (aiResponse.parsedResult) return aiResponse.parsedResult;
@@ -295,13 +342,13 @@ async function processParseResponse(aiResponseId: string) {
     competitors: aiResponse.promptRun.scanRun.brand.competitors,
     knownBrandFacts: [
       aiResponse.promptRun.scanRun.brand.description ?? "",
-      aiResponse.promptRun.scanRun.brand.industry ?? ""
+      aiResponse.promptRun.scanRun.brand.industry ?? "",
     ].filter(Boolean),
     prompt: aiResponse.promptRun.prompt.text,
     rawAiAnswer: aiResponse.rawText,
     citations: toCitationArray(aiResponse.citationsJson),
     parserProvider: config.PARSER_PROVIDER,
-    parserModel: config.PARSER_MODEL
+    parserModel: config.PARSER_MODEL,
   });
 
   const result = await prisma.parsedResult.create({
@@ -314,8 +361,8 @@ async function processParseResponse(aiResponseId: string) {
       sentiment: parsed.sentiment,
       accuracyScore: parsed.accuracyScore,
       confidence: parsed.confidence,
-      parsedJson: parsed
-    }
+      parsedJson: parsed,
+    },
   });
   await prisma.citation.createMany({
     data: parsed.citations.map((citation) => ({
@@ -327,8 +374,8 @@ async function processParseResponse(aiResponseId: string) {
       isCompetitorDomain: citation.isCompetitorDomain,
       supportsBrand: citation.supportsBrand,
       supportsCompetitor: citation.supportsCompetitor,
-      sourceType: "provider"
-    }))
+      sourceType: "provider",
+    })),
   });
   await prisma.mention.createMany({
     data: [
@@ -340,9 +387,11 @@ async function processParseResponse(aiResponseId: string) {
               entityType: "brand",
               rankPosition: parsed.brandRank,
               sentiment: parsed.sentiment,
-              evidenceText: parsed.evidence.find((item) => item.type === "brand_mention")?.text,
-              confidence: parsed.confidence
-            }
+              evidenceText: parsed.evidence.find(
+                (item) => item.type === "brand_mention",
+              )?.text,
+              confidence: parsed.confidence,
+            },
           ]
         : []),
       ...parsed.competitorsMentioned.map((competitor) => ({
@@ -352,9 +401,9 @@ async function processParseResponse(aiResponseId: string) {
         rankPosition: competitor.rank,
         sentiment: competitor.sentiment,
         evidenceText: competitor.evidenceText,
-        confidence: parsed.confidence
-      }))
-    ]
+        confidence: parsed.confidence,
+      })),
+    ],
   });
   return result;
 }
@@ -368,10 +417,10 @@ async function processScoreScan(scanRunId: string) {
         include: {
           prompt: true,
           engine: true,
-          aiResponse: { include: { parsedResult: true } }
-        }
-      }
-    }
+          aiResponse: { include: { parsedResult: true } },
+        },
+      },
+    },
   });
   if (!scan) throw new Error("Scan not found");
   const results = parsedResultsForScan(scan.promptRuns);
@@ -379,24 +428,29 @@ async function processScoreScan(scanRunId: string) {
   const snapshot = await prisma.scoreSnapshot.upsert({
     where: { scanRunId },
     update: score,
-    create: { brandId: scan.brandId, scanRunId, ...score }
+    create: { brandId: scan.brandId, scanRunId, ...score },
   });
   await prisma.scanRun.update({
     where: { id: scanRunId },
     data: {
-      status: scan.promptRuns.some((run) => run.status === "completed") ? "completed" : "failed",
-      completedPromptRuns: scan.promptRuns.filter((run) => run.status === "completed").length,
-      failedPromptRuns: scan.promptRuns.filter((run) => run.status === "failed").length,
-      finishedAt: new Date()
-    }
+      status: scan.promptRuns.some((run) => run.status === "completed")
+        ? "completed"
+        : "failed",
+      completedPromptRuns: scan.promptRuns.filter(
+        (run) => run.status === "completed",
+      ).length,
+      failedPromptRuns: scan.promptRuns.filter((run) => run.status === "failed")
+        .length,
+      finishedAt: new Date(),
+    },
   });
   await prisma.auditLog.create({
     data: {
       organizationId: scan.brand.organizationId,
       action: "scan_completed",
       entityType: "ScanRun",
-      entityId: scanRunId
-    }
+      entityId: scanRunId,
+    },
   });
   return snapshot;
 }
@@ -406,12 +460,18 @@ async function processGenerateRecommendations(scanRunId: string) {
     where: { id: scanRunId },
     include: {
       promptRuns: {
-        include: { prompt: true, engine: true, aiResponse: { include: { parsedResult: true } } }
-      }
-    }
+        include: {
+          prompt: true,
+          engine: true,
+          aiResponse: { include: { parsedResult: true } },
+        },
+      },
+    },
   });
   if (!scan) throw new Error("Scan not found");
-  const drafts = generateRecommendationDrafts(parsedResultsForScan(scan.promptRuns));
+  const drafts = generateRecommendationDrafts(
+    parsedResultsForScan(scan.promptRuns),
+  );
   await prisma.recommendation.deleteMany({ where: { scanRunId } });
   await prisma.recommendation.createMany({
     data: drafts.map((draft) => ({
@@ -422,8 +482,8 @@ async function processGenerateRecommendations(scanRunId: string) {
       impactScore: draft.impactScore,
       effortScore: draft.effortScore,
       affectedPromptsJson: draft.affectedPromptsJson,
-      affectedEnginesJson: draft.affectedEnginesJson
-    }))
+      affectedEnginesJson: draft.affectedEnginesJson,
+    })),
   });
   return { count: drafts.length };
 }
@@ -437,16 +497,23 @@ async function processSendEmailReport(leadId: string) {
           scoreSnapshot: true,
           recommendations: true,
           promptRuns: {
-            include: { prompt: true, engine: true, aiResponse: { include: { parsedResult: true } } }
-          }
-        }
-      }
-    }
+            include: {
+              prompt: true,
+              engine: true,
+              aiResponse: { include: { parsedResult: true } },
+            },
+          },
+        },
+      },
+    },
   });
-  if (!lead?.auditScanRun?.scoreSnapshot) throw new Error("Audit result not ready");
+  if (!lead?.auditScanRun?.scoreSnapshot)
+    throw new Error("Audit result not ready");
   const losingPrompts = lead.auditScanRun.promptRuns
     .filter((run) => {
-      const parsed = run.aiResponse?.parsedResult?.parsedJson as ParsedAiResult | undefined;
+      const parsed = run.aiResponse?.parsedResult?.parsedJson as
+        | ParsedAiResult
+        | undefined;
       return parsed && (!parsed.brandMentioned || (parsed.brandRank ?? 99) > 3);
     })
     .map((run) => run.prompt.text);
@@ -457,7 +524,7 @@ async function processSendEmailReport(leadId: string) {
     topCompetitor: await topCompetitorForScan(lead.auditScanRun.id),
     losingPrompts,
     recommendations: lead.auditScanRun.recommendations,
-    reportUrl: `${config.NEXT_PUBLIC_APP_URL}/audit/${lead.id}`
+    reportUrl: `${config.NEXT_PUBLIC_APP_URL}/audit/${lead.id}`,
   };
   const email = await sendAuditReportEmail(lead.email, report);
   await prisma.emailEvent.create({
@@ -466,8 +533,8 @@ async function processSendEmailReport(leadId: string) {
       type: email.skipped ? "queued" : "sent",
       provider: "resend",
       providerId: email.id,
-      subject: `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`
-    }
+      subject: `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`,
+    },
   });
   return email;
 }
@@ -480,29 +547,36 @@ async function processSyncLead(leadId: string) {
         include: {
           scoreSnapshot: true,
           promptRuns: {
-            include: { aiResponse: { include: { mentions: true } } }
-          }
-        }
-      }
-    }
+            include: { aiResponse: { include: { mentions: true } } },
+          },
+        },
+      },
+    },
   });
   if (!lead) throw new Error("Lead not found");
   const competitorMentions =
     lead.auditScanRun?.promptRuns.flatMap(
-      (run) => run.aiResponse?.mentions.filter((mention) => mention.entityType === "competitor") ?? []
+      (run) =>
+        run.aiResponse?.mentions.filter(
+          (mention) => mention.entityType === "competitor",
+        ) ?? [],
     ) ?? [];
   const brandMentions =
     lead.auditScanRun?.promptRuns.flatMap(
-      (run) => run.aiResponse?.mentions.filter((mention) => mention.entityType === "brand") ?? []
+      (run) =>
+        run.aiResponse?.mentions.filter(
+          (mention) => mention.entityType === "brand",
+        ) ?? [],
     ) ?? [];
   const leadScore = calculateLeadScore({
     email: lead.email,
     competitorCount: competitorMentions.length,
     crawledPageCount: 0,
     visibilityScore: lead.auditScanRun?.scoreSnapshot?.visibilityScore,
-    competitorHasDoubleMentions: competitorMentions.length > brandMentions.length * 2,
+    competitorHasDoubleMentions:
+      competitorMentions.length > brandMentions.length * 2,
     openedReport: lead.status === "opened",
-    clickedDemo: lead.status === "demo_clicked"
+    clickedDemo: lead.status === "demo_clicked",
   });
   await prisma.lead.update({ where: { id: leadId }, data: { leadScore } });
   return {
@@ -515,8 +589,8 @@ async function processSyncLead(leadId: string) {
         topCompetitor: await topCompetitorForScan(lead.auditScanRun.id),
         losingPrompts: [],
         recommendations: [],
-        reportUrl: `${config.NEXT_PUBLIC_APP_URL}/audit/${lead.id}`
-      })
+        reportUrl: `${config.NEXT_PUBLIC_APP_URL}/audit/${lead.id}`,
+      }),
   };
 }
 
@@ -525,11 +599,11 @@ async function topCompetitorForScan(scanRunId: string) {
     by: ["entityName"],
     where: {
       entityType: "competitor",
-      aiResponse: { promptRun: { scanRunId } }
+      aiResponse: { promptRun: { scanRunId } },
     },
     _count: { entityName: true },
     orderBy: { _count: { entityName: "desc" } },
-    take: 1
+    take: 1,
   });
   return mentions[0]?.entityName;
 }
@@ -537,15 +611,28 @@ async function topCompetitorForScan(scanRunId: string) {
 function parsedResultsForScan(promptRuns: Array<any>) {
   return promptRuns
     .map((run) => {
-      const parsed = run.aiResponse?.parsedResult?.parsedJson as ParsedAiResult | undefined;
+      const parsed = run.aiResponse?.parsedResult?.parsedJson as
+        | ParsedAiResult
+        | undefined;
       if (!parsed) return null;
-      return { ...parsed, prompt: run.prompt.text, engine: run.engine.engineName };
+      return {
+        ...parsed,
+        prompt: run.prompt.text,
+        engine: run.engine.engineName,
+      };
     })
-    .filter((result): result is ScoreInputResult & { prompt: string; engine: string } => Boolean(result));
+    .filter(
+      (
+        result,
+      ): result is ScoreInputResult & { prompt: string; engine: string } =>
+        Boolean(result),
+    );
 }
 
 function toStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function toCitationArray(value: unknown) {
@@ -555,7 +642,9 @@ function toCitationArray(value: unknown) {
         .map((item: any) => ({
           url: String(item.url),
           title: item.title ? String(item.title) : undefined,
-          domain: item.domain ? String(item.domain) : normalizeDomain(String(item.url))
+          domain: item.domain
+            ? String(item.domain)
+            : normalizeDomain(String(item.url)),
         }))
     : [];
 }
