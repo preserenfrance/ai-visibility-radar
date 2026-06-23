@@ -33,24 +33,7 @@ function runRegularScans(request: Request) {
       where: {
         recurringScanActive: true,
         organization: {
-          OR: [
-            { plan: "free" },
-            { billingSubscription: { is: null } },
-            {
-              billingSubscription: {
-                is: {
-                  status: { notIn: ["active", "trialing"] },
-                },
-              },
-            },
-            {
-              billingSubscription: {
-                is: {
-                  stripeSubscriptionId: null,
-                },
-              },
-            },
-          ],
+          plan: "free",
         },
       },
       data: {
@@ -67,10 +50,6 @@ function runRegularScans(request: Request) {
         recurringScanNextRunAt: { lte: now },
         organization: {
           plan: { in: ["starter", "growth"] },
-          billingSubscription: {
-            status: { in: ["active", "trialing"] },
-            stripeSubscriptionId: { not: null },
-          },
         },
       },
       include: {

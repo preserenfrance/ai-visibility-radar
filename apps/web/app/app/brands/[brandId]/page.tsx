@@ -211,10 +211,6 @@ export default async function BrandPage({
               brandId={brand.id}
               organizationId={brand.organizationId}
               organizationPlan={brand.organization.plan}
-              billingStatus={brand.organization.billingSubscription?.status}
-              stripeSubscriptionId={
-                brand.organization.billingSubscription?.stripeSubscriptionId
-              }
               recurringScanActive={recurringScanActive}
               hasStripeCustomer={Boolean(brand.organization.stripeCustomerId)}
             />

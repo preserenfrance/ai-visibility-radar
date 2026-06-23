@@ -18,12 +18,8 @@ export const paidFeatureLabels: Record<PaidFeatureKey, string> = {
 };
 
 export function hasActivePaidPlan(organization: OrganizationPlanAccess) {
-  return (
-    organization.plan !== "free" &&
-    Boolean(organization.billingSubscription?.stripeSubscriptionId) &&
-    (organization.billingSubscription?.status === "active" ||
-      organization.billingSubscription?.status === "trialing")
-  );
+  // Organization.plan is the access source of truth; Stripe status is billing metadata.
+  return organization.plan !== "free";
 }
 
 export function effectivePlanForOrganization(

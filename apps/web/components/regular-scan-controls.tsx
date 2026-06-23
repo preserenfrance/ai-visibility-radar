@@ -11,26 +11,19 @@ export function RegularScanControls({
   brandId,
   organizationId,
   organizationPlan,
-  billingStatus,
-  stripeSubscriptionId,
   recurringScanActive,
   hasStripeCustomer,
 }: {
   brandId: string;
   organizationId: string;
   organizationPlan: Plan;
-  billingStatus?: string | null;
-  stripeSubscriptionId?: string | null;
   recurringScanActive: boolean;
   hasStripeCustomer: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const paidAndActive =
-    organizationPlan !== "free" &&
-    Boolean(stripeSubscriptionId) &&
-    (billingStatus === "active" || billingStatus === "trialing");
+  const paidAndActive = organizationPlan !== "free";
 
   function run(action: () => Promise<void>) {
     setError(null);

@@ -17,24 +17,25 @@ async function updateAccountPlan(formData: FormData) {
 
   const organizationId = String(formData.get("organizationId") ?? "");
   const plan = String(formData.get("plan") ?? "");
-  if (!organizationId || !isPlan(plan)) throw new Error("Bad Request: neveljaven account plan");
+  if (!organizationId || !isPlan(plan))
+    throw new Error("Bad Request: neveljaven account plan");
 
   await prisma.organization.update({
     where: { id: organizationId },
-    data: { plan }
+    data: { plan },
   });
 
   await prisma.billingSubscription.upsert({
     where: { organizationId },
     update: {
       plan,
-      status: plan === "free" ? "canceled" : "active"
+      status: plan === "free" ? "canceled" : "active",
     },
     create: {
       organizationId,
       plan,
-      status: plan === "free" ? "canceled" : "active"
-    }
+      status: plan === "free" ? "canceled" : "active",
+    },
   });
 
   if (plan === "free") {
@@ -44,8 +45,8 @@ async function updateAccountPlan(formData: FormData) {
         recurringScanActive: false,
         recurringScanPlan: null,
         recurringScanCadence: null,
-        recurringScanNextRunAt: null
-      }
+        recurringScanNextRunAt: null,
+      },
     });
   }
 
@@ -53,13 +54,14 @@ async function updateAccountPlan(formData: FormData) {
 }
 
 export default async function AdminUsersPage({
-  searchParams
+  searchParams,
 }: {
   searchParams?: Promise<{ updated?: string }>;
 }) {
   const currentUser = await getCurrentUser();
   if (!currentUser) redirect("/login?next=/admin/users");
-  if (!isAdminUser(currentUser)) return <main className="p-8">Nimate dostopa do admin strani.</main>;
+  if (!isAdminUser(currentUser))
+    return <main className="p-8">Nimate dostopa do admin strani.</main>;
 
   const params = await searchParams;
   const users = await prisma.user.findMany({
@@ -71,12 +73,12 @@ export default async function AdminUsersPage({
           organization: {
             include: {
               billingSubscription: true,
-              _count: { select: { brands: true } }
-            }
-          }
-        }
-      }
-    }
+              _count: { select: { brands: true } },
+            },
+          },
+        },
+      },
+    },
   });
 
   const organizationIds = new Set<string>();
@@ -95,7 +97,8 @@ export default async function AdminUsersPage({
         <div>
           <h1 className="text-3xl font-semibold">Admin uporabniki</h1>
           <p className="mt-2 text-muted-foreground">
-            Registrirani uporabniki, njihove organizacije, znamke in trenutni nivo accounta.
+            Registrirani uporabniki, njihove organizacije, znamke in trenutni
+            nivo accounta.
           </p>
         </div>
         {params?.updated && (
@@ -135,12 +138,18 @@ export default async function AdminUsersPage({
                     <TR key={user.id}>
                       <TD>
                         <div className="font-medium">{user.email}</div>
-                        {user.name && <div className="text-xs text-muted-foreground">{user.name}</div>}
+                        {user.name && (
+                          <div className="text-xs text-muted-foreground">
+                            {user.name}
+                          </div>
+                        )}
                       </TD>
                       <TD>{user.createdAt.toLocaleString("sl-SI")}</TD>
                       <TD>brez organizacije</TD>
                       <TD>0</TD>
-                      <TD><Badge variant="secondary">-</Badge></TD>
+                      <TD>
+                        <Badge variant="secondary">-</Badge>
+                      </TD>
                       <TD>-</TD>
                       <TD>-</TD>
                     </TR>
@@ -154,22 +163,43 @@ export default async function AdminUsersPage({
                     <TR key={`${user.id}-${organization.id}`}>
                       <TD>
                         <div className="font-medium">{user.email}</div>
-                        {user.name && <div className="text-xs text-muted-foreground">{user.name}</div>}
-                        {index > 0 && <div className="text-xs text-muted-foreground">dodatna organizacija</div>}
+                        {user.name && (
+                          <div className="text-xs text-muted-foreground">
+                            {user.name}
+                          </div>
+                        )}
+                        {index > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            dodatna organizacija
+                          </div>
+                        )}
                       </TD>
                       <TD>{user.createdAt.toLocaleString("sl-SI")}</TD>
                       <TD>
                         <div className="font-medium">{organization.name}</div>
-                        <div className="text-xs text-muted-foreground">{membership.role}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {membership.role}
+                        </div>
                       </TD>
                       <TD>
                         {organization._count.brands} / {limits.brandCount}
                       </TD>
-                      <TD><PlanBadge plan={organization.plan} /></TD>
-                      <TD>{organization.billingSubscription?.status ?? "ni aktivno"}</TD>
                       <TD>
-                        <form action={updateAccountPlan} className="flex flex-wrap items-center gap-2">
-                          <input type="hidden" name="organizationId" value={organization.id} />
+                        <PlanBadge plan={organization.plan} />
+                      </TD>
+                      <TD>
+                        <BillingBadge organization={organization} />
+                      </TD>
+                      <TD>
+                        <form
+                          action={updateAccountPlan}
+                          className="flex flex-wrap items-center gap-2"
+                        >
+                          <input
+                            type="hidden"
+                            name="organizationId"
+                            value={organization.id}
+                          />
                           <select
                             name="plan"
                             defaultValue={organization.plan}
@@ -215,6 +245,40 @@ function PlanBadge({ plan }: { plan: Plan }) {
   if (plan === "growth") return <Badge>growth</Badge>;
   if (plan === "starter") return <Badge variant="warning">starter</Badge>;
   return <Badge variant="secondary">free</Badge>;
+}
+
+function BillingBadge({
+  organization,
+}: {
+  organization: {
+    plan: Plan;
+    billingSubscription?: {
+      status: string | null;
+      stripeSubscriptionId?: string | null;
+    } | null;
+  };
+}) {
+  const subscription = organization.billingSubscription;
+  if (organization.plan !== "free" && !subscription?.stripeSubscriptionId) {
+    return <Badge variant="success">ročno aktivno</Badge>;
+  }
+  if (subscription?.stripeSubscriptionId) {
+    const status = subscription.status ?? "brez statusa";
+    return (
+      <Badge
+        variant={
+          status === "active"
+            ? "success"
+            : status === "trialing"
+              ? "warning"
+              : "secondary"
+        }
+      >
+        Stripe: {status}
+      </Badge>
+    );
+  }
+  return <Badge variant="secondary">ni aktivno</Badge>;
 }
 
 function isPlan(value: string): value is Plan {
