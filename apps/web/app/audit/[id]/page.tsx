@@ -7,6 +7,7 @@ import { getCurrentUser, setUserSession } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ScanRunner } from "@/components/scan-runner";
+import { PasswordInput } from "@/components/password-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -206,15 +207,26 @@ export default async function AuditPage({
     lead.auditScanRun?.status === "running";
   const runFromBrowser =
     reportPending && lead.auditScanRunId && !process.env.REDIS_URL;
-  const canViewResult =
+  const hasLeadMembership = Boolean(
     user &&
-    (normalizeEmail(user.email) === normalizeEmail(lead.email) ||
-      Boolean(
-        lead.organizationId &&
-        user.memberships.some(
-          (membership) => membership.organizationId === lead.organizationId,
-        ),
-      ));
+    lead.organizationId &&
+    user.memberships.some(
+      (membership) => membership.organizationId === lead.organizationId,
+    ),
+  );
+  const emailMatchesLead = Boolean(
+    user && normalizeEmail(user.email) === normalizeEmail(lead.email),
+  );
+  const canViewResult = Boolean(
+    user && (emailMatchesLead || hasLeadMembership),
+  );
+
+  if (canViewResult && lead.auditScanRun) {
+    if (user && emailMatchesLead && !hasLeadMembership) {
+      await ensureLeadMembership(lead, user.id);
+    }
+    redirect(monitoringPathForLead({ auditScanRun: lead.auditScanRun }));
+  }
 
   if (!canViewResult) {
     return (
@@ -332,7 +344,6 @@ function AuditAccountGate({
     email: string;
     brandName: string;
     domain: string;
-    companyName?: string | null;
   };
   reportPending: boolean;
   runFromBrowser: boolean;
@@ -390,15 +401,8 @@ function AuditAccountGate({
               <input type="hidden" name="leadId" value={lead.id} />
               <Input name="email" type="email" value={lead.email} readOnly />
               <Input name="name" placeholder="Ime in priimek" />
-              <Input
-                name="organizationName"
-                placeholder="Ime organizacije"
-                defaultValue={lead.companyName || lead.brandName}
-                readOnly
-              />
-              <Input
+              <PasswordInput
                 name="password"
-                type="password"
                 placeholder="Geslo"
                 minLength={8}
                 aria-describedby="audit-password-help"
@@ -410,9 +414,8 @@ function AuditAccountGate({
               >
                 Geslo mora vsebovati vsaj 8 znakov. Posebni znaki niso obvezni.
               </p>
-              <Input
+              <PasswordInput
                 name="passwordRepeat"
-                type="password"
                 placeholder="Ponovi geslo"
                 minLength={8}
                 required

@@ -4,6 +4,7 @@ import { Radar } from "lucide-react";
 import { prisma } from "@ai-radar/db";
 import { createUserAccount, safeRedirectPath } from "@/lib/accounts";
 import { setUserSession } from "@/lib/auth";
+import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -88,9 +89,8 @@ export default async function SignupPage({
             />
             <Input name="name" placeholder="Ime in priimek" />
             <Input name="organizationName" placeholder="Ime organizacije" />
-            <Input
+            <PasswordInput
               name="password"
-              type="password"
               placeholder="Geslo"
               minLength={8}
               aria-describedby="signup-password-help"
@@ -102,9 +102,8 @@ export default async function SignupPage({
             >
               Geslo mora vsebovati vsaj 8 znakov. Posebni znaki niso obvezni.
             </p>
-            <Input
+            <PasswordInput
               name="passwordRepeat"
-              type="password"
               placeholder="Ponovi geslo"
               minLength={8}
               required
