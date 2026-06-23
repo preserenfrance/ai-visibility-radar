@@ -52,7 +52,7 @@ export default async function CheckerPage({
             Preveri, ali te ChatGPT priporoča.
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni audit uporabi vsaj 3 prompte, ki jih vneseš sam, jih
+            Brezplačni audit uporabi 3 do 10 promptov, ki jih vneseš sam, jih
             pošlje na ChatGPT in pokaže začetni rezultat tvoje AI vidnosti.
             Gemini in Claude sta na voljo v plačljivih paketih.
           </p>
@@ -118,7 +118,7 @@ function auditErrorMessage(errorCode: string) {
     case "openai":
       return "Audita trenutno ni bilo mogoče zagnati, ker OpenAI API ni pravilno nastavljen ali nima dovolj kvote. Na Vercelu preveri OPENAI_API_KEY in po želji OPENAI_MODEL.";
     case "prompts":
-      return "Za audit moraš vnesti vsaj 3 in največ 5 promptov, vsak z vsaj 3 znaki.";
+      return "Za audit moraš vnesti vsaj 3 in največ 10 promptov, vsak z vsaj 3 znaki.";
     case "database":
       return "Audita trenutno ni bilo mogoče zagnati, ker povezava z bazo ali migracije niso pripravljene. Preveri Vercel okoljske spremenljivke in produkcijsko bazo.";
     case "schema":

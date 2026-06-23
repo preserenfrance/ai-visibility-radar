@@ -16,6 +16,11 @@ const promptPlaceholders = [
   "Npr. Kje lahko kupim zanesljiv robotski sesalnik z dobro garancijo in hitro dostavo?",
   "Npr. Katere spletne trgovine priporočate za nakup naravne kozmetike v Sloveniji?",
   "Npr. Katera spletna trgovina ima najboljšo ponudbo pohištva za manjša stanovanja?",
+  "Npr. Kje lahko kupim kakovosten žar za domači vrt z dobro dostavo?",
+  "Npr. Katera spletna trgovina priporoča najboljše izdelke za nego trate?",
+  "Npr. Kje naj kupim kakovostne visoke grede za zelenjavni vrt?",
+  "Npr. Kateri ponudniki imajo dobro izbiro senčnikov za teraso?",
+  "Npr. Kje lahko kupim vrtno orodje za začetnike po razumni ceni?",
 ];
 const MIN_PROMPT_COUNT = 3;
 
@@ -75,8 +80,8 @@ export function FreeAuditForm({
             (prompt): prompt is string => typeof prompt === "string",
           )
         : [];
-      if (prompts.length !== promptPlaceholders.length) {
-        throw new Error("ChatGPT ni vrnil petih predlogov.");
+      if (prompts.length === 0) {
+        throw new Error("ChatGPT ni vrnil predlogov.");
       }
 
       prompts.forEach((prompt, index) => {
@@ -180,7 +185,7 @@ export function FreeAuditForm({
         </div>
         <fieldset className="grid gap-3 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
-            Vnesi vsaj 3 prompte za test
+            Vnesi vsaj 3 in največ 10 promptov za test
           </legend>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">

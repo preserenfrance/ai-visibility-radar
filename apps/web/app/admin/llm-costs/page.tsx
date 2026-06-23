@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { BarChart3, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
+import {
+  availableAiModels,
+  saveAiModelSettings,
+  type AiModelOptionGroup,
+} from "@/lib/ai-model-settings";
 import {
   estimatedAiCostUsd,
   formatMoney,
@@ -14,6 +20,20 @@ import {
 } from "@/lib/llm-costs";
 
 export const dynamic = "force-dynamic";
+
+async function saveModelSettings(formData: FormData) {
+  "use server";
+  const user = await requireAdminUser();
+  await saveAiModelSettings(
+    {
+      openai: String(formData.get("openai") ?? "").trim(),
+      google: String(formData.get("google") ?? "").trim(),
+      anthropic: String(formData.get("anthropic") ?? "").trim(),
+    },
+    user.email,
+  );
+  redirect("/admin/llm-costs?models=saved");
+}
 
 type ProviderSummary = {
   provider: LlmCostProvider;
@@ -30,12 +50,17 @@ type ProviderSummary = {
   daily: Array<{ key: string; label: string; value: number }>;
 };
 
-export default async function AdminLlmCostsPage() {
+export default async function AdminLlmCostsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ models?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/llm-costs");
   if (!isAdminUser(user))
     return <main className="p-8">Nimate dostopa do admin strani.</main>;
 
+  const params = await searchParams;
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -58,7 +83,10 @@ export default async function AdminLlmCostsPage() {
     },
   });
 
-  const summaries = buildProviderSummaries(days, responses);
+  const [summaries, modelOptions] = await Promise.all([
+    Promise.resolve(buildProviderSummaries(days, responses)),
+    availableAiModels(),
+  ]);
   const monthTotal = summaries.reduce((sum, item) => sum + item.totalUsd, 0);
   const storedTotal = summaries.reduce((sum, item) => sum + item.storedUsd, 0);
   const estimatedTotal = summaries.reduce(
@@ -121,6 +149,11 @@ export default async function AdminLlmCostsPage() {
           tem prikazu niso zajeti.
         </CardContent>
       </Card>
+
+      <ModelSettingsCard
+        options={modelOptions}
+        saved={params?.models === "saved"}
+      />
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
@@ -195,6 +228,64 @@ export default async function AdminLlmCostsPage() {
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+function ModelSettingsCard({
+  options,
+  saved,
+}: {
+  options: AiModelOptionGroup[];
+  saved: boolean;
+}) {
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Globalni AI modeli</CardTitle>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Izbira velja za nove scane vseh uporabnikov. Seznam modelov se
+              prebere iz API-jev ponudnikov; če ponudnik ni dosegljiv, ostane
+              trenutni model ročno izbran.
+            </p>
+          </div>
+          {saved && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
+              Modeli so shranjeni.
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form action={saveModelSettings} className="grid gap-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            {options.map((group) => (
+              <label key={group.provider} className="grid gap-2 text-sm">
+                <span className="font-medium">{group.label}</span>
+                <select
+                  name={group.provider}
+                  defaultValue={group.currentModel}
+                  className="h-10 rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  {group.models.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+                {group.error && (
+                  <span className="text-xs text-amber-700">{group.error}</span>
+                )}
+              </label>
+            ))}
+          </div>
+          <Button type="submit" className="w-fit">
+            Shrani globalne modele
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

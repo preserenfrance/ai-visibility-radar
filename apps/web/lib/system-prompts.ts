@@ -24,7 +24,7 @@ export const SYSTEM_PROMPT_DEFINITIONS: SystemPromptDefinition[] = [
       "Izklopljeno. Sistem ne analizira več spletne strani; uporablja samo uporabniško vnesene prompte.",
     defaultContent: [
       "Izklopljeno: spletne strani se ne crawla in ne analizira.",
-      "Uporabnik na začetku vnese vsaj 3 in največ 5 promptov; ti prompti se uporabijo za prvi audit, ročne scane in redne scane.",
+      "Uporabnik na začetku vnese vsaj 3 in največ 10 promptov; ti prompti se uporabijo za prvi audit, ročne scane in redne scane.",
     ].join("\n"),
   },
   {
@@ -33,7 +33,7 @@ export const SYSTEM_PROMPT_DEFINITIONS: SystemPromptDefinition[] = [
     description: "Izklopljeno. Promptov ne generiramo več samodejno.",
     defaultContent: [
       "Izklopljeno: sistem ne piše promptov.",
-      "Aktivni prompt set nastane iz 3-5 promptov, ki jih uporabnik vnese v začetnem obrazcu.",
+      "Aktivni prompt set nastane iz 3-10 promptov, ki jih uporabnik vnese v začetnem obrazcu.",
     ].join("\n"),
   },
   {

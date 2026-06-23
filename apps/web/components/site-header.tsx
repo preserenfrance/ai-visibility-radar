@@ -71,7 +71,14 @@ export async function SiteHeader() {
                 <Nav
                   href="/admin/llm-costs"
                   icon={<DollarSign className="h-4 w-4" />}
-                  label="Stroški"
+                  label="Analitika"
+                />
+              )}
+              {admin && (
+                <Nav
+                  href="/admin/faqs"
+                  icon={<HelpCircle className="h-4 w-4" />}
+                  label="FAQ admin"
                 />
               )}
               {admin && (

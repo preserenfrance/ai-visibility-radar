@@ -1,6 +1,7 @@
 import { createAiAdapter } from "@ai-radar/ai";
 import { parseJsonObject } from "@ai-radar/parser";
 import { normalizeDomain } from "@ai-radar/shared";
+import { aiModelSettings } from "@/lib/ai-model-settings";
 import { systemPromptContent } from "@/lib/system-prompts";
 
 export type PromptSuggestionInput = {
@@ -25,8 +26,14 @@ export async function suggestAuditPrompts(input: PromptSuggestionInput) {
   if (!domain) throw new Error("Bad Request: vnesite domeno spletne strani.");
   if (!brandName) throw new Error("Bad Request: vnesite ime znamke.");
 
-  const instructions = await systemPromptContent("prompt_suggestion");
-  const adapter = createAiAdapter("openai", { searchEnabled: true });
+  const [instructions, models] = await Promise.all([
+    systemPromptContent("prompt_suggestion"),
+    aiModelSettings(),
+  ]);
+  const adapter = createAiAdapter("openai", {
+    modelOverride: models.openai,
+    searchEnabled: true,
+  });
   const output = await adapter.runPrompt({
     prompt: buildSuggestionPrompt({
       domain,

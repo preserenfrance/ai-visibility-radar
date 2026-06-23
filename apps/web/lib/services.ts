@@ -30,6 +30,7 @@ import {
 } from "@ai-radar/shared";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
+import { aiModelSettings } from "@/lib/ai-model-settings";
 import { hasActivePaidPlan, promptLimitForOrganization } from "@/lib/billing";
 import { enqueueJob } from "@/lib/queue";
 import { systemPromptContent } from "@/lib/system-prompts";
@@ -60,7 +61,7 @@ type PromptControlSettings = {
 };
 
 const USER_PROMPT_MIN_COUNT = 3;
-const USER_PROMPT_MAX_COUNT = 5;
+const USER_PROMPT_MAX_COUNT = 10;
 const USER_PROMPT_CATEGORY: PromptCategory = "category";
 const USER_PROMPT_FUNNEL_STAGE: GeneratedPrompt["funnelStage"] =
   "consideration";
@@ -435,8 +436,9 @@ async function generatePromptSetWithChatGpt(
     throw new Error("OPENAI_API_KEY is required for ChatGPT prompt generation");
   }
 
+  const models = await aiModelSettings();
   const adapter = createAiAdapter("openai", {
-    modelOverride: config.OPENAI_MODEL,
+    modelOverride: models.openai ?? config.OPENAI_MODEL,
     searchEnabled: false,
   });
 
@@ -621,10 +623,11 @@ export type RecurringScanCadence = "weekly" | "daily";
 
 export async function ensureEngineVariants(selections: EngineSelection[]) {
   const config = getConfig();
+  const modelSettings = await aiModelSettings();
   const models: Record<AiEngineProvider, string | undefined> = {
-    openai: config.OPENAI_MODEL,
-    google: config.GEMINI_MODEL,
-    anthropic: config.CLAUDE_MODEL,
+    openai: modelSettings.openai ?? config.OPENAI_MODEL,
+    google: modelSettings.google ?? config.GEMINI_MODEL,
+    anthropic: modelSettings.anthropic ?? config.CLAUDE_MODEL,
     mock: "mock-ai-visibility-model",
   };
 

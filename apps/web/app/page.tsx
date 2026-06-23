@@ -73,7 +73,7 @@ const features: Array<{
 
 const steps = [
   {
-    title: "Vneseš vsaj 3 prompte",
+    title: "Vneseš 3 do 10 testnih promptov",
     description:
       "Sam določiš vprašanja, ki jih želiš meriti za svojo znamko, trg in konkurente.",
   },
@@ -396,9 +396,9 @@ export default async function HomePage() {
               Poglej, kako te AI modeli vidijo danes.
             </h2>
             <p className="mt-3 max-w-2xl leading-7 text-slate-300">
-              Vnesi domeno in vsaj 3 prompte, prejmi osnovni AI Visibility Score
-              in odkrij, katere vsebine, citacije in primerjave najprej
-              izboljšati.
+              Vnesi domeno in do 10 testnih promptov, prejmi osnovni AI
+              Visibility Score in odkrij, katere vsebine, citacije in primerjave
+              najprej izboljšati.
             </p>
           </div>
           <Button
