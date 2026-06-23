@@ -40,7 +40,7 @@ export async function SiteHeader() {
               <Nav
                 href="/app/dashboard"
                 icon={<BarChart3 className="h-4 w-4" />}
-                label="Pregled"
+                label="Moje znamke"
               />
               <Nav
                 href="/ai-visibility-checker"

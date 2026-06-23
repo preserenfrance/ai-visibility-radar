@@ -11,26 +11,35 @@ type OrganizationPlanAccess = {
 export const paidFeatureLabels: Record<PaidFeatureKey, string> = {
   competitors: "Konkurenti",
   citations: "Citati",
-  actions: "Akcijski center"
+  actions: "Ideje za izboljšanje",
 };
 
 export function hasActivePaidPlan(organization: OrganizationPlanAccess) {
   return (
     organization.plan !== "free" &&
-    (organization.billingSubscription?.status === "active" || organization.billingSubscription?.status === "trialing")
+    (organization.billingSubscription?.status === "active" ||
+      organization.billingSubscription?.status === "trialing")
   );
 }
 
-export function effectivePlanForOrganization(organization: OrganizationPlanAccess): Plan {
+export function effectivePlanForOrganization(
+  organization: OrganizationPlanAccess,
+): Plan {
   return hasActivePaidPlan(organization) ? organization.plan : "free";
 }
 
-export function promptLimitForOrganization(organization: OrganizationPlanAccess) {
-  return PLAN_LIMITS[effectivePlanForOrganization(organization)].promptsPerBrand;
+export function promptLimitForOrganization(
+  organization: OrganizationPlanAccess,
+) {
+  return PLAN_LIMITS[effectivePlanForOrganization(organization)]
+    .promptsPerBrand;
 }
 
-export function paidFeatureFromValue(value: string | string[] | undefined): PaidFeatureKey {
+export function paidFeatureFromValue(
+  value: string | string[] | undefined,
+): PaidFeatureKey {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === "competitors" || raw === "citations" || raw === "actions") return raw;
+  if (raw === "competitors" || raw === "citations" || raw === "actions")
+    return raw;
   return "competitors";
 }

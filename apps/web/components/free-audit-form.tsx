@@ -123,19 +123,60 @@ export function FreeAuditForm({
         onSubmit={handleSubmit}
         className="grid gap-3"
       >
-        <Input name="domain" placeholder="domain.com" required />
-        <Input name="brandName" placeholder="Ime znamke" required />
-        <Input
-          name="email"
-          type="email"
-          placeholder="ime@podjetje.si"
-          required
-        />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input name="country" defaultValue="Slovenija" />
-          <Input name="language" defaultValue="sl" />
+        <div className="grid gap-2">
+          <label htmlFor="auditDomain" className="text-sm font-medium">
+            Spletna stran
+          </label>
+          <Input
+            id="auditDomain"
+            name="domain"
+            placeholder="domain.com"
+            required
+          />
         </div>
-        <Input name="competitors" placeholder="Konkurent A, Konkurent B" />
+        <div className="grid gap-2">
+          <label htmlFor="auditBrandName" className="text-sm font-medium">
+            Ime znamke
+          </label>
+          <Input
+            id="auditBrandName"
+            name="brandName"
+            placeholder="Npr. Moja trgovina"
+            required
+          />
+        </div>
+        <div className="grid gap-2">
+          <label htmlFor="auditEmail" className="text-sm font-medium">
+            Email
+          </label>
+          <Input
+            id="auditEmail"
+            name="email"
+            type="email"
+            placeholder="ime@podjetje.si"
+            required
+          />
+        </div>
+        <div className="grid gap-2">
+          <label htmlFor="auditLanguage" className="text-sm font-medium">
+            Jezik odgovorov
+          </label>
+          <Input id="auditLanguage" name="language" defaultValue="sl" />
+        </div>
+        <div className="grid gap-2">
+          <label htmlFor="auditCompetitors" className="text-sm font-medium">
+            Konkurenti (brand)
+          </label>
+          <Input
+            id="auditCompetitors"
+            name="competitors"
+            placeholder="Npr. Mimovrste, Merkur, Bauhaus"
+          />
+          <p className="-mt-1 text-xs text-muted-foreground">
+            Vnesi imena konkurenčnih brandov, ki jih želiš primerjati z vašo
+            znamko. Če jih je več, jih loči z vejico.
+          </p>
+        </div>
         <fieldset className="grid gap-3 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
             Vnesi vsaj 3 prompte za test
@@ -197,16 +238,24 @@ export function FreeAuditForm({
             </div>
           )}
           {promptPlaceholders.map((placeholder, index) => (
-            <Textarea
-              key={index}
-              ref={(element) => {
-                promptRefs.current[index] = element;
-              }}
-              name="prompts"
-              placeholder={placeholder}
-              minLength={3}
-              className="min-h-20 bg-white"
-            />
+            <div key={index} className="grid gap-2">
+              <label
+                htmlFor={`auditPrompt-${index}`}
+                className="text-sm font-medium"
+              >
+                Prompt {index + 1}
+              </label>
+              <Textarea
+                id={`auditPrompt-${index}`}
+                ref={(element) => {
+                  promptRefs.current[index] = element;
+                }}
+                name="prompts"
+                placeholder={placeholder}
+                minLength={3}
+                className="min-h-20 bg-white"
+              />
+            </div>
           ))}
         </fieldset>
         <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">

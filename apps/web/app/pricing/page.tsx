@@ -88,7 +88,7 @@ const features: Array<{
     values: { free: false, starter: true, growth: true },
   },
   {
-    label: "Akcijski center",
+    label: "Ideje za izboljšanje",
     values: { free: false, starter: true, growth: true },
   },
 ];

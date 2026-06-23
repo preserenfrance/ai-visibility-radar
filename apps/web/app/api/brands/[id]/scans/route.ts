@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@ai-radar/db";
 import { createScanForBrand } from "@/lib/services";
 import { requireBrandAccess } from "@/lib/auth";
+import { hasActivePaidPlan } from "@/lib/billing";
 import { ok, parseBody, route } from "@/lib/http";
 
 export const maxDuration = 60;
@@ -14,41 +15,52 @@ const schema = z.object({
     .array(
       z.object({
         provider: providerSchema,
-        searchEnabled: z.boolean().default(false)
-      })
+        searchEnabled: z.boolean().default(false),
+      }),
     )
     .optional(),
   promptLimit: z.number().int().min(1).max(100).optional(),
   repeatCount: z.number().int().min(1).max(3).default(1),
   runNow: z.boolean().default(false),
-  searchEnabled: z.boolean().default(false)
+  searchEnabled: z.boolean().default(false),
 });
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   return route(async () => {
     const { id } = await context.params;
-    await requireBrandAccess(id);
+    const { brand } = await requireBrandAccess(id);
+    const paidAccess = hasActivePaidPlan(brand.organization);
     const input = await parseBody(request, schema);
     const scan = await createScanForBrand(id, {
-      providers: input.providers?.length ? input.providers : ["openai"],
-      engineVariants: input.engineVariants,
+      providers: paidAccess
+        ? input.providers?.length
+          ? input.providers
+          : ["openai"]
+        : ["openai"],
+      engineVariants: paidAccess ? input.engineVariants : undefined,
       promptLimit: input.promptLimit,
       repeatCount: input.repeatCount,
       runNow: input.runNow,
-      searchEnabled: input.searchEnabled
+      searchEnabled: paidAccess ? input.searchEnabled : false,
     });
     return ok({ scan }, 201);
   });
 }
 
-export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  _: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   return route(async () => {
     const { id } = await context.params;
     await requireBrandAccess(id);
     const scans = await prisma.scanRun.findMany({
       where: { brandId: id },
       orderBy: { createdAt: "desc" },
-      include: { scoreSnapshot: true }
+      include: { scoreSnapshot: true },
     });
     return ok({ scans });
   });

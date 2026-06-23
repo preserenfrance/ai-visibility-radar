@@ -18,17 +18,19 @@ export default async function AppDashboardPage() {
     include: {
       organization: { include: { billingSubscription: true } },
       scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
-      scanRuns: { orderBy: { createdAt: "desc" }, take: 1 }
+      scanRuns: { orderBy: { createdAt: "desc" }, take: 1 },
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold">Pregled</h1>
-          <p className="text-muted-foreground">Pregled znamk, zadnjih rezultatov in statusov scanov.</p>
+          <h1 className="text-3xl font-semibold">Moje znamke</h1>
+          <p className="text-muted-foreground">
+            Seznam znamk, zadnjih rezultatov in statusov scanov.
+          </p>
         </div>
         <Button asChild>
           <Link href="/ai-visibility-checker">Nov audit</Link>
@@ -55,16 +57,26 @@ export default async function AppDashboardPage() {
               {brands.map((brand) => (
                 <TR key={brand.id}>
                   <TD>
-                    <Link className="font-medium text-primary" href={`/app/brands/${brand.id}`}>
+                    <Link
+                      className="font-medium text-primary"
+                      href={`/app/brands/${brand.id}`}
+                    >
                       {brand.name}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{brand.domain}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {brand.domain}
+                    </div>
                   </TD>
                   <TD>{brand.organization.name}</TD>
                   <TD>{brand.scoreSnapshots[0]?.visibilityScore ?? "-"}</TD>
-                  <TD>{brand.scanRuns[0]?.createdAt.toLocaleString("sl-SI") ?? "-"}</TD>
                   <TD>
-                    <Badge variant="secondary">{brand.scanRuns[0]?.status ?? "brez scana"}</Badge>
+                    {brand.scanRuns[0]?.createdAt.toLocaleString("sl-SI") ??
+                      "-"}
+                  </TD>
+                  <TD>
+                    <Badge variant="secondary">
+                      {brand.scanRuns[0]?.status ?? "brez scana"}
+                    </Badge>
                   </TD>
                   <TD>
                     {brand.recurringScanActive ? (
@@ -72,7 +84,9 @@ export default async function AppDashboardPage() {
                         <Badge>aktiven</Badge>
                         <span className="text-xs text-muted-foreground">
                           {cadenceLabel(brand.recurringScanCadence)}
-                          {brand.recurringScanNextRunAt ? ` · naslednji ${brand.recurringScanNextRunAt.toLocaleDateString("sl-SI")}` : ""}
+                          {brand.recurringScanNextRunAt
+                            ? ` · naslednji ${brand.recurringScanNextRunAt.toLocaleDateString("sl-SI")}`
+                            : ""}
                         </span>
                       </div>
                     ) : (
@@ -84,9 +98,13 @@ export default async function AppDashboardPage() {
                       brandId={brand.id}
                       organizationId={brand.organizationId}
                       organizationPlan={brand.organization.plan}
-                      billingStatus={brand.organization.billingSubscription?.status}
+                      billingStatus={
+                        brand.organization.billingSubscription?.status
+                      }
                       recurringScanActive={brand.recurringScanActive}
-                      hasStripeCustomer={Boolean(brand.organization.stripeCustomerId)}
+                      hasStripeCustomer={Boolean(
+                        brand.organization.stripeCustomerId,
+                      )}
                     />
                   </TD>
                 </TR>

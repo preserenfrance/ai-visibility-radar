@@ -7,7 +7,7 @@ import { paidFeatureLabels, type PaidFeatureKey } from "@/lib/billing";
 export function PaidFeaturePaywall({
   brandId,
   organizationId,
-  feature
+  feature,
 }: {
   brandId: string;
   organizationId: string;
@@ -20,28 +20,45 @@ export function PaidFeaturePaywall({
           <LockKeyhole className="h-4 w-4" />
           Plačljiv modul
         </div>
-        <CardTitle>{paidFeatureLabels[feature]} so vključeni v plačljive pakete</CardTitle>
+        <CardTitle>
+          {paidFeatureLabels[feature]} so vključeni v plačljive pakete
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-5">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Ta zavihek je namenjen rednemu delu z rezultati: spremljanju konkurentov, citiranih virov in konkretnih nalog.
-          Za dostop aktiviraj naročnino Starter ali Growth.
+          Ta zavihek je namenjen rednemu delu z rezultati: spremljanju
+          konkurentov, citiranih virov in konkretnih nalog. Za dostop aktiviraj
+          naročnino Starter ali Growth.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
           <PlanCard
             name="Starter"
             price="15,99 € / mesec"
             badge="tedensko"
-            items={["1 znamka", "25 promptov", "Tedenski reden scan", "Konkurenti, citati in akcijski center"]}
+            items={[
+              "1 znamka",
+              "25 promptov",
+              "Tedenski reden scan",
+              "Konkurenti, citati in ideje za izboljšanje",
+            ]}
           />
           <PlanCard
             name="Growth"
             price="39,99 € / mesec"
             badge="dnevno"
-            items={["3 znamke", "100 promptov na znamko", "Dnevni reden scan", "Več prostora za rast in primerjave"]}
+            items={[
+              "3 znamke",
+              "100 promptov na znamko",
+              "Dnevni reden scan",
+              "Več prostora za rast in primerjave",
+            ]}
           />
         </div>
-        <PaywallCheckoutActions organizationId={organizationId} brandId={brandId} feature={feature} />
+        <PaywallCheckoutActions
+          organizationId={organizationId}
+          brandId={brandId}
+          feature={feature}
+        />
       </CardContent>
     </Card>
   );
@@ -51,7 +68,7 @@ function PlanCard({
   name,
   price,
   badge,
-  items
+  items,
 }: {
   name: string;
   price: string;

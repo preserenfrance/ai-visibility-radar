@@ -22,7 +22,7 @@ const schema = z.object({
 export async function POST(request: Request) {
   return route(async () => {
     const input = await parseBody(request, schema);
-    const lead = await createFreeAudit(input);
+    const lead = await createFreeAudit({ ...input, providers: ["openai"] });
     return ok({ lead }, 201);
   });
 }

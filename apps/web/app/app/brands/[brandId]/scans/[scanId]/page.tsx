@@ -73,15 +73,22 @@ export default async function ScanPage({
         <Metric
           label="Vidnost"
           value={scan.scoreSnapshot?.visibilityScore ?? 0}
+          description="Skupna ocena AI prisotnosti znamke skozi omembe, rang, citate, delež glasu, sentiment in točnost."
         />
-        <Metric label="Omembe" value={scan.scoreSnapshot?.mentionScore ?? 0} />
+        <Metric
+          label="Omembe"
+          value={scan.scoreSnapshot?.mentionScore ?? 0}
+          description="Kako pogosto AI modeli v odgovorih sploh omenijo tvojo znamko."
+        />
         <Metric
           label="Delež glasu"
           value={scan.scoreSnapshot?.shareOfVoiceScore ?? 0}
+          description="Kolikšen delež vseh zaznanih omemb pripada tvoji znamki v primerjavi s konkurenti."
         />
         <Metric
           label="Točnost"
           value={scan.scoreSnapshot?.accuracyScore ?? 0}
+          description="Kako pravilne in zanesljive so navedbe o tvoji znamki, ko jo AI model omeni."
         />
       </div>
       <Card>
@@ -120,12 +127,6 @@ export default async function ScanPage({
                             {run.aiResponse?.rawText ??
                               run.errorMessage ??
                               "Ni odgovora"}
-                          </pre>
-                          <div className="text-sm font-semibold">
-                            Razčlenjen rezultat
-                          </div>
-                          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-white p-3 text-xs">
-                            {JSON.stringify(parsed ?? {}, null, 2)}
                           </pre>
                           <div className="text-sm">
                             Citati:{" "}
@@ -204,15 +205,47 @@ function mentionBadgeVariant(brandMentioned: boolean): BadgeVariant {
   return brandMentioned ? "success" : "danger";
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({
+  label,
+  value,
+  description,
+}: {
+  label: string;
+  value: number;
+  description: string;
+}) {
+  const boundedValue = Math.max(0, Math.min(100, value));
+
   return (
     <Card>
       <CardHeader className="p-4 pb-2">
-        <CardTitle className="text-xs text-muted-foreground">{label}</CardTitle>
+        <CardTitle className="text-sm">{label}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="text-2xl font-semibold">{value}/100</div>
+      <CardContent className="grid gap-3 p-4 pt-0">
+        <div className="flex items-end justify-between gap-3">
+          <div className="text-2xl font-semibold">{boundedValue}/100</div>
+          <div className="text-xs text-muted-foreground">
+            {scoreBandLabel(boundedValue)}
+          </div>
+        </div>
+        <div
+          className="h-2 overflow-hidden rounded-full bg-secondary"
+          aria-hidden="true"
+        >
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${boundedValue}%` }}
+          />
+        </div>
+        <p className="text-xs leading-5 text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
   );
+}
+
+function scoreBandLabel(value: number) {
+  if (value >= 80) return "močno";
+  if (value >= 50) return "srednje";
+  if (value > 0) return "šibko";
+  return "brez podatka";
 }

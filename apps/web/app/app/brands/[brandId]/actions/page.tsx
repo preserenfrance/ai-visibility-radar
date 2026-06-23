@@ -14,39 +14,58 @@ export const dynamic = "force-dynamic";
 async function updateStatus(formData: FormData) {
   "use server";
   const id = String(formData.get("recommendationId"));
-  const status = String(formData.get("status")) as "open" | "in_progress" | "done" | "dismissed";
-  const recommendation = await prisma.recommendation.findUnique({ where: { id } });
+  const status = String(formData.get("status")) as
+    | "open"
+    | "in_progress"
+    | "done"
+    | "dismissed";
+  const recommendation = await prisma.recommendation.findUnique({
+    where: { id },
+  });
   if (!recommendation) throw new Error("Priporočilo ni najdeno");
   const { brand } = await requireBrandAccess(recommendation.brandId);
-  if (!hasActivePaidPlan(brand.organization)) throw new Error("Forbidden: paid plan required");
+  if (!hasActivePaidPlan(brand.organization))
+    throw new Error("Forbidden: paid plan required");
   await prisma.recommendation.update({ where: { id }, data: { status } });
   redirect(`/app/brands/${recommendation.brandId}/actions`);
 }
 
-export default async function ActionsPage({ params }: { params: Promise<{ brandId: string }> }) {
+export default async function ActionsPage({
+  params,
+}: {
+  params: Promise<{ brandId: string }>;
+}) {
   const { brandId } = await params;
   const { brand } = await requireBrandAccess(brandId);
   if (!hasActivePaidPlan(brand.organization)) {
     return (
       <section className="mx-auto max-w-7xl px-5 py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-semibold">Akcijski center</h1>
+          <h1 className="text-3xl font-semibold">Ideje za izboljšanje</h1>
           <p className="text-muted-foreground">{brand.name}</p>
         </div>
         <BrandMenu brandId={brandId} active="actions" />
-        <PaidFeaturePaywall brandId={brandId} organizationId={brand.organizationId} feature="actions" />
+        <PaidFeaturePaywall
+          brandId={brandId}
+          organizationId={brand.organizationId}
+          feature="actions"
+        />
       </section>
     );
   }
   const recommendations = await prisma.recommendation.findMany({
     where: { brandId },
-    orderBy: [{ status: "asc" }, { impactScore: "desc" }, { createdAt: "desc" }]
+    orderBy: [
+      { status: "asc" },
+      { impactScore: "desc" },
+      { createdAt: "desc" },
+    ],
   });
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Akcijski center</h1>
+        <h1 className="text-3xl font-semibold">Ideje za izboljšanje</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <BrandMenu brandId={brandId} active="actions" />
@@ -75,19 +94,37 @@ export default async function ActionsPage({ params }: { params: Promise<{ brandI
                   <TD className="max-w-md">{item.description}</TD>
                   <TD>{item.impactScore}</TD>
                   <TD>{item.effortScore}</TD>
-                  <TD><Badge variant="secondary">{item.status}</Badge></TD>
-                  <TD className="max-w-xs">{jsonArray(item.affectedPromptsJson).slice(0, 3).join(" · ") || "-"}</TD>
-                  <TD>{jsonArray(item.affectedEnginesJson).join(", ") || "-"}</TD>
+                  <TD>
+                    <Badge variant="secondary">{item.status}</Badge>
+                  </TD>
+                  <TD className="max-w-xs">
+                    {jsonArray(item.affectedPromptsJson)
+                      .slice(0, 3)
+                      .join(" · ") || "-"}
+                  </TD>
+                  <TD>
+                    {jsonArray(item.affectedEnginesJson).join(", ") || "-"}
+                  </TD>
                   <TD>
                     <form action={updateStatus} className="flex gap-2">
-                      <input type="hidden" name="recommendationId" value={item.id} />
-                      <select name="status" defaultValue={item.status} className="h-8 rounded-md border bg-background px-2 text-xs">
+                      <input
+                        type="hidden"
+                        name="recommendationId"
+                        value={item.id}
+                      />
+                      <select
+                        name="status"
+                        defaultValue={item.status}
+                        className="h-8 rounded-md border bg-background px-2 text-xs"
+                      >
                         <option value="open">odprto</option>
                         <option value="in_progress">v delu</option>
                         <option value="done">zaključeno</option>
                         <option value="dismissed">zavrnjeno</option>
                       </select>
-                      <Button size="sm" type="submit">Shrani</Button>
+                      <Button size="sm" type="submit">
+                        Shrani
+                      </Button>
                     </form>
                   </TD>
                 </TR>
@@ -101,5 +138,7 @@ export default async function ActionsPage({ params }: { params: Promise<{ brandI
 }
 
 function jsonArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
