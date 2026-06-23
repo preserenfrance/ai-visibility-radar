@@ -36,14 +36,60 @@ export type ScanStartResult =
 
 export function scanConcurrencyLimit(env: NodeJS.ProcessEnv = process.env) {
   const parsed = Number(env.SCAN_CONCURRENCY_LIMIT);
-  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  if (!Number.isFinite(parsed) || parsed < 1) return 2;
   return Math.floor(parsed);
+}
+
+export function promptRunConcurrencyLimit(
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  const parsed = Number(env.PROMPT_RUN_CONCURRENCY_LIMIT);
+  if (!Number.isFinite(parsed) || parsed < 1) return 2;
+  return Math.floor(parsed);
+}
+
+export function promptRunStaleMs(env: NodeJS.ProcessEnv = process.env) {
+  const parsed = Number(env.PROMPT_RUN_STALE_MS);
+  if (!Number.isFinite(parsed) || parsed < 30_000) return 1000 * 60 * 2;
+  return Math.floor(parsed);
+}
+
+export function scanRunStaleMs(env: NodeJS.ProcessEnv = process.env) {
+  const parsed = Number(env.SCAN_RUN_STALE_MS);
+  if (!Number.isFinite(parsed) || parsed < 60_000) return 1000 * 60 * 10;
+  return Math.floor(parsed);
+}
+
+export async function resetStaleScanWork() {
+  const promptCutoff = new Date(Date.now() - promptRunStaleMs());
+  const scanCutoff = new Date(Date.now() - scanRunStaleMs());
+
+  await prisma.promptRun.updateMany({
+    where: {
+      status: "running",
+      startedAt: { lt: promptCutoff },
+    },
+    data: {
+      status: "queued",
+      errorMessage: "Retry after stale execution timeout.",
+    },
+  });
+
+  await prisma.scanRun.updateMany({
+    where: {
+      status: "running",
+      startedAt: { lt: scanCutoff },
+      promptRuns: { none: { status: "running" } },
+    },
+    data: { status: "queued" },
+  });
 }
 
 export async function tryStartScanRun(
   scanRunId: string,
 ): Promise<ScanStartResult> {
   const limit = scanConcurrencyLimit();
+  await resetStaleScanWork();
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {

@@ -3,7 +3,12 @@ import IORedis from "ioredis";
 import { createAiAdapter } from "@ai-radar/ai";
 import { getConfig } from "@ai-radar/config";
 import { crawlDomain } from "@ai-radar/crawler";
-import { prisma, scanConcurrencyLimit, tryStartScanRun } from "@ai-radar/db";
+import {
+  prisma,
+  promptRunConcurrencyLimit,
+  scanConcurrencyLimit,
+  tryStartScanRun,
+} from "@ai-radar/db";
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { parseAiResponse } from "@ai-radar/parser";
 import { generatePromptSet } from "@ai-radar/prompts";
@@ -196,12 +201,23 @@ async function processCreateScan(scanRunId: string) {
   });
   if (!scan) throw new Error("Scan not found");
 
-  for (const promptRun of scan.promptRuns) {
-    await processRunPrompt(promptRun.id).catch(() => null);
-  }
+  await processPromptRunsInBatches(
+    scan.promptRuns.map((promptRun) => promptRun.id),
+  );
   await processScoreScan(scanRunId);
   await processGenerateRecommendations(scanRunId);
   return { scanRunId };
+}
+
+async function processPromptRunsInBatches(promptRunIds: string[]) {
+  const concurrency = promptRunConcurrencyLimit();
+
+  for (let index = 0; index < promptRunIds.length; index += concurrency) {
+    const batch = promptRunIds.slice(index, index + concurrency);
+    await Promise.allSettled(
+      batch.map((promptRunId) => processRunPrompt(promptRunId)),
+    );
+  }
 }
 
 async function waitForScanSlot(scanRunId: string) {
