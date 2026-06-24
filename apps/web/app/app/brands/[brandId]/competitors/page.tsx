@@ -176,8 +176,6 @@ export default async function CompetitorsPage({
                 <TH>Konkurentov delež glasu</TH>
                 <TH>Naš delež glasu</TH>
                 <TH>Sentiment</TH>
-                <TH>Prompti, kjer konkurent zmaga</TH>
-                <TH>Citati, ki podpirajo konkurenta</TH>
                 <TH>Upravljanje</TH>
               </TR>
             </THead>
@@ -257,6 +255,52 @@ export default async function CompetitorsPage({
                             Shrani
                           </Button>
                         </form>
+                        <div className="mt-3 grid min-w-72 gap-3 rounded-md border bg-white p-3">
+                          <div>
+                            <div className="text-xs font-semibold uppercase text-muted-foreground">
+                              Prompti, kjer konkurent zmaga
+                            </div>
+                            <div className="mt-2 grid gap-2">
+                              {runs.length ? (
+                                runs.slice(0, 8).map((run) => (
+                                  <div
+                                    key={run.id}
+                                    className="rounded-md bg-secondary/40 p-2 text-xs leading-5"
+                                  >
+                                    {run.prompt.text}
+                                    <div className="mt-1 text-[11px] text-muted-foreground">
+                                      {run.engine.engineName}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-xs text-muted-foreground">
+                                  Ni najdenih promptov, kjer bi bil ta konkurent
+                                  omenjen.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold uppercase text-muted-foreground">
+                              Citati, ki podpirajo konkurenta
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {citations.length ? (
+                                citations.map((domain) => (
+                                  <Badge key={domain} variant="secondary">
+                                    {domain}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <div className="text-xs text-muted-foreground">
+                                  Ni najdenih citatov, ki bi podpirali tega
+                                  konkurenta.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </details>
                       <div className="text-xs text-muted-foreground">
                         {competitor.domain ?? "brez domene"}
@@ -280,14 +324,6 @@ export default async function CompetitorsPage({
                         {sentimentForRuns(runs)}
                       </Badge>
                     </TD>
-                    <TD className="max-w-sm">
-                      {runs.slice(0, 3).map((run) => (
-                        <div key={run.id} className="mb-1 text-xs">
-                          {run.prompt.text}
-                        </div>
-                      ))}
-                    </TD>
-                    <TD>{citations.join(", ") || "-"}</TD>
                     <TD>
                       <form action={deleteCompetitor}>
                         <input
