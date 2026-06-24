@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
+import { PromptContentReviewSubmit } from "@/components/prompt-content-review-submit";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
@@ -14,8 +14,6 @@ import {
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-type RecommendationStatus = "open" | "in_progress" | "done" | "dismissed";
 
 async function runPromptContentReview(formData: FormData) {
   "use server";
@@ -36,20 +34,6 @@ async function runPromptContentReview(formData: FormData) {
   redirect(`/app/brands/${prompt.promptSet.brandId}/actions`);
 }
 
-async function updateStatus(formData: FormData) {
-  "use server";
-  const id = String(formData.get("recommendationId"));
-  const status = String(formData.get("status")) as RecommendationStatus;
-  const recommendation = await prisma.recommendation.findUnique({
-    where: { id },
-  });
-  if (!recommendation) throw new Error("Priporočilo ni najdeno");
-
-  await requireBrandAccess(recommendation.brandId);
-  await prisma.recommendation.update({ where: { id }, data: { status } });
-  redirect(`/app/brands/${recommendation.brandId}/actions`);
-}
-
 export default async function ActionsPage({
   params,
   searchParams,
@@ -60,27 +44,18 @@ export default async function ActionsPage({
   const { brandId } = await params;
   const query = await searchParams;
   const { brand } = await requireBrandAccess(brandId);
-  const [promptSet, recommendations, reviewStorageAvailable] =
-    await Promise.all([
-      prisma.promptSet.findFirst({
-        where: { brandId, status: "active" },
-        orderBy: { createdAt: "desc" },
-        include: {
-          prompts: {
-            orderBy: { priority: "asc" },
-          },
+  const [promptSet, reviewStorageAvailable] = await Promise.all([
+    prisma.promptSet.findFirst({
+      where: { brandId, status: "active" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        prompts: {
+          orderBy: { priority: "asc" },
         },
-      }),
-      prisma.recommendation.findMany({
-        where: { brandId },
-        orderBy: [
-          { status: "asc" },
-          { impactScore: "desc" },
-          { createdAt: "desc" },
-        ],
-      }),
-      promptContentReviewStorageAvailable(),
-    ]);
+      },
+    }),
+    promptContentReviewStorageAvailable(),
+  ]);
   const latestReviews =
     reviewStorageAvailable && promptSet?.prompts.length
       ? await prisma.promptContentReview.findMany({
@@ -94,11 +69,13 @@ export default async function ActionsPage({
     string,
     (typeof latestReviews)[number]
   >();
+
   for (const review of latestReviews) {
     if (!latestReviewByPromptId.has(review.promptId)) {
       latestReviewByPromptId.set(review.promptId, review);
     }
   }
+
   const showReviewStorageWarning =
     !reviewStorageAvailable || query?.reviewStorage === "missing";
 
@@ -113,13 +90,13 @@ export default async function ActionsPage({
       {showReviewStorageWarning && (
         <Card className="mb-6 border-amber-300 bg-amber-50">
           <CardContent className="pt-5 text-sm text-amber-900">
-            Pregledi vsebine cakajo na posodobitev baze. Po migraciji bo rocni
+            Pregledi vsebine čakajo na posodobitev baze. Po migraciji bo ročni
             pregled promptov na voljo tukaj.
           </CardContent>
         </Card>
       )}
 
-      <Card className="mb-6">
+      <Card>
         <CardHeader>
           <CardTitle>Pregled vsebine po promptih</CardTitle>
         </CardHeader>
@@ -169,9 +146,11 @@ export default async function ActionsPage({
                         </a>
                       ) : (
                         <span className="text-muted-foreground">
-                          {review?.status === "failed"
-                            ? "ni uspelo"
-                            : "ni najdeno"}
+                          {review
+                            ? review.status === "failed"
+                              ? "ni uspelo"
+                              : "ni najdeno"
+                            : "Zaženi pregled"}
                         </span>
                       )}
                     </TD>
@@ -199,14 +178,9 @@ export default async function ActionsPage({
                           name="promptId"
                           value={prompt.id}
                         />
-                        <Button
-                          size="sm"
-                          type="submit"
+                        <PromptContentReviewSubmit
                           disabled={!reviewStorageAvailable}
-                        >
-                          <Search className="h-4 w-4" />
-                          Preveri
-                        </Button>
+                        />
                       </form>
                     </TD>
                   </TR>
@@ -216,100 +190,6 @@ export default async function ActionsPage({
                 <TR>
                   <TD colSpan={7} className="text-muted-foreground">
                     Najprej dodaj prompt.
-                  </TD>
-                </TR>
-              )}
-            </TBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Priporočene naloge iz scanov</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <THead>
-              <TR>
-                <TH>Naslov</TH>
-                <TH>Opis</TH>
-                <TH>Učinek</TH>
-                <TH>Zahtevnost</TH>
-                <TH>Status</TH>
-                <TH>Povezani prompti</TH>
-                <TH>Navodila za prompt</TH>
-                <TH>Povezani modeli</TH>
-                <TH>Posodobi</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {recommendations.map((item) => (
-                <TR key={item.id}>
-                  <TD className="font-medium">{item.title}</TD>
-                  <TD className="max-w-md">{item.description}</TD>
-                  <TD>{item.impactScore}</TD>
-                  <TD>{item.effortScore}</TD>
-                  <TD>
-                    <Badge variant="secondary">{item.status}</Badge>
-                  </TD>
-                  <TD className="max-w-xs">
-                    {jsonArray(item.affectedPromptsJson)
-                      .slice(0, 3)
-                      .join(" · ") || "-"}
-                  </TD>
-                  <TD className="max-w-md">
-                    <div className="grid gap-2">
-                      {promptInstructionsForRecommendation(item).map(
-                        (instruction) => (
-                          <div
-                            key={instruction.prompt}
-                            className="rounded-md border bg-secondary/30 p-2 text-xs"
-                          >
-                            <div className="font-medium">
-                              {instruction.prompt}
-                            </div>
-                            <div className="mt-1 text-muted-foreground">
-                              {instruction.text}
-                            </div>
-                          </div>
-                        ),
-                      )}
-                      {promptInstructionsForRecommendation(item).length === 0 &&
-                        "-"}
-                    </div>
-                  </TD>
-                  <TD>
-                    {jsonArray(item.affectedEnginesJson).join(", ") || "-"}
-                  </TD>
-                  <TD>
-                    <form action={updateStatus} className="flex gap-2">
-                      <input
-                        type="hidden"
-                        name="recommendationId"
-                        value={item.id}
-                      />
-                      <select
-                        name="status"
-                        defaultValue={item.status}
-                        className="h-8 rounded-md border bg-background px-2 text-xs"
-                      >
-                        <option value="open">odprto</option>
-                        <option value="in_progress">v delu</option>
-                        <option value="done">zaključeno</option>
-                        <option value="dismissed">zavrnjeno</option>
-                      </select>
-                      <Button size="sm" type="submit">
-                        Shrani
-                      </Button>
-                    </form>
-                  </TD>
-                </TR>
-              ))}
-              {recommendations.length === 0 && (
-                <TR>
-                  <TD colSpan={9} className="text-muted-foreground">
-                    Ni še priporočil iz scanov.
                   </TD>
                 </TR>
               )}
@@ -335,31 +215,4 @@ function jsonArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
-}
-
-function promptInstructionsForRecommendation(item: {
-  title: string;
-  description: string;
-  affectedPromptsJson: unknown;
-}) {
-  return jsonArray(item.affectedPromptsJson)
-    .slice(0, 5)
-    .map((prompt) => ({
-      prompt,
-      text: instructionForPrompt(item.title, item.description),
-    }));
-}
-
-function instructionForPrompt(title: string, description: string) {
-  const text = `${title} ${description}`.toLowerCase();
-  if (text.includes("citat") || text.includes("vir")) {
-    return "Dodaj ali izboljšaj stran, ki neposredno odgovori na ta prompt, z jasnimi podatki, primeri uporabe, cenami in dokazili, da jo lahko AI modeli citirajo.";
-  }
-  if (text.includes("konkurent") || text.includes("zmaga")) {
-    return "Okrepi vsebino za ta nakupni primer: jasno povej za koga je produkt primeren, kje ga kupiti, prednosti izbire in zakaj je boljša izbira od pogosto omenjenih alternativ.";
-  }
-  if (text.includes("točnost") || text.includes("napa")) {
-    return "Preveri, ali ima spletna stran za ta primer sveže, enoznačne informacije; popravi nejasne trditve in dodaj strukturirane podatke, ki zmanjšajo možnost napačnega AI odgovora.";
-  }
-  return "Za ta prompt pripravi namensko vsebino, ki v eni strani jasno odgovori na vprašanje kupca, navede konkretne produkte ali storitve, lokacijo nakupa in dokazila za priporočilo.";
 }
