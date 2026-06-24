@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@ai-radar/db";
 import { requireBrandAccess } from "@/lib/auth";
-import { hasActivePaidPlan } from "@/lib/billing";
+import { canRunAutomaticScans } from "@/lib/billing";
 import { ok, parseBody, route } from "@/lib/http";
 import {
   activateRecurringScanForBrand,
@@ -36,21 +36,15 @@ export async function POST(
       },
     });
     if (!brand) throw new Error("Brand not found");
-
-    const plan = brand.organization.plan;
-    if (plan === "free")
+    if (!canRunAutomaticScans(brand.organization)) {
       throw new Error(
-        "Bad Request: Za reden scan najprej izberite plačljiv paket.",
-      );
-    if (!hasActivePaidPlan(brand.organization)) {
-      throw new Error(
-        "Bad Request: Naročnina še ni aktivna. Najprej zaključite plačilo.",
+        "Bad Request: avtomatski scan je vključen v paket Growth.",
       );
     }
 
     const updatedBrand = await activateRecurringScanForBrand(
       id,
-      plan as PaidPlan,
+      brand.organization.plan as PaidPlan,
     );
     return ok({ brand: updatedBrand });
   });

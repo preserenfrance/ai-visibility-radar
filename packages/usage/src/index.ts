@@ -19,30 +19,30 @@ export const PLAN_LIMITS: Record<
     promptsPerBrand: number;
     scansPerMonth: number;
     aiCallsPerMonth: number;
-    scanCadence: "manual" | "weekly" | "daily";
+    scanCadence: "none" | "manual" | "daily";
   }
 > = {
   free: {
     brandCount: 1,
     promptsPerBrand: 10,
-    scansPerMonth: 1,
-    aiCallsPerMonth: 15,
-    scanCadence: "manual"
+    scansPerMonth: 0,
+    aiCallsPerMonth: 0,
+    scanCadence: "none",
   },
   starter: {
     brandCount: 1,
     promptsPerBrand: 25,
     scansPerMonth: 8,
     aiCallsPerMonth: 600,
-    scanCadence: "weekly"
+    scanCadence: "manual",
   },
   growth: {
     brandCount: 3,
     promptsPerBrand: 100,
     scansPerMonth: 90,
     aiCallsPerMonth: 9000,
-    scanCadence: "daily"
-  }
+    scanCadence: "daily",
+  },
 };
 
 export function checkUsageGuard(plan: Plan, usage: UsageSnapshot): UsageCheck {
@@ -51,28 +51,36 @@ export function checkUsageGuard(plan: Plan, usage: UsageSnapshot): UsageCheck {
   if (usage.brandCount > limits.brandCount) {
     return {
       allowed: false,
-      reason: `Plan ${plan} allows ${limits.brandCount} brand(s).`
+      reason: `Plan ${plan} allows ${limits.brandCount} brand(s).`,
     };
   }
 
   if (usage.promptsPerBrand > limits.promptsPerBrand) {
     return {
       allowed: false,
-      reason: `Plan ${plan} allows ${limits.promptsPerBrand} prompts per brand.`
+      reason: `Plan ${plan} allows ${limits.promptsPerBrand} prompts per brand.`,
     };
   }
 
-  if (usage.scansThisMonth >= limits.scansPerMonth) {
+  if (
+    limits.scansPerMonth === 0
+      ? usage.scansThisMonth > 0
+      : usage.scansThisMonth >= limits.scansPerMonth
+  ) {
     return {
       allowed: false,
-      reason: `Plan ${plan} allows ${limits.scansPerMonth} scans per month.`
+      reason: `Plan ${plan} allows ${limits.scansPerMonth} scans per month.`,
     };
   }
 
-  if (usage.aiCallsThisMonth >= limits.aiCallsPerMonth) {
+  if (
+    limits.aiCallsPerMonth === 0
+      ? usage.aiCallsThisMonth > 0
+      : usage.aiCallsThisMonth >= limits.aiCallsPerMonth
+  ) {
     return {
       allowed: false,
-      reason: `Plan ${plan} allows ${limits.aiCallsPerMonth} AI calls per month.`
+      reason: `Plan ${plan} allows ${limits.aiCallsPerMonth} AI calls per month.`,
     };
   }
 

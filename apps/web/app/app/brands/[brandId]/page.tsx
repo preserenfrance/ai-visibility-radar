@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
 import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
-import { hasActivePaidPlan } from "@/lib/billing";
+import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
 import { createScanForBrand } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +20,9 @@ async function startProviderScan(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
   const { brand } = await requireBrandAccess(brandId);
-  const paidAccess = hasActivePaidPlan(brand.organization);
+  const manualScanAccess = canRunManualScans(brand.organization);
   const scan = await createScanForBrand(brandId, {
-    engineVariants: paidAccess
+    engineVariants: manualScanAccess
       ? selectedEngineVariantsFromFormData(formData)
       : [{ provider: "openai", searchEnabled: false }],
     runNow: false,
@@ -69,9 +69,9 @@ export default async function BrandPage({
   const latestScan = brand.scanRuns[0];
   const latestScore = brand.scoreSnapshots[0];
   const promptSet = brand.promptSets[0];
-  const paidAccess = hasActivePaidPlan(brand.organization);
+  const manualScanAccess = canRunManualScans(brand.organization);
   const recurringScanActive =
-    brand.recurringScanActive && hasActivePaidPlan(brand.organization);
+    brand.recurringScanActive && canRunAutomaticScans(brand.organization);
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -98,7 +98,7 @@ export default async function BrandPage({
         <ProviderScanForm
           brandId={brand.id}
           action={startProviderScan}
-          paidAccess={paidAccess}
+          manualScanAccess={manualScanAccess}
         />
       </div>
 

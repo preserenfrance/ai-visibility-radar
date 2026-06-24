@@ -38,7 +38,7 @@ async function updateAccountPlan(formData: FormData) {
     },
   });
 
-  if (plan === "free") {
+  if (plan !== "growth") {
     await prisma.brand.updateMany({
       where: { organizationId },
       data: {

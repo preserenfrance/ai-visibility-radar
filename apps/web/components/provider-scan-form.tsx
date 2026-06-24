@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { LockKeyhole, Loader2, PlayCircle, Search } from "lucide-react";
 import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
@@ -8,11 +9,11 @@ import { Button } from "@/components/ui/button";
 export function ProviderScanForm({
   brandId,
   action,
-  paidAccess,
+  manualScanAccess,
 }: {
   brandId: string;
   action: (formData: FormData) => Promise<void>;
-  paidAccess: boolean;
+  manualScanAccess: boolean;
 }) {
   return (
     <form action={action} className="grid gap-3 rounded-lg border bg-white p-4">
@@ -23,6 +24,11 @@ export function ProviderScanForm({
           Izberi navadne modele za hiter pregled ali modele s searchom, kadar
           želiš vire in citate.
         </p>
+        {!manualScanAccess && (
+          <p className="mt-2 rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
+            Ročni zagon promptov je vključen v paket Starter ali Growth.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-3">
@@ -39,7 +45,7 @@ export function ProviderScanForm({
                 label={provider.label}
                 description={provider.description}
                 defaultChecked={provider.id === "openai"}
-                locked={!paidAccess && provider.id !== "openai"}
+                locked={!manualScanAccess}
               />
             ))}
           </div>
@@ -58,14 +64,23 @@ export function ProviderScanForm({
                 value={provider.id}
                 label={`${provider.label} + search`}
                 description="Počasneje, vendar zbira vire za tabelo citatov."
-                locked={!paidAccess}
+                locked={!manualScanAccess}
               />
             ))}
           </div>
         </fieldset>
       </div>
 
-      <SubmitButton />
+      {manualScanAccess ? (
+        <SubmitButton />
+      ) : (
+        <Button asChild>
+          <Link href="/app/settings">
+            <LockKeyhole className="h-4 w-4" />
+            Nadgradi za ročni zagon
+          </Link>
+        </Button>
+      )}
     </form>
   );
 }
@@ -105,7 +120,7 @@ function ProviderCheckbox({
           {locked && (
             <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
               <LockKeyhole className="h-3 w-3" />
-              Plačljivo
+              Starter
             </span>
           )}
         </span>

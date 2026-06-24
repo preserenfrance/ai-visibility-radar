@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
-import { hasActivePaidPlan } from "@/lib/billing";
+import { canRunAutomaticScans } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +58,7 @@ export default async function AppDashboardPage() {
               {brands.map((brand) => {
                 const recurringScanActive =
                   brand.recurringScanActive &&
-                  hasActivePaidPlan(brand.organization);
+                  canRunAutomaticScans(brand.organization);
 
                 return (
                   <TR key={brand.id}>

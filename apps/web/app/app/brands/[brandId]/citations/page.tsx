@@ -2,13 +2,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { normalizeDomain } from "@ai-radar/shared";
 import { BrandMenu } from "@/components/brand-menu";
-import { PaidFeaturePaywall } from "@/components/paid-feature-paywall";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
-import { hasActivePaidPlan } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +27,7 @@ async function addCitationDomainAsCompetitor(formData: FormData) {
   const domain = normalizeDomain(String(formData.get("domain") ?? ""));
   if (!domain) throw new Error("Domena ni najdena");
 
-  const { brand } = await requireBrandAccess(brandId);
-  if (!hasActivePaidPlan(brand.organization))
-    throw new Error("Forbidden: paid plan required");
+  await requireBrandAccess(brandId);
 
   await prisma.competitor.upsert({
     where: {
@@ -60,22 +56,6 @@ export default async function CitationsPage({
 }) {
   const { brandId } = await params;
   const { brand } = await requireBrandAccess(brandId);
-  if (!hasActivePaidPlan(brand.organization)) {
-    return (
-      <section className="mx-auto max-w-7xl px-5 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold">Tabela citatov</h1>
-          <p className="text-muted-foreground">{brand.name}</p>
-        </div>
-        <BrandMenu brandId={brandId} active="citations" />
-        <PaidFeaturePaywall
-          brandId={brandId}
-          organizationId={brand.organizationId}
-          feature="citations"
-        />
-      </section>
-    );
-  }
   const citations = await prisma.citation.findMany({
     where: {
       aiResponse: {

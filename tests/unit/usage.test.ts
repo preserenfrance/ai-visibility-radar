@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkUsageGuard } from "@ai-radar/usage";
+import { checkUsageGuard, PLAN_LIMITS } from "@ai-radar/usage";
 
 describe("usage guard", () => {
   it("allows up to 10 prompts on the free plan", () => {
@@ -8,17 +8,23 @@ describe("usage guard", () => {
         brandCount: 1,
         promptsPerBrand: 10,
         scansThisMonth: 0,
-        aiCallsThisMonth: 0
-      }).allowed
+        aiCallsThisMonth: 0,
+      }).allowed,
     ).toBe(true);
     expect(
       checkUsageGuard("free", {
         brandCount: 1,
         promptsPerBrand: 11,
         scansThisMonth: 0,
-        aiCallsThisMonth: 0
-      }).allowed
+        aiCallsThisMonth: 0,
+      }).allowed,
     ).toBe(false);
+  });
+
+  it("sets scan cadence by package", () => {
+    expect(PLAN_LIMITS.free.scanCadence).toBe("none");
+    expect(PLAN_LIMITS.starter.scanCadence).toBe("manual");
+    expect(PLAN_LIMITS.growth.scanCadence).toBe("daily");
   });
 
   it("blocks plan limits", () => {
@@ -27,8 +33,8 @@ describe("usage guard", () => {
         brandCount: 2,
         promptsPerBrand: 25,
         scansThisMonth: 0,
-        aiCallsThisMonth: 0
-      }).allowed
+        aiCallsThisMonth: 0,
+      }).allowed,
     ).toBe(false);
   });
 
@@ -38,8 +44,8 @@ describe("usage guard", () => {
         brandCount: 3,
         promptsPerBrand: 100,
         scansThisMonth: 10,
-        aiCallsThisMonth: 1000
-      }).allowed
+        aiCallsThisMonth: 1000,
+      }).allowed,
     ).toBe(true);
   });
 });

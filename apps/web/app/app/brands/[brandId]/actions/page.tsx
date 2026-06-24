@@ -1,12 +1,15 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { ExternalLink } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { PromptContentReviewSubmit } from "@/components/prompt-content-review-submit";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
+import { canRunManualScans } from "@/lib/billing";
 import {
   promptContentReviewStorageAvailable,
   reviewPromptContentForBrand,
@@ -24,7 +27,10 @@ async function runPromptContentReview(formData: FormData) {
   });
   if (!prompt) throw new Error("Prompt ni najden");
 
-  await requireBrandAccess(prompt.promptSet.brandId);
+  const { brand } = await requireBrandAccess(prompt.promptSet.brandId);
+  if (!canRunManualScans(brand.organization)) {
+    redirect(`/app/brands/${prompt.promptSet.brandId}/actions?manualScan=paid`);
+  }
   if (!(await promptContentReviewStorageAvailable())) {
     redirect(
       `/app/brands/${prompt.promptSet.brandId}/actions?reviewStorage=missing`,
@@ -39,11 +45,12 @@ export default async function ActionsPage({
   searchParams,
 }: {
   params: Promise<{ brandId: string }>;
-  searchParams?: Promise<{ reviewStorage?: string }>;
+  searchParams?: Promise<{ manualScan?: string; reviewStorage?: string }>;
 }) {
   const { brandId } = await params;
   const query = await searchParams;
   const { brand } = await requireBrandAccess(brandId);
+  const manualScanAccess = canRunManualScans(brand.organization);
   const [promptSet, reviewStorageAvailable] = await Promise.all([
     prisma.promptSet.findFirst({
       where: { brandId, status: "active" },
@@ -78,6 +85,8 @@ export default async function ActionsPage({
 
   const showReviewStorageWarning =
     !reviewStorageAvailable || query?.reviewStorage === "missing";
+  const showManualScanWarning =
+    !manualScanAccess || query?.manualScan === "paid";
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -92,6 +101,19 @@ export default async function ActionsPage({
           <CardContent className="pt-5 text-sm text-amber-900">
             Pregledi vsebine čakajo na posodobitev baze. Po migraciji bo ročni
             pregled promptov na voljo tukaj.
+          </CardContent>
+        </Card>
+      )}
+
+      {showManualScanWarning && (
+        <Card className="mb-6 border-primary/30 bg-secondary/30">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5 text-sm">
+            <span className="text-muted-foreground">
+              Ročni pregled promptov je vključen v paket Starter ali Growth.
+            </span>
+            <Button asChild size="sm">
+              <Link href="/app/settings">Nadgradi za ročni zagon</Link>
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -179,7 +201,9 @@ export default async function ActionsPage({
                           value={prompt.id}
                         />
                         <PromptContentReviewSubmit
-                          disabled={!reviewStorageAvailable}
+                          disabled={
+                            !reviewStorageAvailable || !manualScanAccess
+                          }
                         />
                       </form>
                     </TD>

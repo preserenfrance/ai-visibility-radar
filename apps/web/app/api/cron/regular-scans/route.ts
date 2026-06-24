@@ -29,11 +29,11 @@ function runRegularScans(request: Request) {
       return fail("Cron ni avtoriziran.", 401);
 
     const now = new Date();
-    const deactivatedUnpaid = await prisma.brand.updateMany({
+    const deactivatedWithoutAutomation = await prisma.brand.updateMany({
       where: {
         recurringScanActive: true,
         organization: {
-          plan: "free",
+          plan: { not: "growth" },
         },
       },
       data: {
@@ -49,7 +49,7 @@ function runRegularScans(request: Request) {
         recurringScanActive: true,
         recurringScanNextRunAt: { lte: now },
         organization: {
-          plan: { in: ["starter", "growth"] },
+          plan: "growth",
         },
       },
       include: {
@@ -103,7 +103,7 @@ function runRegularScans(request: Request) {
     }
 
     return ok({
-      deactivatedUnpaid: deactivatedUnpaid.count,
+      deactivatedWithoutAutomation: deactivatedWithoutAutomation.count,
       createdScans,
       processedSteps,
     });

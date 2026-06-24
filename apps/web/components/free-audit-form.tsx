@@ -270,13 +270,15 @@ export function FreeAuditForm({
           </legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {AI_PROVIDER_OPTIONS.map((provider) => {
-              const isPaid = provider.id !== "openai";
+              const lockedForAudit = provider.id !== "openai";
 
               return (
                 <label
                   key={provider.id}
                   className={`flex items-start gap-2 rounded-md border bg-white p-3 text-sm ${
-                    isPaid ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                    lockedForAudit
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer"
                   }`}
                 >
                   <input
@@ -285,14 +287,14 @@ export function FreeAuditForm({
                     name="providers"
                     value={provider.id}
                     defaultChecked={provider.id === "openai"}
-                    disabled={isPaid}
+                    disabled={lockedForAudit}
                   />
                   <span>
                     <span className="flex items-center gap-2 font-medium">
                       {provider.label}
-                      {isPaid && (
+                      {lockedForAudit && (
                         <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                          Plačljivo
+                          V aplikaciji
                         </span>
                       )}
                     </span>

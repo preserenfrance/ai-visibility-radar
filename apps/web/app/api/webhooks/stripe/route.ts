@@ -151,7 +151,7 @@ async function syncStripeSubscription(
 
   const brandId = subscription.metadata.brandId ?? fallback.brandId;
   const intent = subscription.metadata.intent ?? fallback.intent;
-  if (paidStatus && intent === "regular_scan" && brandId) {
+  if (paidStatus && intent === "regular_scan" && brandId && plan === "growth") {
     await activateRecurringScanForBrand(brandId, plan);
   }
 

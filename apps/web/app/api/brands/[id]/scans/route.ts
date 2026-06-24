@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "@ai-radar/db";
 import { createScanForBrand } from "@/lib/services";
 import { requireBrandAccess } from "@/lib/auth";
-import { hasActivePaidPlan } from "@/lib/billing";
+import { canRunManualScans } from "@/lib/billing";
 import { ok, parseBody, route } from "@/lib/http";
 
 export const maxDuration = 60;
@@ -32,19 +32,19 @@ export async function POST(
   return route(async () => {
     const { id } = await context.params;
     const { brand } = await requireBrandAccess(id);
-    const paidAccess = hasActivePaidPlan(brand.organization);
+    const manualScanAccess = canRunManualScans(brand.organization);
     const input = await parseBody(request, schema);
     const scan = await createScanForBrand(id, {
-      providers: paidAccess
+      providers: manualScanAccess
         ? input.providers?.length
           ? input.providers
           : ["openai"]
         : ["openai"],
-      engineVariants: paidAccess ? input.engineVariants : undefined,
+      engineVariants: manualScanAccess ? input.engineVariants : undefined,
       promptLimit: input.promptLimit,
       repeatCount: input.repeatCount,
       runNow: input.runNow,
-      searchEnabled: paidAccess ? input.searchEnabled : false,
+      searchEnabled: manualScanAccess ? input.searchEnabled : false,
     });
     return ok({ scan }, 201);
   });

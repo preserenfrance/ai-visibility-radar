@@ -3,14 +3,12 @@ import { prisma } from "@ai-radar/db";
 import { normalizeDomain } from "@ai-radar/shared";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
-import { PaidFeaturePaywall } from "@/components/paid-feature-paywall";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
-import { hasActivePaidPlan } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +19,7 @@ async function addCompetitor(formData: FormData) {
   if (name.length < 2)
     throw new Error("Ime konkurenta mora imeti vsaj 2 znaka");
 
-  const { brand } = await requireBrandAccess(brandId);
-  if (!hasActivePaidPlan(brand.organization))
-    throw new Error("Forbidden: paid plan required");
+  await requireBrandAccess(brandId);
   await prisma.competitor.create({
     data: {
       brandId,
@@ -45,9 +41,7 @@ async function updateCompetitor(formData: FormData) {
     where: { id: competitorId },
   });
   if (!competitor) throw new Error("Konkurent ni najden");
-  const { brand } = await requireBrandAccess(competitor.brandId);
-  if (!hasActivePaidPlan(brand.organization))
-    throw new Error("Forbidden: paid plan required");
+  await requireBrandAccess(competitor.brandId);
 
   await prisma.competitor.update({
     where: { id: competitorId },
@@ -66,9 +60,7 @@ async function deleteCompetitor(formData: FormData) {
     where: { id: competitorId },
   });
   if (!competitor) throw new Error("Konkurent ni najden");
-  const { brand } = await requireBrandAccess(competitor.brandId);
-  if (!hasActivePaidPlan(brand.organization))
-    throw new Error("Forbidden: paid plan required");
+  await requireBrandAccess(competitor.brandId);
 
   await prisma.competitor.delete({ where: { id: competitorId } });
   redirect(`/app/brands/${competitor.brandId}/competitors`);
@@ -81,22 +73,6 @@ export default async function CompetitorsPage({
 }) {
   const { brandId } = await params;
   const { brand } = await requireBrandAccess(brandId);
-  if (!hasActivePaidPlan(brand.organization)) {
-    return (
-      <section className="mx-auto max-w-7xl px-5 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold">Pregled konkurentov</h1>
-          <p className="text-muted-foreground">{brand.name}</p>
-        </div>
-        <BrandMenu brandId={brandId} active="competitors" />
-        <PaidFeaturePaywall
-          brandId={brandId}
-          organizationId={brand.organizationId}
-          feature="competitors"
-        />
-      </section>
-    );
-  }
   const competitors = await prisma.competitor.findMany({
     where: { brandId },
     orderBy: { name: "asc" },

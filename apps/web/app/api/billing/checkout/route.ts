@@ -10,7 +10,10 @@ const schema = z.object({
   plan: z.enum(["starter", "growth"]),
   brandId: z.string().optional(),
   intent: z.enum(["plan_upgrade", "regular_scan"]).default("plan_upgrade"),
-  returnPath: z.string().regex(/^\/app(\/|\?|$)/).optional()
+  returnPath: z
+    .string()
+    .regex(/^\/app(\/|\?|$)/)
+    .optional(),
 });
 
 export async function POST(request: Request) {
@@ -18,24 +21,38 @@ export async function POST(request: Request) {
     const input = await parseBody(request, schema);
     const { user } = await requireOrganizationAccess(input.organizationId);
     const config = getConfig();
-    if (!config.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is required");
-    const priceId = input.plan === "starter" ? config.STRIPE_STARTER_PRICE_ID : config.STRIPE_GROWTH_PRICE_ID;
-    if (!priceId) throw new Error(`Missing Stripe price id for ${input.plan}`);
+    if (!config.STRIPE_SECRET_KEY)
+      throw new Error("STRIPE_SECRET_KEY is required");
+    const checkoutPlan =
+      input.intent === "regular_scan" ? "growth" : input.plan;
+    const priceId =
+      checkoutPlan === "starter"
+        ? config.STRIPE_STARTER_PRICE_ID
+        : config.STRIPE_GROWTH_PRICE_ID;
+    if (!priceId)
+      throw new Error(`Missing Stripe price id for ${checkoutPlan}`);
 
-    const organization = await prisma.organization.findUnique({ where: { id: input.organizationId } });
+    const organization = await prisma.organization.findUnique({
+      where: { id: input.organizationId },
+    });
     if (!organization) throw new Error("Organization not found");
     if (input.brandId) {
-      const brand = await prisma.brand.findUnique({ where: { id: input.brandId }, select: { organizationId: true } });
+      const brand = await prisma.brand.findUnique({
+        where: { id: input.brandId },
+        select: { organizationId: true },
+      });
       if (!brand || brand.organizationId !== input.organizationId) {
-        throw new Error("Forbidden: brand does not belong to this organization");
+        throw new Error(
+          "Forbidden: brand does not belong to this organization",
+        );
       }
     }
 
     const metadata = {
       organizationId: input.organizationId,
-      plan: input.plan,
+      plan: checkoutPlan,
       intent: input.intent,
-      ...(input.brandId ? { brandId: input.brandId } : {})
+      ...(input.brandId ? { brandId: input.brandId } : {}),
     };
     const fallbackBrandPath =
       input.intent === "regular_scan"
@@ -64,15 +81,15 @@ export async function POST(request: Request) {
       allow_promotion_codes: true,
       metadata,
       subscription_data: {
-        metadata
-      }
+        metadata,
+      },
     });
     await prisma.auditLog.create({
       data: {
         organizationId: input.organizationId,
         userId: user.id,
-        action: "billing_checkout_started"
-      }
+        action: "billing_checkout_started",
+      },
     });
     return ok({ url: session.url });
   });

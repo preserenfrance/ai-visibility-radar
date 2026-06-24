@@ -23,7 +23,7 @@ export function RegularScanControls({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const paidAndActive = organizationPlan !== "free";
+  const automaticScanAccess = organizationPlan === "growth";
 
   function run(action: () => Promise<void>) {
     setError(null);
@@ -41,7 +41,7 @@ export function RegularScanControls({
   }
 
   async function activate() {
-    if (!paidAndActive) {
+    if (!automaticScanAccess) {
       await startCheckout();
       return;
     }
@@ -73,7 +73,7 @@ export function RegularScanControls({
         organizationId,
         brandId,
         intent: "regular_scan",
-        plan: organizationPlan === "growth" ? "growth" : "starter",
+        plan: "growth",
       }),
     });
     if (!response.ok) throw new Error(await responseError(response));
@@ -140,7 +140,7 @@ export function RegularScanControls({
           ) : (
             <CalendarClock className="h-4 w-4" />
           )}
-          Aktiviraj reden scan
+          Aktiviraj avtomatski scan
         </Button>
       )}
       {error && (

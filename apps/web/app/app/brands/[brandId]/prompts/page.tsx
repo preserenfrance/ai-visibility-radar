@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@ai-radar/db";
 import { Plus, Trash2 } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
@@ -13,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { requireBrandAccess } from "@/lib/auth";
-import { promptLimitForOrganization } from "@/lib/billing";
+import { canRunManualScans, promptLimitForOrganization } from "@/lib/billing";
 import { createScanForBrand } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -191,6 +192,9 @@ export default async function PromptsPage({
   const promptLimit = brand
     ? promptLimitForOrganization(brand.organization)
     : 10;
+  const manualScanAccess = brand
+    ? canRunManualScans(brand.organization)
+    : false;
   const activePromptCount =
     promptSet?.prompts.filter((prompt) => prompt.isActive).length ?? 0;
   const promptLimitReached = activePromptCount >= promptLimit;
@@ -236,7 +240,7 @@ Kje naj kupim visoke grede za domači vrt?`}
               </Button>
             </div>
           </form>
-          {addedPrompts && (
+          {addedPrompts && manualScanAccess && (
             <form
               action={startChatGptPromptReview}
               className="mt-4 rounded-md border bg-secondary/30 p-4"
@@ -250,6 +254,19 @@ Kje naj kupim visoke grede za domači vrt?`}
                 <Button type="submit">Zaženi pregled s temi prompti</Button>
               </div>
             </form>
+          )}
+          {addedPrompts && !manualScanAccess && (
+            <div className="mt-4 rounded-md border bg-secondary/30 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Novi prompti so dodani. Ročni zagon pregleda je vključen v
+                  paket Starter ali Growth.
+                </p>
+                <Button asChild>
+                  <Link href="/app/settings">Nadgradi za ročni zagon</Link>
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

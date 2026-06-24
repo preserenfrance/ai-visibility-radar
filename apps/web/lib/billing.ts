@@ -1,7 +1,7 @@
 import type { Plan } from "@ai-radar/shared";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 
-export type PaidFeatureKey = "competitors" | "citations" | "actions";
+export type BrandFeatureKey = "competitors" | "citations" | "actions";
 
 type OrganizationPlanAccess = {
   plan: Plan;
@@ -11,15 +11,17 @@ type OrganizationPlanAccess = {
   } | null;
 };
 
-export const paidFeatureLabels: Record<PaidFeatureKey, string> = {
-  competitors: "Konkurenti",
-  citations: "Citati",
-  actions: "Ideje za izboljšanje",
-};
-
 export function hasActivePaidPlan(organization: OrganizationPlanAccess) {
   // Organization.plan is the access source of truth; Stripe status is billing metadata.
   return organization.plan !== "free";
+}
+
+export function canRunManualScans(organization: OrganizationPlanAccess) {
+  return organization.plan === "starter" || organization.plan === "growth";
+}
+
+export function canRunAutomaticScans(organization: OrganizationPlanAccess) {
+  return organization.plan === "growth";
 }
 
 export function effectivePlanForOrganization(
@@ -35,9 +37,9 @@ export function promptLimitForOrganization(
     .promptsPerBrand;
 }
 
-export function paidFeatureFromValue(
+export function brandFeatureFromValue(
   value: string | string[] | undefined,
-): PaidFeatureKey {
+): BrandFeatureKey {
   const raw = Array.isArray(value) ? value[0] : value;
   if (raw === "competitors" || raw === "citations" || raw === "actions")
     return raw;

@@ -37,3 +37,36 @@ body {
 a {
   color: inherit;
 }
+
+.site-header-desktop-nav,
+.brand-menu-desktop-nav {
+  display: none;
+}
+
+.site-header-mobile-menu,
+.brand-menu-mobile {
+  display: block;
+}
+
+.site-header-mobile-menu > summary,
+.brand-menu-mobile > summary {
+  display: flex;
+  list-style: none;
+}
+
+.site-header-mobile-menu > summary::-webkit-details-marker,
+.brand-menu-mobile > summary::-webkit-details-marker {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .site-header-desktop-nav,
+  .brand-menu-desktop-nav {
+    display: flex;
+  }
+
+  .site-header-mobile-menu,
+  .brand-menu-mobile {
+    display: none;
+  }
+}

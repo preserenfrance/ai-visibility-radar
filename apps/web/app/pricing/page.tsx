@@ -48,47 +48,27 @@ const features: Array<{
     values: { free: 10, starter: 25, growth: 100 },
   },
   {
-    label: "Scani na mesec",
-    values: { free: 1, starter: 8, growth: 90 },
+    label: "Ročni scani na mesec",
+    values: { free: 0, starter: 8, growth: 90 },
   },
   {
-    label: "Reden scan",
-    values: { free: false, starter: "tedensko", growth: "dnevno" },
+    label: "Ročni zagon promptov",
+    values: { free: false, starter: true, growth: true },
   },
   {
-    label: "Pregled pozicij v ChatGPT",
+    label: "Avtomatski zagon promptov",
+    values: { free: false, starter: false, growth: "dnevno" },
+  },
+  {
+    label: "Vsi zavihki in moduli",
     values: { free: true, starter: true, growth: true },
   },
   {
-    label: "Pregled pozicij v Gemini",
-    values: { free: false, starter: true, growth: true },
+    label: "Konkurenti, citati in ideje",
+    values: { free: true, starter: true, growth: true },
   },
   {
-    label: "Pregled pozicij v Claude",
-    values: { free: false, starter: true, growth: true },
-  },
-  {
-    label: "Pregled pozicij v ChatGPT Search",
-    values: { free: false, starter: true, growth: true },
-  },
-  {
-    label: "Pregled pozicij v Gemini Search",
-    values: { free: false, starter: true, growth: true },
-  },
-  {
-    label: "Pregled pozicij v Claude Search",
-    values: { free: false, starter: true, growth: true },
-  },
-  {
-    label: "Citati in viri iz search modelov",
-    values: { free: false, starter: true, growth: true },
-  },
-  {
-    label: "Konkurenti",
-    values: { free: false, starter: true, growth: true },
-  },
-  {
-    label: "Ideje za izboljšanje",
+    label: "Modeli in search pogledi",
     values: { free: true, starter: true, growth: true },
   },
 ];
@@ -100,8 +80,9 @@ export default function PricingPage() {
         <div>
           <h1 className="text-3xl font-semibold">Cenik</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Primerjaj pakete po številu znamk, promptih, pogostosti scanov in
-            modelih, v katerih meriš pozicije znamke.
+            Vsi deli aplikacije so dostopni v vseh paketih. Paketi se
+            razlikujejo po številu znamk, številu promptov ter ročnem oziroma
+            avtomatskem zagonu promptov.
           </p>
         </div>
         <Button asChild variant="outline">

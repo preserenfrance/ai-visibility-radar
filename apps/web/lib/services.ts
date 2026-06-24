@@ -6,6 +6,7 @@ import {
   tryStartScanRun,
 } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
+import { PLAN_LIMITS } from "@ai-radar/usage";
 import { createAiAdapter } from "@ai-radar/ai";
 import { parseAiResponse, parseJsonObject } from "@ai-radar/parser";
 import { generatePromptSet } from "@ai-radar/prompts";
@@ -31,7 +32,11 @@ import {
 import { sendAuditReportEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
 import { aiModelForProvider, aiModelSettings } from "@/lib/ai-model-settings";
-import { hasActivePaidPlan, promptLimitForOrganization } from "@/lib/billing";
+import {
+  canRunAutomaticScans,
+  canRunManualScans,
+  promptLimitForOrganization,
+} from "@/lib/billing";
 import { enqueueJob } from "@/lib/queue";
 import { systemPromptContent } from "@/lib/system-prompts";
 
@@ -687,6 +692,28 @@ export async function createScanForBrand(
   });
   if (!brand) throw new Error("Brand not found");
 
+  const triggerType = options.triggerType ?? "manual";
+  if (triggerType === "manual") {
+    if (!canRunManualScans(brand.organization)) {
+      throw new Error(
+        "Bad Request: ročni zagon scanov je vključen v paket Starter ali Growth.",
+      );
+    }
+    const manualScanLimit = PLAN_LIMITS[brand.organization.plan].scansPerMonth;
+    const scansThisMonth = await prisma.scanRun.count({
+      where: {
+        brand: { organizationId: brand.organizationId },
+        triggerType: "manual",
+        createdAt: { gte: startOfMonth() },
+      },
+    });
+    if (scansThisMonth >= manualScanLimit) {
+      throw new Error(
+        `Bad Request: ta paket omogoča največ ${manualScanLimit} ročnih scanov na mesec.`,
+      );
+    }
+  }
+
   const promptSet = brand.promptSets[0];
   if (!promptSet || promptSet.prompts.length === 0) {
     throw new Error("Bad Request: za scan najprej vnesite uporabniške prompte");
@@ -708,7 +735,7 @@ export async function createScanForBrand(
     data: {
       brandId,
       promptSetId: promptSet.id,
-      triggerType: options.triggerType ?? "manual",
+      triggerType,
       status: "queued",
       totalPromptRuns,
       promptRuns: {
@@ -1049,7 +1076,6 @@ export function recurringScanCadenceForPlan(
   plan: Plan,
 ): RecurringScanCadence | null {
   if (plan === "growth") return "daily";
-  if (plan === "starter") return "weekly";
   return null;
 }
 
@@ -1100,13 +1126,13 @@ export async function activateRecurringScanForBrand(
     include: { organization: { include: { billingSubscription: true } } },
   });
   if (!brand) throw new Error("Brand not found");
-  if (!hasActivePaidPlan(brand.organization)) {
-    throw new Error("Bad Request: recurring scan requires an active paid plan");
+  if (!canRunAutomaticScans(brand.organization)) {
+    throw new Error("Bad Request: recurring scan requires the Growth plan");
   }
 
   const cadence = recurringScanCadenceForPlan(brand.organization.plan);
   if (!cadence)
-    throw new Error("Bad Request: recurring scan requires a paid plan");
+    throw new Error("Bad Request: recurring scan requires the Growth plan");
   const now = new Date();
 
   return prisma.brand.update({
@@ -1807,4 +1833,8 @@ function splitCompetitors(value?: string) {
       .filter(Boolean)
       .slice(0, 10) ?? []
   );
+}
+
+function startOfMonth(from = new Date()) {
+  return new Date(from.getFullYear(), from.getMonth(), 1);
 }

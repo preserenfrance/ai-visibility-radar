@@ -44,7 +44,7 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Katere AI modele uporabljate?",
         answer:
-          "Osnovni pregled uporablja ChatGPT. Plačljivi paketi omogočajo tudi Gemini, Claude ter search različice modelov: ChatGPT Search, Gemini Search in Claude Search, kjer se zbirajo tudi viri oziroma citati.",
+          "Orodje podpira ChatGPT, Gemini, Claude ter search različice modelov, kjer se zbirajo tudi viri oziroma citati. Vsi pogledi so dostopni v vseh paketih; paketi se razlikujejo po številu promptov in zagonih.",
       },
       {
         question:
@@ -55,7 +55,7 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Kaj pomeni reden scan?",
         answer:
-          "Reden scan samodejno ponavlja meritev za tvojo znamko. Starter paket podpira tedenski reden scan, Growth paket pa dnevni reden scan. Redni scani so na voljo samo ob aktivni plačljivi naročnini.",
+          "Reden scan samodejno ponavlja meritev za tvojo znamko. Avtomatski dnevni zagon je vključen v Growth paket; Starter je namenjen ročnim zagonom.",
       },
       {
         question: "Zakaj rezultati med modeli niso enaki?",
@@ -100,22 +100,22 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Koliko stane orodje?",
         answer:
-          "Brezplačni paket omogoča začetni pregled. Starter paket stane 15,99 € na mesec in vključuje več promptov, dodatne modele, citate, konkurente in tedenski reden scan. Growth paket stane 39,99 € na mesec in je namenjen pogostejšemu spremljanju z dnevnim rednim scanom.",
+          "Brezplačni paket omogoča eno znamko in do 10 aktivnih promptov. Starter paket stane 15,99 EUR na mesec in vključuje več promptov ter ročne zagone. Growth paket stane 39,99 EUR na mesec in vključuje dodatne znamke, več promptov ter dnevni avtomatski zagon.",
       },
       {
         question: "Kaj dobim v brezplačnem paketu?",
         answer:
-          "Brezplačni paket vključuje eno znamko, do 10 aktivnih promptov in osnovni pregled v ChatGPT. Namenjen je prvemu občutku, ali te AI sploh omenja.",
+          "Brezplačni paket vključuje eno znamko, do 10 aktivnih promptov ter dostop do vseh zavihkov in prikazov. Ročni in avtomatski zagoni promptov so del plačljivih paketov.",
       },
       {
         question: "Kdaj potrebujem plačljiv paket?",
         answer:
-          "Plačljiv paket je smiseln, ko želiš spremljati več modelov, konkurente, citate, ideje za izboljšanje in redne scane. To je pomembno, če želiš AI vidnost izboljševati sistematično, ne samo enkrat preveriti.",
+          "Plačljiv paket potrebuješ, ko želiš več aktivnih promptov ali ročno oziroma avtomatsko zaganjanje meritev. Starter je za ročno delo, Growth pa za več znamk in avtomatsko spremljanje.",
       },
       {
         question: "Ali lahko paket kasneje spremenim?",
         answer:
-          "Da. V nastavitvah lahko odpreš plačilni portal in upravljaš naročnino. Če naročnina ni aktivna, se plačljive funkcije in redni scani ne izvajajo.",
+          "Da. V nastavitvah lahko odpreš plačilni portal in upravljaš naročnino. Če naročnina ni aktivna, se plačljivi zagoni promptov in avtomatski scani ne izvajajo.",
       },
     ],
   },
