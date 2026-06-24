@@ -5,10 +5,10 @@ import { fail, ok, route } from "@/lib/http";
 import {
   createScanForBrand,
   nextRecurringScanDate,
+  processScanQueueTick,
   recurringScanActivationData,
   recurringScanCadenceForPlan,
   recurringScanEngineVariantsFromJson,
-  runNextScanStep,
 } from "@/lib/services";
 
 export const maxDuration = 60;
@@ -121,28 +121,16 @@ function runRegularScans(request: Request) {
       }
     }
 
-    const pendingScans = await prisma.scanRun.findMany({
-      where: {
-        triggerType: "scheduled",
-        status: { in: ["queued", "running"] },
-      },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-      take: MAX_SCAN_STEPS_PER_TICK,
+    const queueTick = await processScanQueueTick({
+      scanBatchSize: MAX_SCAN_STEPS_PER_TICK,
     });
-
-    const processedSteps: string[] = [];
-    for (const scan of pendingScans) {
-      await runNextScanStep(scan.id).catch(() => null);
-      processedSteps.push(scan.id);
-    }
 
     return ok({
       deactivatedWithoutAutomation: deactivatedWithoutAutomation.count,
       activatedGrowthBrands: activatedGrowthBrands.count,
       createdScans,
       failedBrands,
-      processedSteps,
+      queueTick,
     });
   });
 }

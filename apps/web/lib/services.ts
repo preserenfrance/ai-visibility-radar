@@ -1,7 +1,9 @@
 import { crawlDomain } from "@ai-radar/crawler";
 import {
+  Prisma,
   prisma,
   promptRunConcurrencyLimit,
+  promptRunStaleMs,
   resetStaleScanWork,
   tryStartScanRun,
 } from "@ai-radar/db";
@@ -840,11 +842,14 @@ export async function createScanForBrand(
     },
   });
 
-  if (options.runNow) {
-    await runScanNow(scan.id);
-  } else {
-    await enqueueJob(JOB_NAMES.createScan, { scanRunId: scan.id }, scan.id);
-  }
+  await enqueueJob(JOB_NAMES.createScan, { scanRunId: scan.id }, scan.id).catch(
+    (error) => {
+      console.warn("BullMQ enqueue skipped; DB queue cron will process scan", {
+        scanRunId: scan.id,
+        error,
+      });
+    },
+  );
 
   return prisma.scanRun.findUnique({
     where: { id: scan.id },
@@ -1324,7 +1329,7 @@ export async function runNextScanStep(scanRunId: string) {
     return scan;
   }
 
-  const staleCutoff = new Date(Date.now() - 1000 * 60 * 2);
+  const staleCutoff = new Date(Date.now() - promptRunStaleMs());
   await prisma.promptRun.updateMany({
     where: {
       scanRunId,
@@ -1383,6 +1388,73 @@ export async function runNextScanStep(scanRunId: string) {
     where: { id: scanRunId },
     include: { scoreSnapshot: true },
   });
+}
+
+export async function processScanQueueTick(
+  options: {
+    scanBatchSize?: number;
+  } = {},
+) {
+  await resetStaleScanWork();
+
+  const scanBatchSize =
+    options.scanBatchSize ??
+    positiveInteger(process.env.SCAN_QUEUE_BATCH_SIZE, 3);
+
+  const runningScans = await prisma.scanRun.findMany({
+    where: {
+      status: "running",
+    },
+    orderBy: { updatedAt: "asc" },
+    select: { id: true },
+    take: scanBatchSize,
+  });
+  const queuedTake = Math.max(0, scanBatchSize - runningScans.length);
+  const queuedScans =
+    queuedTake > 0
+      ? await prisma.scanRun.findMany({
+          where: {
+            status: "queued",
+          },
+          orderBy: { createdAt: "asc" },
+          select: { id: true },
+          take: queuedTake,
+        })
+      : [];
+
+  const scanIds = Array.from(
+    new Set([...runningScans, ...queuedScans].map((scan) => scan.id)),
+  );
+  const processedScans: string[] = [];
+  const failedScans: Array<{ scanRunId: string; error: string }> = [];
+
+  for (const scanRunId of scanIds) {
+    try {
+      await runNextScanStep(scanRunId);
+      processedScans.push(scanRunId);
+    } catch (error) {
+      failedScans.push({
+        scanRunId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      console.error("Scan queue tick failed", { scanRunId, error });
+    }
+  }
+
+  const [queuedScanCount, runningScanCount, queuedPromptRunCount] =
+    await Promise.all([
+      prisma.scanRun.count({ where: { status: "queued" } }),
+      prisma.scanRun.count({ where: { status: "running" } }),
+      prisma.promptRun.count({ where: { status: "queued" } }),
+    ]);
+
+  return {
+    processedScans,
+    failedScans,
+    queuedScanCount,
+    runningScanCount,
+    queuedPromptRunCount,
+  };
 }
 
 async function runPromptRunsInBatches(promptRunIds: string[]) {
@@ -1622,32 +1694,7 @@ export async function scoreScan(scanRunId: string) {
     );
 
   const score = calculateVisibilityScore(parsedResults);
-  const scoreSnapshot = await prisma.scoreSnapshot.upsert({
-    where: { scanRunId },
-    update: score,
-    create: {
-      brandId: scan.brandId,
-      scanRunId,
-      ...score,
-    },
-  });
-
-  await prisma.recommendation.deleteMany({
-    where: { brandId: scan.brandId, scanRunId },
-  });
   const recommendations = generateRecommendationDrafts(parsedResults);
-  await prisma.recommendation.createMany({
-    data: recommendations.map((recommendation) => ({
-      brandId: scan.brandId,
-      scanRunId,
-      title: recommendation.title,
-      description: recommendation.description,
-      impactScore: recommendation.impactScore,
-      effortScore: recommendation.effortScore,
-      affectedPromptsJson: recommendation.affectedPromptsJson,
-      affectedEnginesJson: recommendation.affectedEnginesJson,
-    })),
-  });
 
   const completedPromptRuns = scan.promptRuns.filter(
     (promptRun) => promptRun.status === "completed",
@@ -1655,27 +1702,91 @@ export async function scoreScan(scanRunId: string) {
   const failedPromptRuns = scan.promptRuns.filter(
     (promptRun) => promptRun.status === "failed",
   ).length;
-  await prisma.scanRun.update({
-    where: { id: scanRunId },
-    data: {
-      status:
-        failedPromptRuns === scan.promptRuns.length ? "failed" : "completed",
-      completedPromptRuns,
-      failedPromptRuns,
-      finishedAt: new Date(),
-    },
-  });
 
-  await prisma.auditLog.create({
-    data: {
-      organizationId: scan.brand.organizationId,
-      action: "scan_completed",
-      entityType: "ScanRun",
-      entityId: scanRunId,
-    },
-  });
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const currentScan = await tx.scanRun.findUnique({
+          where: { id: scanRunId },
+          select: {
+            status: true,
+            scoreSnapshot: true,
+          },
+        });
+        if (!currentScan) throw new Error("Scan not found");
+        if (
+          (currentScan.status === "completed" ||
+            currentScan.status === "failed" ||
+            currentScan.status === "canceled") &&
+          currentScan.scoreSnapshot
+        ) {
+          return currentScan.scoreSnapshot;
+        }
 
-  return scoreSnapshot;
+        const scoreSnapshot = await tx.scoreSnapshot.upsert({
+          where: { scanRunId },
+          update: score,
+          create: {
+            brandId: scan.brandId,
+            scanRunId,
+            ...score,
+          },
+        });
+
+        await tx.recommendation.deleteMany({
+          where: { brandId: scan.brandId, scanRunId },
+        });
+        await tx.recommendation.createMany({
+          data: recommendations.map((recommendation) => ({
+            brandId: scan.brandId,
+            scanRunId,
+            title: recommendation.title,
+            description: recommendation.description,
+            impactScore: recommendation.impactScore,
+            effortScore: recommendation.effortScore,
+            affectedPromptsJson: recommendation.affectedPromptsJson,
+            affectedEnginesJson: recommendation.affectedEnginesJson,
+          })),
+        });
+
+        await tx.scanRun.update({
+          where: { id: scanRunId },
+          data: {
+            status:
+              failedPromptRuns === scan.promptRuns.length
+                ? "failed"
+                : "completed",
+            completedPromptRuns,
+            failedPromptRuns,
+            finishedAt: new Date(),
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            organizationId: scan.brand.organizationId,
+            action: "scan_completed",
+            entityType: "ScanRun",
+            entityId: scanRunId,
+          },
+        });
+
+        return scoreSnapshot;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2034"
+    ) {
+      const scoreSnapshot = await prisma.scoreSnapshot.findUnique({
+        where: { scanRunId },
+      });
+      if (scoreSnapshot) return scoreSnapshot;
+    }
+    throw error;
+  }
 }
 
 export async function createFreeAudit(input: {
@@ -1964,4 +2075,10 @@ function splitCompetitors(value?: string) {
 
 function startOfMonth(from = new Date()) {
   return new Date(from.getFullYear(), from.getMonth(), 1);
+}
+
+function positiveInteger(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.floor(parsed);
 }

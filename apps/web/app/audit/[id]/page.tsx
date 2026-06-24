@@ -6,7 +6,6 @@ import { normalizeEmail } from "@/lib/accounts";
 import { getCurrentUser, setUserSession } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { ScanRunner } from "@/components/scan-runner";
 import { PasswordInput } from "@/components/password-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -205,8 +204,6 @@ export default async function AuditPage({
     !score ||
     lead.auditScanRun?.status === "queued" ||
     lead.auditScanRun?.status === "running";
-  const runFromBrowser =
-    reportPending && lead.auditScanRunId && !process.env.REDIS_URL;
   const hasLeadMembership = Boolean(
     user &&
     lead.organizationId &&
@@ -233,7 +230,6 @@ export default async function AuditPage({
       <AuditAccountGate
         lead={lead}
         reportPending={reportPending}
-        runFromBrowser={Boolean(runFromBrowser)}
         accountError={query?.accountError}
       />
     );
@@ -241,12 +237,7 @@ export default async function AuditPage({
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-8">
-      {reportPending &&
-        (runFromBrowser ? (
-          <ScanRunner endpoint={`/api/public/audit/${lead.id}/run-next`} />
-        ) : (
-          <AutoRefresh />
-        ))}
+      {reportPending && <AutoRefresh />}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Badge variant="secondary">Brezplačen audit</Badge>
@@ -336,7 +327,6 @@ export default async function AuditPage({
 function AuditAccountGate({
   lead,
   reportPending,
-  runFromBrowser,
   accountError,
 }: {
   lead: {
@@ -346,18 +336,12 @@ function AuditAccountGate({
     domain: string;
   };
   reportPending: boolean;
-  runFromBrowser: boolean;
   accountError?: string;
 }) {
   const next = `/audit/${lead.id}`;
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-5 py-10">
-      {runFromBrowser && (
-        <ScanRunner
-          endpoint={`/api/public/audit/${lead.id}/run-next`}
-          refreshOnStep={false}
-        />
-      )}
+      {reportPending && <AutoRefresh intervalMs={10000} />}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.08),transparent_32%)]" />
       <div className="relative grid w-full max-w-5xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <section className="flex flex-col justify-center">

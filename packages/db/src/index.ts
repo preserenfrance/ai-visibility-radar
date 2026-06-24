@@ -50,7 +50,7 @@ export function promptRunConcurrencyLimit(
 
 export function promptRunStaleMs(env: NodeJS.ProcessEnv = process.env) {
   const parsed = Number(env.PROMPT_RUN_STALE_MS);
-  if (!Number.isFinite(parsed) || parsed < 30_000) return 1000 * 60 * 2;
+  if (!Number.isFinite(parsed) || parsed < 30_000) return 1000 * 60 * 10;
   return Math.floor(parsed);
 }
 
