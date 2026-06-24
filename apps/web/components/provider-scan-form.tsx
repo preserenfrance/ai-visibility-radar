@@ -10,20 +10,30 @@ export function ProviderScanForm({
   brandId,
   action,
   manualScanAccess,
+  compact = false,
 }: {
   brandId: string;
   action: (formData: FormData) => Promise<void>;
   manualScanAccess: boolean;
+  compact?: boolean;
 }) {
   return (
-    <form action={action} className="grid gap-3 rounded-lg border bg-white p-4">
+    <form
+      action={action}
+      className={[
+        "grid rounded-lg border bg-white",
+        compact ? "gap-2 p-3" : "gap-3 p-4",
+      ].join(" ")}
+    >
       <input type="hidden" name="brandId" value={brandId} />
       <div>
         <div className="text-sm font-semibold">Zaženi AI scan</div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Izberi navadne modele za hiter pregled ali modele s searchom, kadar
-          želiš vire in citate.
-        </p>
+        {!compact && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Izberi navadne modele za hiter pregled ali modele s searchom, kadar
+            želiš vire in citate.
+          </p>
+        )}
         {!manualScanAccess && (
           <p className="mt-2 rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
             Ročni zagon promptov je vključen v paket Starter ali Growth.
@@ -31,7 +41,7 @@ export function ProviderScanForm({
         )}
       </div>
 
-      <div className="grid gap-3">
+      <div className={compact ? "grid gap-2 md:grid-cols-2" : "grid gap-3"}>
         <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
             Modeli brez searcha
@@ -46,6 +56,7 @@ export function ProviderScanForm({
                 description={provider.description}
                 defaultChecked={provider.id === "openai"}
                 locked={!manualScanAccess}
+                compact={compact}
               />
             ))}
           </div>
@@ -65,6 +76,7 @@ export function ProviderScanForm({
                 label={`${provider.label} + search`}
                 description="Počasneje, vendar zbira vire za tabelo citatov."
                 locked={!manualScanAccess}
+                compact={compact}
               />
             ))}
           </div>
@@ -92,6 +104,7 @@ function ProviderCheckbox({
   description,
   defaultChecked = false,
   locked = false,
+  compact = false,
 }: {
   name: string;
   value: string;
@@ -99,6 +112,7 @@ function ProviderCheckbox({
   description: string;
   defaultChecked?: boolean;
   locked?: boolean;
+  compact?: boolean;
 }) {
   return (
     <label
@@ -124,7 +138,9 @@ function ProviderCheckbox({
             </span>
           )}
         </span>
-        <span className="text-xs text-muted-foreground">{description}</span>
+        {!compact && (
+          <span className="text-xs text-muted-foreground">{description}</span>
+        )}
       </span>
     </label>
   );

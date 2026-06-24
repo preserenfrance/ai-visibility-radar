@@ -4,16 +4,35 @@ import { prisma } from "@ai-radar/db";
 import { Sparkles } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
+import { ProviderScanForm } from "@/components/provider-scan-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
-import { canRunAutomaticScans } from "@/lib/billing";
-import { generateBrandChatGptSummary } from "@/lib/services";
+import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
+import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
+import {
+  createScanForBrand,
+  generateBrandChatGptSummary,
+} from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+async function startProviderScan(formData: FormData) {
+  "use server";
+  const brandId = String(formData.get("brandId"));
+  const { brand } = await requireBrandAccess(brandId);
+  const manualScanAccess = canRunManualScans(brand.organization);
+  const scan = await createScanForBrand(brandId, {
+    engineVariants: manualScanAccess
+      ? selectedEngineVariantsFromFormData(formData)
+      : [{ provider: "openai", searchEnabled: false }],
+    runNow: false,
+  });
+  redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
+}
 
 async function refreshBrandChatGptSummary(formData: FormData) {
   "use server";
@@ -86,6 +105,7 @@ export default async function BrandPage({
   const latestScan = brand.scanRuns[0];
   const latestScore = brand.scoreSnapshots[0];
   const promptSet = brand.promptSets[0];
+  const manualScanAccess = canRunManualScans(brand.organization);
   const recurringScanActive =
     brand.recurringScanActive && canRunAutomaticScans(brand.organization);
   const brandSummaryError = query?.brandSummary === "error";
@@ -212,7 +232,7 @@ export default async function BrandPage({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle>Zadnji scani</CardTitle>
         </CardHeader>
@@ -252,6 +272,13 @@ export default async function BrandPage({
           </Table>
         </CardContent>
       </Card>
+
+      <ProviderScanForm
+        brandId={brand.id}
+        action={startProviderScan}
+        manualScanAccess={manualScanAccess}
+        compact
+      />
     </section>
   );
 }
