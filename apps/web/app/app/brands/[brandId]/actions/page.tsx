@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
-import { reviewPromptContentForBrand } from "@/lib/services";
+import {
+  promptContentReviewStorageAvailable,
+  reviewPromptContentForBrand,
+} from "@/lib/services";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,11 @@ async function runPromptContentReview(formData: FormData) {
   if (!prompt) throw new Error("Prompt ni najden");
 
   await requireBrandAccess(prompt.promptSet.brandId);
+  if (!(await promptContentReviewStorageAvailable())) {
+    redirect(
+      `/app/brands/${prompt.promptSet.brandId}/actions?reviewStorage=missing`,
+    );
+  }
   await reviewPromptContentForBrand(promptId);
   redirect(`/app/brands/${prompt.promptSet.brandId}/actions`);
 }
@@ -44,36 +52,55 @@ async function updateStatus(formData: FormData) {
 
 export default async function ActionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ brandId: string }>;
+  searchParams?: Promise<{ reviewStorage?: string }>;
 }) {
   const { brandId } = await params;
+  const query = await searchParams;
   const { brand } = await requireBrandAccess(brandId);
-  const [promptSet, recommendations] = await Promise.all([
-    prisma.promptSet.findFirst({
-      where: { brandId, status: "active" },
-      orderBy: { createdAt: "desc" },
-      include: {
-        prompts: {
-          orderBy: { priority: "asc" },
-          include: {
-            contentReviews: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-            },
+  const [promptSet, recommendations, reviewStorageAvailable] =
+    await Promise.all([
+      prisma.promptSet.findFirst({
+        where: { brandId, status: "active" },
+        orderBy: { createdAt: "desc" },
+        include: {
+          prompts: {
+            orderBy: { priority: "asc" },
           },
         },
-      },
-    }),
-    prisma.recommendation.findMany({
-      where: { brandId },
-      orderBy: [
-        { status: "asc" },
-        { impactScore: "desc" },
-        { createdAt: "desc" },
-      ],
-    }),
-  ]);
+      }),
+      prisma.recommendation.findMany({
+        where: { brandId },
+        orderBy: [
+          { status: "asc" },
+          { impactScore: "desc" },
+          { createdAt: "desc" },
+        ],
+      }),
+      promptContentReviewStorageAvailable(),
+    ]);
+  const latestReviews =
+    reviewStorageAvailable && promptSet?.prompts.length
+      ? await prisma.promptContentReview.findMany({
+          where: {
+            promptId: { in: promptSet.prompts.map((prompt) => prompt.id) },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+  const latestReviewByPromptId = new Map<
+    string,
+    (typeof latestReviews)[number]
+  >();
+  for (const review of latestReviews) {
+    if (!latestReviewByPromptId.has(review.promptId)) {
+      latestReviewByPromptId.set(review.promptId, review);
+    }
+  }
+  const showReviewStorageWarning =
+    !reviewStorageAvailable || query?.reviewStorage === "missing";
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -82,6 +109,15 @@ export default async function ActionsPage({
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <BrandMenu brandId={brandId} active="actions" />
+
+      {showReviewStorageWarning && (
+        <Card className="mb-6 border-amber-300 bg-amber-50">
+          <CardContent className="pt-5 text-sm text-amber-900">
+            Pregledi vsebine cakajo na posodobitev baze. Po migraciji bo rocni
+            pregled promptov na voljo tukaj.
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mb-6">
         <CardHeader>
@@ -102,7 +138,7 @@ export default async function ActionsPage({
             </THead>
             <TBody>
               {promptSet?.prompts.map((prompt) => {
-                const review = prompt.contentReviews[0];
+                const review = latestReviewByPromptId.get(prompt.id);
                 const recommendations = jsonArray(review?.recommendationsJson);
                 return (
                   <TR key={prompt.id}>
@@ -163,7 +199,11 @@ export default async function ActionsPage({
                           name="promptId"
                           value={prompt.id}
                         />
-                        <Button size="sm" type="submit">
+                        <Button
+                          size="sm"
+                          type="submit"
+                          disabled={!reviewStorageAvailable}
+                        >
                           <Search className="h-4 w-4" />
                           Preveri
                         </Button>

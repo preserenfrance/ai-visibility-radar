@@ -764,6 +764,11 @@ export async function reviewPromptContentForBrand(promptId: string) {
   const brand = prompt.promptSet.brand;
   const domain = normalizeDomain(brand.domain);
   const searchQuery = `${prompt.text} site:${domain}`;
+  if (!(await promptContentReviewStorageAvailable())) {
+    throw new Error(
+      "Bad Request: tabela PromptContentReview se ni ustvarjena; za bazo zazeni Prisma migracijo.",
+    );
+  }
 
   try {
     const review = await runPromptContentReviewWithOpenAi({
@@ -806,6 +811,17 @@ export async function reviewPromptContentForBrand(promptId: string) {
           error instanceof Error ? error.message : "Unknown review error",
       },
     });
+  }
+}
+
+export async function promptContentReviewStorageAvailable() {
+  try {
+    const result = await prisma.$queryRaw<Array<{ table_name: string | null }>>`
+      SELECT to_regclass('public."PromptContentReview"')::text AS table_name
+    `;
+    return Boolean(result[0]?.table_name);
+  } catch {
+    return false;
   }
 }
 
