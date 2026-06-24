@@ -4,6 +4,12 @@ import { prisma } from "@ai-radar/db";
 import { Sparkles } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
+import {
+  MentionsTrendChart,
+  type MentionTrendPoint,
+  type MentionTrendSeries,
+  type PromptAdditionMarker,
+} from "@/components/mentions-trend-chart";
 import { ProviderScanForm } from "@/components/provider-scan-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +25,15 @@ import {
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+const MENTION_TREND_SERIES: MentionTrendSeries[] = [
+  { key: "openai:base", label: "ChatGPT", color: "#2563eb" },
+  { key: "openai:search", label: "ChatGPT + search", color: "#0f766e" },
+  { key: "google:base", label: "Gemini", color: "#7c3aed" },
+  { key: "google:search", label: "Gemini + search", color: "#c026d3" },
+  { key: "anthropic:base", label: "Claude", color: "#ea580c" },
+  { key: "anthropic:search", label: "Claude + search", color: "#dc2626" },
+];
 
 async function startProviderScan(formData: FormData) {
   "use server";
@@ -73,33 +88,60 @@ export default async function BrandPage({
   const { brandId } = await params;
   const query = await searchParams;
   await requireBrandAccess(brandId);
-  const brand = await prisma.brand.findUnique({
-    where: { id: brandId },
-    include: {
-      organization: { include: { billingSubscription: true } },
-      competitors: true,
-      scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 2 },
-      promptSets: {
-        where: { status: "active" },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        include: { prompts: true },
-      },
-      scanRuns: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: {
-          scoreSnapshot: true,
-          promptRuns: {
-            include: {
-              engine: true,
-              aiResponse: { include: { parsedResult: true } },
+  const trendDays = mentionTrendDays();
+  const trendStart = trendDays[0]?.date ?? new Date();
+  const [brand, mentionTrendScanRuns, promptAdditions] = await Promise.all([
+    prisma.brand.findUnique({
+      where: { id: brandId },
+      include: {
+        organization: { include: { billingSubscription: true } },
+        competitors: true,
+        scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 2 },
+        promptSets: {
+          where: { status: "active" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: { prompts: true },
+        },
+        scanRuns: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          include: {
+            scoreSnapshot: true,
+            promptRuns: {
+              include: {
+                engine: true,
+                aiResponse: { include: { parsedResult: true } },
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.scanRun.findMany({
+      where: {
+        brandId,
+        createdAt: { gte: trendStart },
+      },
+      orderBy: { createdAt: "asc" },
+      include: {
+        promptRuns: {
+          include: {
+            engine: true,
+            aiResponse: { include: { parsedResult: true } },
+          },
+        },
+      },
+    }),
+    prisma.prompt.findMany({
+      where: {
+        createdAt: { gte: trendStart },
+        promptSet: { brandId },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, createdAt: true },
+    }),
+  ]);
   if (!brand) return null;
 
   const latestScan = brand.scanRuns[0];
@@ -110,6 +152,14 @@ export default async function BrandPage({
   const recurringScanActive = brand.recurringScanActive && automaticScanAccess;
   const recurringScanScheduled = automaticScanAccess;
   const brandSummaryError = query?.brandSummary === "error";
+  const mentionTrendPoints = buildMentionTrendPoints(
+    trendDays,
+    mentionTrendScanRuns,
+  );
+  const promptAdditionMarkers = buildPromptAdditionMarkers(
+    trendDays,
+    promptAdditions,
+  );
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -212,6 +262,12 @@ export default async function BrandPage({
         <MetricCard metric="accuracy" value={latestScore?.accuracyScore ?? 0} />
       </div>
 
+      <MentionsTrendChart
+        series={MENTION_TREND_SERIES}
+        points={mentionTrendPoints}
+        promptMarkers={promptAdditionMarkers}
+      />
+
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Pregled po modelih</CardTitle>
@@ -291,6 +347,138 @@ export default async function BrandPage({
       />
     </section>
   );
+}
+
+type TrendDay = {
+  date: Date;
+  key: string;
+  label: string;
+};
+
+type MentionTrendScanRun = {
+  createdAt: Date;
+  promptRuns: Array<{
+    engine: {
+      provider: string;
+      searchEnabled: boolean;
+    };
+    aiResponse: {
+      parsedResult: {
+        brandMentioned: boolean;
+        mentionCount: number;
+        parsedJson: unknown;
+      } | null;
+    } | null;
+  }>;
+};
+
+function mentionTrendDays(): TrendDay[] {
+  const today = startOfDay(new Date());
+  return Array.from({ length: 30 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (29 - index));
+    return {
+      date,
+      key: dateKey(date),
+      label: date.toLocaleDateString("sl-SI", {
+        day: "2-digit",
+        month: "2-digit",
+      }),
+    };
+  });
+}
+
+function buildMentionTrendPoints(
+  days: TrendDay[],
+  scanRuns: MentionTrendScanRun[],
+): MentionTrendPoint[] {
+  const points = new Map(
+    days.map((day) => [
+      day.key,
+      {
+        date: day.key,
+        label: day.label,
+        values: Object.fromEntries(
+          MENTION_TREND_SERIES.map((series) => [series.key, 0]),
+        ) as Record<string, number>,
+      },
+    ]),
+  );
+
+  for (const scanRun of scanRuns) {
+    const point = points.get(dateKey(scanRun.createdAt));
+    if (!point) continue;
+
+    for (const promptRun of scanRun.promptRuns) {
+      const key = engineSeriesKey(
+        promptRun.engine.provider,
+        promptRun.engine.searchEnabled,
+      );
+      if (!(key in point.values)) continue;
+      point.values[key] =
+        (point.values[key] ?? 0) + mentionCountForPromptRun(promptRun);
+    }
+  }
+
+  return days.map((day) => points.get(day.key)!);
+}
+
+function buildPromptAdditionMarkers(
+  days: TrendDay[],
+  prompts: Array<{ createdAt: Date }>,
+): PromptAdditionMarker[] {
+  const allowedDates = new Set(days.map((day) => day.key));
+  const counts = new Map<string, number>();
+  for (const prompt of prompts) {
+    const key = dateKey(prompt.createdAt);
+    if (!allowedDates.has(key)) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return days
+    .map((day) => {
+      const count = counts.get(day.key) ?? 0;
+      if (count === 0) return null;
+      return {
+        date: day.key,
+        label: day.label,
+        count,
+      };
+    })
+    .filter((marker): marker is PromptAdditionMarker => Boolean(marker));
+}
+
+function mentionCountForPromptRun(
+  promptRun: MentionTrendScanRun["promptRuns"][number],
+) {
+  const parsed = promptRun.aiResponse?.parsedResult;
+  if (!parsed) return 0;
+  if (parsed.mentionCount > 0) return parsed.mentionCount;
+
+  const parsedJson = parsed.parsedJson as
+    | { mentionCount?: unknown; brandMentioned?: unknown }
+    | undefined;
+  if (typeof parsedJson?.mentionCount === "number") {
+    return Math.max(0, parsedJson.mentionCount);
+  }
+  return parsed.brandMentioned || parsedJson?.brandMentioned === true ? 1 : 0;
+}
+
+function engineSeriesKey(provider: string, searchEnabled: boolean) {
+  return `${provider}:${searchEnabled ? "search" : "base"}`;
+}
+
+function startOfDay(date: Date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function dateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function engineBreakdown(promptRuns: Array<any>) {
