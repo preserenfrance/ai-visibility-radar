@@ -19,7 +19,16 @@ export function RegularScanControls({
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const automaticScanAccess = organizationPlan === "growth";
+  const automaticScanAccess =
+    organizationPlan === "free" ||
+    organizationPlan === "starter" ||
+    organizationPlan === "growth";
+  const planLabel =
+    organizationPlan === "growth"
+      ? "Growth"
+      : organizationPlan === "starter"
+        ? "Starter"
+        : "Brezplačni";
 
   function run(action: () => Promise<void>) {
     setError(null);
@@ -44,7 +53,7 @@ export function RegularScanControls({
         organizationId,
         brandId,
         intent: "regular_scan",
-        plan: "growth",
+        plan: "starter",
       }),
     });
     if (!response.ok) throw new Error(await responseError(response));
@@ -86,7 +95,7 @@ export function RegularScanControls({
           </Button>
         ) : (
           <span className="rounded-md border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground">
-            Growth aktiven
+            {planLabel} aktiven
           </span>
         )
       ) : (
@@ -101,7 +110,7 @@ export function RegularScanControls({
           ) : (
             <CalendarClock className="h-4 w-4" />
           )}
-          Nadgradi na Growth
+          Odpri nastavitve
         </Button>
       )}
       {error && (

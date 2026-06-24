@@ -10,13 +10,22 @@ export function ProviderScanForm({
   brandId,
   action,
   manualScanAccess,
+  manualScanUsage,
   compact = false,
 }: {
   brandId: string;
   action: (formData: FormData) => Promise<void>;
   manualScanAccess: boolean;
+  manualScanUsage?: {
+    used: number;
+    limit: number;
+    remaining: number;
+    resetLabel: string;
+  };
   compact?: boolean;
 }) {
+  const manualScanLimitReached = (manualScanUsage?.remaining ?? 1) <= 0;
+
   return (
     <form
       action={action}
@@ -38,6 +47,23 @@ export function ProviderScanForm({
           <p className="mt-2 rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
             Ročni zagon promptov je vključen v paket Starter ali Growth.
           </p>
+        )}
+        {manualScanUsage && (
+          <div className="mt-2 grid gap-1 rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground sm:grid-cols-3">
+            <span>
+              Porabljeno:{" "}
+              <strong className="text-foreground">
+                {manualScanUsage.used}/{manualScanUsage.limit}
+              </strong>
+            </span>
+            <span>
+              Na voljo:{" "}
+              <strong className="text-foreground">
+                {manualScanUsage.remaining}
+              </strong>
+            </span>
+            <span>Reset: {manualScanUsage.resetLabel}</span>
+          </div>
         )}
       </div>
 
@@ -84,7 +110,7 @@ export function ProviderScanForm({
       </div>
 
       {manualScanAccess ? (
-        <SubmitButton />
+        <SubmitButton limitReached={manualScanLimitReached} />
       ) : (
         <Button asChild>
           <Link href="/app/settings">
@@ -146,15 +172,17 @@ function ProviderCheckbox({
   );
 }
 
-function SubmitButton() {
+function SubmitButton({ limitReached }: { limitReached: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending || limitReached}>
       {pending ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
           Dodajam scan v vrsto
         </>
+      ) : limitReached ? (
+        "Mesečni limit dosežen"
       ) : (
         <>
           <PlayCircle className="h-4 w-4" />

@@ -6,10 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
-import {
-  activateRecurringScansForGrowthOrganization,
-  deactivateRecurringScansForOrganization,
-} from "@/lib/services";
+import { activateRecurringScansForOrganizationPlan } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -42,11 +39,7 @@ async function updateAccountPlan(formData: FormData) {
     },
   });
 
-  if (plan === "growth") {
-    await activateRecurringScansForGrowthOrganization(organizationId);
-  } else {
-    await deactivateRecurringScansForOrganization(organizationId);
-  }
+  await activateRecurringScansForOrganizationPlan(organizationId, plan);
 
   redirect("/admin/users?updated=1");
 }

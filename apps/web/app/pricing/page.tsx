@@ -49,7 +49,7 @@ const features: Array<{
   },
   {
     label: "Ročni scani na mesec",
-    values: { free: 0, starter: 8, growth: 90 },
+    values: { free: 0, starter: 4, growth: 15 },
   },
   {
     label: "Ročni zagon promptov",
@@ -57,7 +57,7 @@ const features: Array<{
   },
   {
     label: "Avtomatski zagon promptov",
-    values: { free: false, starter: false, growth: "tedensko" },
+    values: { free: "tedensko", starter: "tedensko", growth: "tedensko" },
   },
   {
     label: "Vsi zavihki in moduli",

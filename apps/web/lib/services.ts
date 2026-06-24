@@ -776,17 +776,13 @@ export async function createScanForBrand(
         "Bad Request: ročni zagon scanov je vključen v paket Starter ali Growth.",
       );
     }
-    const manualScanLimit = PLAN_LIMITS[brand.organization.plan].scansPerMonth;
-    const scansThisMonth = await prisma.scanRun.count({
-      where: {
-        brand: { organizationId: brand.organizationId },
-        triggerType: "manual",
-        createdAt: { gte: startOfMonth() },
-      },
-    });
-    if (scansThisMonth >= manualScanLimit) {
+    const usage = await manualScanUsageForOrganization(
+      brand.organizationId,
+      brand.organization.plan,
+    );
+    if (usage.used >= usage.limit) {
       throw new Error(
-        `Bad Request: ta paket omogoča največ ${manualScanLimit} ročnih scanov na mesec.`,
+        `Bad Request: ta paket omogoča največ ${usage.limit} ročnih scanov na mesec.`,
       );
     }
   }
@@ -850,6 +846,39 @@ export async function createScanForBrand(
     where: { id: scan.id },
     include: { promptRuns: true, scoreSnapshot: true },
   });
+}
+
+export function currentManualScanUsageWindow(from = new Date()) {
+  const startAt = startOfMonth(from);
+  const resetAt = new Date(startAt);
+  resetAt.setMonth(resetAt.getMonth() + 1);
+  return { startAt, resetAt };
+}
+
+export async function manualScanUsageForOrganization(
+  organizationId: string,
+  plan: Plan,
+  from = new Date(),
+) {
+  const { startAt, resetAt } = currentManualScanUsageWindow(from);
+  const limit = PLAN_LIMITS[plan].scansPerMonth;
+  const used = await prisma.scanRun.count({
+    where: {
+      brand: { organizationId },
+      triggerType: "manual",
+      createdAt: {
+        gte: startAt,
+        lt: resetAt,
+      },
+    },
+  });
+
+  return {
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+    resetAt,
+  };
 }
 
 export async function reviewPromptContentForBrand(promptId: string) {
@@ -1152,7 +1181,8 @@ function walkJson(value: unknown, visitor: (value: unknown) => void) {
 export function recurringScanCadenceForPlan(
   plan: Plan,
 ): RecurringScanCadence | null {
-  if (plan === "growth") return "weekly";
+  if (plan === "free" || plan === "starter" || plan === "growth")
+    return "weekly";
   return null;
 }
 
@@ -1186,17 +1216,37 @@ export function recurringScanActivationData(plan: Plan, from = new Date()) {
   };
 }
 
-export async function activateRecurringScansForGrowthOrganization(
+export async function activateRecurringScansForOrganizationPlan(
   organizationId: string,
+  plan: Plan,
   from = new Date(),
 ) {
-  const data = recurringScanActivationData("growth", from);
+  const data = recurringScanActivationData(plan, from);
   if (!data) return { count: 0 };
 
   return prisma.brand.updateMany({
     where: { organizationId },
     data,
   });
+}
+
+export async function activateRecurringScansForPaidOrganization(
+  organizationId: string,
+  plan: PaidPlan,
+  from = new Date(),
+) {
+  return activateRecurringScansForOrganizationPlan(organizationId, plan, from);
+}
+
+export async function activateRecurringScansForGrowthOrganization(
+  organizationId: string,
+  from = new Date(),
+) {
+  return activateRecurringScansForOrganizationPlan(
+    organizationId,
+    "growth",
+    from,
+  );
 }
 
 export async function deactivateRecurringScansForOrganization(
@@ -1248,16 +1298,14 @@ export async function activateRecurringScanForBrand(
   });
   if (!brand) throw new Error("Brand not found");
   if (!canRunAutomaticScans(brand.organization)) {
-    throw new Error("Bad Request: recurring scan requires the Growth plan");
+    throw new Error("Bad Request: recurring scan is not available");
   }
 
   const cadence = recurringScanCadenceForPlan(brand.organization.plan);
-  if (!cadence)
-    throw new Error("Bad Request: recurring scan requires the Growth plan");
+  if (!cadence) throw new Error("Bad Request: recurring scan is not available");
   const now = new Date();
   const data = recurringScanActivationData(brand.organization.plan, now);
-  if (!data)
-    throw new Error("Bad Request: recurring scan requires the Growth plan");
+  if (!data) throw new Error("Bad Request: recurring scan is not available");
 
   return prisma.brand.update({
     where: { id: brandId },

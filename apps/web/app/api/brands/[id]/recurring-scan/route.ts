@@ -37,9 +37,7 @@ export async function POST(
     });
     if (!brand) throw new Error("Brand not found");
     if (!canRunAutomaticScans(brand.organization)) {
-      throw new Error(
-        "Bad Request: avtomatski scan je vključen v paket Growth.",
-      );
+      throw new Error("Bad Request: automatic scans are not available.");
     }
 
     const updatedBrand = await activateRecurringScanForBrand(

@@ -23,8 +23,7 @@ export async function POST(request: Request) {
     const config = getConfig();
     if (!config.STRIPE_SECRET_KEY)
       throw new Error("STRIPE_SECRET_KEY is required");
-    const checkoutPlan =
-      input.intent === "regular_scan" ? "growth" : input.plan;
+    const checkoutPlan = input.plan;
     const priceId =
       checkoutPlan === "starter"
         ? config.STRIPE_STARTER_PRICE_ID

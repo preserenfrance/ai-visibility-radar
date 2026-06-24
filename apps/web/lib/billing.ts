@@ -21,7 +21,7 @@ export function canRunManualScans(organization: OrganizationPlanAccess) {
 }
 
 export function canRunAutomaticScans(organization: OrganizationPlanAccess) {
-  return organization.plan === "growth";
+  return Boolean(organization.plan);
 }
 
 export function effectivePlanForOrganization(

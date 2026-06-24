@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { effectivePlanForOrganization } from "@/lib/billing";
 import { requireCurrentUser } from "@/lib/auth";
+import { manualScanUsageForOrganization } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,17 @@ export default async function SettingsPage() {
       billingSubscription: true,
     },
   });
+  const manualScanUsageByOrganization = new Map(
+    await Promise.all(
+      organizations.map(async (organization) => {
+        const effectivePlan = effectivePlanForOrganization(organization);
+        return [
+          organization.id,
+          await manualScanUsageForOrganization(organization.id, effectivePlan),
+        ] as const;
+      }),
+    ),
+  );
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -48,6 +60,7 @@ export default async function SettingsPage() {
                 <TH>Plan</TH>
                 <TH>Znamke</TH>
                 <TH>Limit promptov</TH>
+                <TH>Ročni scani</TH>
                 <TH>Zagon promptov</TH>
                 <TH>Plačila</TH>
                 <TH>Upravljanje</TH>
@@ -58,6 +71,9 @@ export default async function SettingsPage() {
                 const effectivePlan =
                   effectivePlanForOrganization(organization);
                 const limits = PLAN_LIMITS[effectivePlan];
+                const manualScanUsage = manualScanUsageByOrganization.get(
+                  organization.id,
+                );
                 return (
                   <TR key={organization.id}>
                     <TD className="font-medium">{organization.name}</TD>
@@ -68,6 +84,11 @@ export default async function SettingsPage() {
                       {organization.brands.length}/{limits.brandCount}
                     </TD>
                     <TD>{limits.promptsPerBrand} na znamko</TD>
+                    <TD>
+                      {manualScanUsage
+                        ? `${manualScanUsage.used}/${manualScanUsage.limit} - reset ${manualScanUsage.resetAt.toLocaleDateString("sl-SI")}`
+                        : "-"}
+                    </TD>
                     <TD>{cadenceLabel(limits.scanCadence)}</TD>
                     <TD>
                       {organization.billingSubscription?.status ?? "ni aktivno"}

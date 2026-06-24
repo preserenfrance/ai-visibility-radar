@@ -55,7 +55,7 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Kaj pomeni reden scan?",
         answer:
-          "Reden scan samodejno ponavlja meritev za tvojo znamko. Avtomatski dnevni zagon je vključen v Growth paket; Starter je namenjen ročnim zagonom.",
+          "Reden scan samodejno ponavlja meritev za tvojo znamko. Avtomatski tedenski zagon je vključen v vseh paketih, tudi v brezplačnem.",
       },
       {
         question: "Zakaj rezultati med modeli niso enaki?",
@@ -100,17 +100,17 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Koliko stane orodje?",
         answer:
-          "Brezplačni paket omogoča eno znamko in do 10 aktivnih promptov. Starter paket stane 15,99 EUR na mesec in vključuje več promptov ter ročne zagone. Growth paket stane 39,99 EUR na mesec in vključuje dodatne znamke, več promptov ter dnevni avtomatski zagon.",
+          "Brezplačni paket omogoča eno znamko, do 10 aktivnih promptov in tedenski avtomatski zagon. Starter paket stane 15,99 EUR na mesec in vključuje več promptov ter 4 ročne scane na mesec. Growth paket stane 39,99 EUR na mesec in vključuje dodatne znamke, več promptov ter 15 ročnih scanov na mesec.",
       },
       {
         question: "Kaj dobim v brezplačnem paketu?",
         answer:
-          "Brezplačni paket vključuje eno znamko, do 10 aktivnih promptov ter dostop do vseh zavihkov in prikazov. Ročni in avtomatski zagoni promptov so del plačljivih paketov.",
+          "Brezplačni paket vključuje eno znamko, do 10 aktivnih promptov, tedenski avtomatski zagon ter dostop do vseh zavihkov in prikazov. Ročni zagoni promptov so del plačljivih paketov.",
       },
       {
         question: "Kdaj potrebujem plačljiv paket?",
         answer:
-          "Plačljiv paket potrebuješ, ko želiš več aktivnih promptov ali ročno oziroma avtomatsko zaganjanje meritev. Starter je za ročno delo, Growth pa za več znamk in avtomatsko spremljanje.",
+          "Plačljiv paket potrebuješ, ko želiš več aktivnih promptov ali ročno zaganjanje meritev. Starter je za eno znamko, Growth pa za več znamk in višje limite.",
       },
       {
         question: "Ali lahko paket kasneje spremenim?",

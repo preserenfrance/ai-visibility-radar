@@ -21,6 +21,7 @@ import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
 import {
   createScanForBrand,
   generateBrandChatGptSummary,
+  manualScanUsageForOrganization,
 } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -159,6 +160,10 @@ export default async function BrandPage({
   const promptAdditionMarkers = buildPromptAdditionMarkers(
     trendDays,
     promptAdditions,
+  );
+  const manualScanUsage = await manualScanUsageForOrganization(
+    brand.organizationId,
+    brand.organization.plan,
   );
 
   return (
@@ -343,6 +348,12 @@ export default async function BrandPage({
         brandId={brand.id}
         action={startProviderScan}
         manualScanAccess={manualScanAccess}
+        manualScanUsage={{
+          used: manualScanUsage.used,
+          limit: manualScanUsage.limit,
+          remaining: manualScanUsage.remaining,
+          resetLabel: manualScanUsage.resetAt.toLocaleDateString("sl-SI"),
+        }}
         compact
       />
     </section>

@@ -3,8 +3,7 @@ import { prisma } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { fail, ok, route } from "@/lib/http";
 import {
-  activateRecurringScansForGrowthOrganization,
-  deactivateRecurringScansForOrganization,
+  activateRecurringScansForOrganizationPlan,
   type PaidPlan,
 } from "@/lib/services";
 
@@ -99,11 +98,10 @@ async function syncCheckoutWithoutSubscription(fallback: SubscriptionFallback) {
     },
   });
 
-  if (plan === "growth") {
-    await activateRecurringScansForGrowthOrganization(fallback.organizationId);
-  } else {
-    await deactivateRecurringScansForOrganization(fallback.organizationId);
-  }
+  await activateRecurringScansForOrganizationPlan(
+    fallback.organizationId,
+    plan,
+  );
 }
 
 async function syncStripeSubscription(
@@ -159,11 +157,10 @@ async function syncStripeSubscription(
     },
   });
 
-  if (paidStatus && plan === "growth") {
-    await activateRecurringScansForGrowthOrganization(organizationId);
-  } else {
-    await deactivateRecurringScansForOrganization(organizationId);
-  }
+  await activateRecurringScansForOrganizationPlan(
+    organizationId,
+    paidStatus ? plan : "free",
+  );
 }
 
 function paidPlan(value: string | null | undefined): PaidPlan | null {

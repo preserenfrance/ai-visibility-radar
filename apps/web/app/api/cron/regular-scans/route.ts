@@ -15,6 +15,7 @@ export const maxDuration = 60;
 
 const MAX_NEW_SCANS_PER_TICK = 20;
 const MAX_SCAN_STEPS_PER_TICK = 3;
+const RECURRING_SCAN_PLANS = ["free", "starter", "growth"] as const;
 
 export async function GET(request: Request) {
   return runRegularScans(request);
@@ -34,7 +35,7 @@ function runRegularScans(request: Request) {
       where: {
         recurringScanActive: true,
         organization: {
-          plan: { not: "growth" },
+          plan: { notIn: [...RECURRING_SCAN_PLANS] },
         },
       },
       data: {
@@ -44,32 +45,38 @@ function runRegularScans(request: Request) {
         recurringScanNextRunAt: null,
       },
     });
-    const growthRecurringData = recurringScanActivationData("growth", now);
-    const activatedGrowthBrands = growthRecurringData
-      ? await prisma.brand.updateMany({
-          where: {
-            organization: {
-              plan: "growth",
-            },
-            OR: [
-              { recurringScanActive: false },
-              { recurringScanCadence: null },
-              { recurringScanCadence: { not: "weekly" } },
-              { recurringScanPlan: null },
-              { recurringScanPlan: { not: "growth" } },
-              { recurringScanNextRunAt: null },
-            ],
+    let activatedRecurringBrands = 0;
+    for (const plan of RECURRING_SCAN_PLANS) {
+      const recurringData = recurringScanActivationData(plan, now);
+      if (!recurringData) continue;
+
+      const result = await prisma.brand.updateMany({
+        where: {
+          organization: {
+            plan,
           },
-          data: growthRecurringData,
-        })
-      : { count: 0 };
+          OR: [
+            { recurringScanActive: false },
+            { recurringScanCadence: null },
+            { recurringScanCadence: { not: "weekly" } },
+            { recurringScanPlan: null },
+            { recurringScanPlan: { not: plan } },
+            { recurringScanNextRunAt: null },
+          ],
+        },
+        data: recurringData,
+      });
+      activatedRecurringBrands += result.count;
+    }
 
     const dueBrands = await prisma.brand.findMany({
       where: {
         recurringScanActive: true,
         recurringScanNextRunAt: { lte: now },
         organization: {
-          plan: "growth",
+          plan: {
+            in: [...RECURRING_SCAN_PLANS],
+          },
         },
         promptSets: {
           some: {
@@ -139,7 +146,7 @@ function runRegularScans(request: Request) {
 
     return ok({
       deactivatedWithoutAutomation: deactivatedWithoutAutomation.count,
-      activatedGrowthBrands: activatedGrowthBrands.count,
+      activatedRecurringBrands,
       createdScans,
       failedBrands,
       processedSteps,
