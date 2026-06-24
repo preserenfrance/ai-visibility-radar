@@ -56,9 +56,12 @@ export default async function AppDashboardPage() {
             </THead>
             <TBody>
               {brands.map((brand) => {
+                const automaticScanAccess = canRunAutomaticScans(
+                  brand.organization,
+                );
                 const recurringScanActive =
-                  brand.recurringScanActive &&
-                  canRunAutomaticScans(brand.organization);
+                  brand.recurringScanActive && automaticScanAccess;
+                const recurringScanScheduled = automaticScanAccess;
 
                 return (
                   <TR key={brand.id}>
@@ -85,14 +88,18 @@ export default async function AppDashboardPage() {
                       </Badge>
                     </TD>
                     <TD>
-                      {recurringScanActive ? (
+                      {recurringScanScheduled ? (
                         <div className="grid gap-1">
                           <Badge>aktiven</Badge>
                           <span className="text-xs text-muted-foreground">
-                            {cadenceLabel(brand.recurringScanCadence)}
+                            {cadenceLabel(
+                              brand.recurringScanCadence ?? "weekly",
+                            )}
                             {brand.recurringScanNextRunAt
                               ? ` · naslednji ${brand.recurringScanNextRunAt.toLocaleDateString("sl-SI")}`
-                              : ""}
+                              : recurringScanActive
+                                ? ""
+                                : " · naslednji termin se nastavi kmalu"}
                           </span>
                         </div>
                       ) : (
@@ -104,7 +111,6 @@ export default async function AppDashboardPage() {
                         brandId={brand.id}
                         organizationId={brand.organizationId}
                         organizationPlan={brand.organization.plan}
-                        recurringScanActive={recurringScanActive}
                         hasStripeCustomer={Boolean(
                           brand.organization.stripeCustomerId,
                         )}

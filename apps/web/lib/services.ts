@@ -1152,7 +1152,7 @@ function walkJson(value: unknown, visitor: (value: unknown) => void) {
 export function recurringScanCadenceForPlan(
   plan: Plan,
 ): RecurringScanCadence | null {
-  if (plan === "growth") return "daily";
+  if (plan === "growth") return "weekly";
   return null;
 }
 
@@ -1166,7 +1166,51 @@ export function nextRecurringScanDate(
 }
 
 export function defaultRecurringScanEngineVariants(): EngineSelection[] {
-  return [{ provider: "openai", searchEnabled: true }];
+  return ENGINE_PROVIDERS.map((provider) => ({
+    provider,
+    searchEnabled: true,
+  }));
+}
+
+export function recurringScanActivationData(plan: Plan, from = new Date()) {
+  const cadence = recurringScanCadenceForPlan(plan);
+  if (!cadence) return null;
+
+  return {
+    recurringScanActive: true,
+    recurringScanCadence: cadence,
+    recurringScanPlan: plan,
+    recurringScanActivatedAt: from,
+    recurringScanNextRunAt: from,
+    recurringScanProviderVariants: defaultRecurringScanEngineVariants(),
+  };
+}
+
+export async function activateRecurringScansForGrowthOrganization(
+  organizationId: string,
+  from = new Date(),
+) {
+  const data = recurringScanActivationData("growth", from);
+  if (!data) return { count: 0 };
+
+  return prisma.brand.updateMany({
+    where: { organizationId },
+    data,
+  });
+}
+
+export async function deactivateRecurringScansForOrganization(
+  organizationId: string,
+) {
+  return prisma.brand.updateMany({
+    where: { organizationId },
+    data: {
+      recurringScanActive: false,
+      recurringScanPlan: null,
+      recurringScanCadence: null,
+      recurringScanNextRunAt: null,
+    },
+  });
 }
 
 export function recurringScanEngineVariantsFromJson(
@@ -1211,17 +1255,13 @@ export async function activateRecurringScanForBrand(
   if (!cadence)
     throw new Error("Bad Request: recurring scan requires the Growth plan");
   const now = new Date();
+  const data = recurringScanActivationData(brand.organization.plan, now);
+  if (!data)
+    throw new Error("Bad Request: recurring scan requires the Growth plan");
 
   return prisma.brand.update({
     where: { id: brandId },
-    data: {
-      recurringScanActive: true,
-      recurringScanCadence: cadence,
-      recurringScanPlan: brand.organization.plan,
-      recurringScanActivatedAt: now,
-      recurringScanNextRunAt: now,
-      recurringScanProviderVariants: defaultRecurringScanEngineVariants(),
-    },
+    data,
   });
 }
 

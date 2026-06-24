@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { CalendarClock, CreditCard, Loader2, PauseCircle } from "lucide-react";
+import { CalendarClock, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Plan = "free" | "starter" | "growth";
@@ -11,16 +10,13 @@ export function RegularScanControls({
   brandId,
   organizationId,
   organizationPlan,
-  recurringScanActive,
   hasStripeCustomer,
 }: {
   brandId: string;
   organizationId: string;
   organizationPlan: Plan;
-  recurringScanActive: boolean;
   hasStripeCustomer: boolean;
 }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const automaticScanAccess = organizationPlan === "growth";
@@ -38,31 +34,6 @@ export function RegularScanControls({
         );
       }
     });
-  }
-
-  async function activate() {
-    if (!automaticScanAccess) {
-      await startCheckout();
-      return;
-    }
-
-    const response = await fetch(`/api/brands/${brandId}/recurring-scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "activate" }),
-    });
-    if (!response.ok) throw new Error(await responseError(response));
-    router.refresh();
-  }
-
-  async function deactivate() {
-    const response = await fetch(`/api/brands/${brandId}/recurring-scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "deactivate" }),
-    });
-    if (!response.ok) throw new Error(await responseError(response));
-    router.refresh();
   }
 
   async function startCheckout() {
@@ -97,13 +68,13 @@ export function RegularScanControls({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {recurringScanActive ? (
-        <>
+      {automaticScanAccess ? (
+        hasStripeCustomer ? (
           <Button
             type="button"
             size="sm"
             variant="outline"
-            disabled={isPending || !hasStripeCustomer}
+            disabled={isPending}
             onClick={() => run(openPortal)}
           >
             {isPending ? (
@@ -113,34 +84,24 @@ export function RegularScanControls({
             )}
             Plačilo
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={isPending}
-            onClick={() => run(deactivate)}
-          >
-            {isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <PauseCircle className="h-4 w-4" />
-            )}
-            Izklopi
-          </Button>
-        </>
+        ) : (
+          <span className="rounded-md border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground">
+            Growth aktiven
+          </span>
+        )
       ) : (
         <Button
           type="button"
           size="sm"
           disabled={isPending}
-          onClick={() => run(activate)}
+          onClick={() => run(startCheckout)}
         >
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <CalendarClock className="h-4 w-4" />
           )}
-          Aktiviraj avtomatski scan
+          Nadgradi na Growth
         </Button>
       )}
       {error && (

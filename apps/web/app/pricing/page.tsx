@@ -57,7 +57,7 @@ const features: Array<{
   },
   {
     label: "Avtomatski zagon promptov",
-    values: { free: false, starter: false, growth: "dnevno" },
+    values: { free: false, starter: false, growth: "tedensko" },
   },
   {
     label: "Vsi zavihki in moduli",

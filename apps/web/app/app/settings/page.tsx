@@ -91,8 +91,8 @@ export default async function SettingsPage() {
   );
 }
 
-function cadenceLabel(value: "none" | "manual" | "daily") {
-  if (value === "daily") return "avtomatsko dnevno";
+function cadenceLabel(value: "none" | "manual" | "weekly") {
+  if (value === "weekly") return "avtomatsko tedensko";
   if (value === "manual") return "ročno";
   return "brez zagona";
 }

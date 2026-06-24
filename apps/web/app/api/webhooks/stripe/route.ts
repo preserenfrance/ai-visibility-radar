@@ -2,7 +2,11 @@ import Stripe from "stripe";
 import { prisma } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { fail, ok, route } from "@/lib/http";
-import { activateRecurringScanForBrand, type PaidPlan } from "@/lib/services";
+import {
+  activateRecurringScansForGrowthOrganization,
+  deactivateRecurringScansForOrganization,
+  type PaidPlan,
+} from "@/lib/services";
 
 type BillingStatusValue =
   | "incomplete"
@@ -94,6 +98,12 @@ async function syncCheckoutWithoutSubscription(fallback: SubscriptionFallback) {
       },
     },
   });
+
+  if (plan === "growth") {
+    await activateRecurringScansForGrowthOrganization(fallback.organizationId);
+  } else {
+    await deactivateRecurringScansForOrganization(fallback.organizationId);
+  }
 }
 
 async function syncStripeSubscription(
@@ -149,20 +159,10 @@ async function syncStripeSubscription(
     },
   });
 
-  const brandId = subscription.metadata.brandId ?? fallback.brandId;
-  const intent = subscription.metadata.intent ?? fallback.intent;
-  if (paidStatus && intent === "regular_scan" && brandId && plan === "growth") {
-    await activateRecurringScanForBrand(brandId, plan);
-  }
-
-  if (!paidStatus) {
-    await prisma.brand.updateMany({
-      where: { organizationId },
-      data: {
-        recurringScanActive: false,
-        recurringScanNextRunAt: null,
-      },
-    });
+  if (paidStatus && plan === "growth") {
+    await activateRecurringScansForGrowthOrganization(organizationId);
+  } else {
+    await deactivateRecurringScansForOrganization(organizationId);
   }
 }
 

@@ -4,7 +4,10 @@ import { PLAN_LIMITS } from "@ai-radar/usage";
 import { normalizeDomain } from "@ai-radar/shared";
 import { requireCurrentUser, requireOrganizationAccess } from "@/lib/auth";
 import { ok, parseBody, route } from "@/lib/http";
-import { generateBrandChatGptSummarySafely } from "@/lib/services";
+import {
+  generateBrandChatGptSummarySafely,
+  recurringScanActivationData,
+} from "@/lib/services";
 
 export const maxDuration = 60;
 
@@ -62,6 +65,7 @@ export async function POST(request: Request) {
       country: input.country,
       language: input.language,
     });
+    const recurringScanData = recurringScanActivationData(organization.plan);
     const brand = await prisma.brand.create({
       data: {
         organizationId: input.organizationId,
@@ -76,6 +80,7 @@ export async function POST(request: Request) {
         country: input.country,
         language: input.language,
         aliases: input.aliases ?? [],
+        ...(recurringScanData ?? {}),
       },
     });
     await prisma.auditLog.create({

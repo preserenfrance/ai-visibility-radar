@@ -106,8 +106,9 @@ export default async function BrandPage({
   const latestScore = brand.scoreSnapshots[0];
   const promptSet = brand.promptSets[0];
   const manualScanAccess = canRunManualScans(brand.organization);
-  const recurringScanActive =
-    brand.recurringScanActive && canRunAutomaticScans(brand.organization);
+  const automaticScanAccess = canRunAutomaticScans(brand.organization);
+  const recurringScanActive = brand.recurringScanActive && automaticScanAccess;
+  const recurringScanScheduled = automaticScanAccess;
   const brandSummaryError = query?.brandSummary === "error";
 
   return (
@@ -150,10 +151,19 @@ export default async function BrandPage({
                 Reden scan
               </div>
               <div className="mt-1 text-lg font-semibold">
-                {recurringScanActive
-                  ? cadenceLabel(brand.recurringScanCadence)
+                {recurringScanScheduled
+                  ? cadenceLabel(brand.recurringScanCadence ?? "weekly")
                   : "ni aktiven"}
               </div>
+              {recurringScanScheduled && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {brand.recurringScanNextRunAt
+                    ? `Naslednji: ${brand.recurringScanNextRunAt.toLocaleString("sl-SI")}`
+                    : recurringScanActive
+                      ? "Naslednji termin se nastavlja."
+                      : "Naslednji termin se nastavi ob naslednjem cron zagonu."}
+                </div>
+              )}
             </div>
           </div>
           <div className="rounded-md border bg-secondary/30 p-4 md:col-span-2">

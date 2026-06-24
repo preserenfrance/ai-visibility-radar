@@ -19,7 +19,7 @@ export const PLAN_LIMITS: Record<
     promptsPerBrand: number;
     scansPerMonth: number;
     aiCallsPerMonth: number;
-    scanCadence: "none" | "manual" | "daily";
+    scanCadence: "none" | "manual" | "weekly";
   }
 > = {
   free: {
@@ -41,7 +41,7 @@ export const PLAN_LIMITS: Record<
     promptsPerBrand: 100,
     scansPerMonth: 90,
     aiCallsPerMonth: 9000,
-    scanCadence: "daily",
+    scanCadence: "weekly",
   },
 };
 
