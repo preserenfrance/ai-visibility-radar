@@ -4,6 +4,9 @@ import { PLAN_LIMITS } from "@ai-radar/usage";
 import { normalizeDomain } from "@ai-radar/shared";
 import { requireCurrentUser, requireOrganizationAccess } from "@/lib/auth";
 import { ok, parseBody, route } from "@/lib/http";
+import { generateBrandChatGptSummarySafely } from "@/lib/services";
+
+export const maxDuration = 60;
 
 const schema = z.object({
   organizationId: z.string(),
@@ -50,12 +53,25 @@ export async function POST(request: Request) {
         `Bad Request: ta paket omogoča največ ${brandLimit} znamk.`,
       );
     }
+    const normalizedDomain = normalizeDomain(input.domain);
+    const chatGptBrandSummary = await generateBrandChatGptSummarySafely({
+      name: input.name,
+      domain: normalizedDomain,
+      description: input.description,
+      industry: input.industry,
+      country: input.country,
+      language: input.language,
+    });
     const brand = await prisma.brand.create({
       data: {
         organizationId: input.organizationId,
         name: input.name,
-        domain: normalizeDomain(input.domain),
+        domain: normalizedDomain,
         description: input.description,
+        chatGptBrandSummary,
+        chatGptBrandSummaryUpdatedAt: chatGptBrandSummary
+          ? new Date()
+          : undefined,
         industry: input.industry,
         country: input.country,
         language: input.language,

@@ -177,6 +177,8 @@ model Brand {
   name                          String
   domain                        String
   description                   String?
+  chatGptBrandSummary           String?               @db.Text
+  chatGptBrandSummaryUpdatedAt  DateTime?
   industry                      String?
   country                       String
   language                      String

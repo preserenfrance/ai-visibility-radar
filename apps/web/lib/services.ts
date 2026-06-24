@@ -626,6 +626,83 @@ export type EngineSelection = {
 export type PaidPlan = Exclude<Plan, "free">;
 export type RecurringScanCadence = "weekly" | "daily";
 
+export type BrandChatGptSummaryInput = {
+  name: string;
+  domain: string;
+  description?: string | null;
+  industry?: string | null;
+  country: string;
+  language: string;
+};
+
+export async function generateBrandChatGptSummary(
+  input: BrandChatGptSummaryInput,
+) {
+  const domain = normalizeDomain(input.domain);
+  const models = await aiModelSettings();
+  const adapter = createAiAdapter("openai", {
+    modelOverride: aiModelForProvider(models, "openai", true),
+    searchEnabled: true,
+  });
+  const output = await adapter.runPrompt({
+    prompt: buildBrandChatGptSummaryPrompt({ ...input, domain }),
+    language: input.language,
+    country: input.country,
+    brandName: input.name,
+    brandDomain: domain,
+    competitors: [],
+    searchEnabled: true,
+  });
+  return normalizeBrandChatGptSummary(output.rawText);
+}
+
+export async function generateBrandChatGptSummarySafely(
+  input: BrandChatGptSummaryInput,
+) {
+  try {
+    return await generateBrandChatGptSummary(input);
+  } catch (error) {
+    console.warn("ChatGPT brand summary failed", error);
+    return null;
+  }
+}
+
+function buildBrandChatGptSummaryPrompt(input: BrandChatGptSummaryInput) {
+  return [
+    "You are ChatGPT giving a first public impression of a brand for an AI visibility campaign.",
+    "Use current public information when search is available. If the brand has little public information, say that clearly instead of inventing details.",
+    "Write exactly three short sentences. No bullets, no headline, no markdown.",
+    isSlovenianLanguage(input.language)
+      ? "Write in natural Slovenian with correct č, š and ž."
+      : `Write in ${input.language}.`,
+    "",
+    `Brand name: ${input.name}`,
+    `Website: https://${input.domain}`,
+    `Market: ${input.country}`,
+    input.industry ? `Industry: ${input.industry}` : "",
+    input.description ? `Known internal description: ${input.description}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function normalizeBrandChatGptSummary(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+
+  const sentences =
+    normalized
+      .match(/[^.!?]+[.!?]+(?:["”])?/g)
+      ?.map((sentence) => sentence.trim()) ?? [];
+  const summary = (
+    sentences.length ? sentences.slice(0, 3).join(" ") : normalized
+  )
+    .replace(/^["“]+|["”]+$/g, "")
+    .trim();
+
+  return summary.slice(0, 1200);
+}
+
 export async function ensureEngineVariants(selections: EngineSelection[]) {
   const modelSettings = await aiModelSettings();
 
@@ -1582,6 +1659,12 @@ export async function createFreeAudit(input: {
       },
     });
     auditStep = "brand";
+    const chatGptBrandSummary = await generateBrandChatGptSummarySafely({
+      name: input.brandName,
+      domain: input.domain,
+      country: input.country,
+      language: input.language,
+    });
     const brand = await prisma.brand.create({
       data: {
         organizationId: organization.id,
@@ -1590,6 +1673,10 @@ export async function createFreeAudit(input: {
         country: input.country,
         language: input.language,
         aliases: [],
+        chatGptBrandSummary,
+        chatGptBrandSummaryUpdatedAt: chatGptBrandSummary
+          ? new Date()
+          : undefined,
       },
     });
     const competitorNames = splitCompetitors(input.competitors);

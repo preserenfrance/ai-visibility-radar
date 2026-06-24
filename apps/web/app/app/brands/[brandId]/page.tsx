@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { Sparkles } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import { ProviderScanForm } from "@/components/provider-scan-form";
 import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
 import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
 import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
-import { createScanForBrand } from "@/lib/services";
+import {
+  createScanForBrand,
+  generateBrandChatGptSummary,
+} from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -30,12 +35,44 @@ async function startProviderScan(formData: FormData) {
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
 }
 
+async function refreshBrandChatGptSummary(formData: FormData) {
+  "use server";
+  const brandId = String(formData.get("brandId"));
+  const { brand } = await requireBrandAccess(brandId);
+
+  try {
+    const summary = await generateBrandChatGptSummary({
+      name: brand.name,
+      domain: brand.domain,
+      description: brand.description,
+      industry: brand.industry,
+      country: brand.country,
+      language: brand.language,
+    });
+    await prisma.brand.update({
+      where: { id: brandId },
+      data: {
+        chatGptBrandSummary: summary,
+        chatGptBrandSummaryUpdatedAt: summary ? new Date() : undefined,
+      },
+    });
+  } catch (error) {
+    console.error("ChatGPT brand summary refresh failed", error);
+    redirect(`/app/brands/${brandId}?brandSummary=error`);
+  }
+
+  redirect(`/app/brands/${brandId}`);
+}
+
 export default async function BrandPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ brandId: string }>;
+  searchParams?: Promise<{ brandSummary?: string }>;
 }) {
   const { brandId } = await params;
+  const query = await searchParams;
   await requireBrandAccess(brandId);
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
@@ -72,17 +109,48 @@ export default async function BrandPage({
   const manualScanAccess = canRunManualScans(brand.organization);
   const recurringScanActive =
     brand.recurringScanActive && canRunAutomaticScans(brand.organization);
+  const brandSummaryError = query?.brandSummary === "error";
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <Card className="mb-6">
-        <CardContent className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
-          <div>
+        <CardContent className="grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-start">
+          <div className="min-w-0">
             <div className="text-xs font-semibold uppercase text-muted-foreground">
               Znamka
             </div>
             <h1 className="mt-1 text-3xl font-semibold">{brand.name}</h1>
             <p className="text-muted-foreground">{brand.domain}</p>
+            <div className="mt-4 rounded-md border bg-secondary/30 p-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  ChatGPT pogled na znamko
+                </div>
+                <form action={refreshBrandChatGptSummary}>
+                  <input type="hidden" name="brandId" value={brand.id} />
+                  <Button type="submit" size="sm" variant="outline">
+                    {brand.chatGptBrandSummary ? "Osveži" : "Pripravi"}
+                  </Button>
+                </form>
+              </div>
+              {brand.chatGptBrandSummary ? (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {brand.chatGptBrandSummary}
+                </p>
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  ChatGPT pogled se pripravi ob ustvarjanju nove kampanje ali s
+                  klikom na gumb Pripravi.
+                </p>
+              )}
+              {brandSummaryError && (
+                <p className="mt-2 text-xs text-destructive">
+                  ChatGPT pogleda trenutno ni bilo mogoče pripraviti. Preveri
+                  OpenAI nastavitev ali poskusi ponovno.
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2 md:justify-end">
             <Badge variant="secondary">{brand.country}</Badge>
