@@ -27,8 +27,8 @@ export function PaidFeaturePaywall({
       <CardContent className="grid gap-5">
         <p className="max-w-2xl text-sm text-muted-foreground">
           Ta zavihek je namenjen rednemu delu z rezultati: spremljanju
-          konkurentov, citiranih virov in konkretnih nalog. Za dostop aktiviraj
-          naročnino Starter ali Growth.
+          konkurentov in citiranih virov. Za dostop aktiviraj naročnino Starter
+          ali Growth.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
           <PlanCard
@@ -39,7 +39,7 @@ export function PaidFeaturePaywall({
               "1 znamka",
               "25 promptov",
               "Tedenski reden scan",
-              "Konkurenti, citati in ideje za izboljšanje",
+              "Konkurenti in citati",
             ]}
           />
           <PlanCard

@@ -89,7 +89,7 @@ const features: Array<{
   },
   {
     label: "Ideje za izboljšanje",
-    values: { free: false, starter: true, growth: true },
+    values: { free: true, starter: true, growth: true },
   },
 ];
 

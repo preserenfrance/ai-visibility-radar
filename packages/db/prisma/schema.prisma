@@ -172,7 +172,7 @@ model Membership {
 }
 
 model Brand {
-  id                            String           @id @default(cuid())
+  id                            String                @id @default(cuid())
   organizationId                String
   name                          String
   domain                        String
@@ -180,23 +180,24 @@ model Brand {
   industry                      String?
   country                       String
   language                      String
-  aliases                       Json             @default("[]")
-  recurringScanActive           Boolean          @default(false)
+  aliases                       Json                  @default("[]")
+  recurringScanActive           Boolean               @default(false)
   recurringScanCadence          ScanCadence?
   recurringScanPlan             Plan?
   recurringScanActivatedAt      DateTime?
   recurringScanLastRunAt        DateTime?
   recurringScanNextRunAt        DateTime?
-  recurringScanProviderVariants Json             @default("[]")
-  organization                  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recurringScanProviderVariants Json                  @default("[]")
+  organization                  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   competitors                   Competitor[]
   crawlSnapshots                CrawlSnapshot[]
   promptSets                    PromptSet[]
   scanRuns                      ScanRun[]
   scoreSnapshots                ScoreSnapshot[]
   recommendations               Recommendation[]
-  createdAt                     DateTime         @default(now())
-  updatedAt                     DateTime         @updatedAt
+  promptContentReviews          PromptContentReview[]
+  createdAt                     DateTime              @default(now())
+  updatedAt                     DateTime              @updatedAt
 
   @@index([organizationId])
 }
@@ -267,19 +268,20 @@ model PromptSet {
 }
 
 model Prompt {
-  id          String      @id @default(cuid())
-  promptSetId String
-  text        String
-  category    String
-  intent      String
-  persona     String
-  funnelStage String
-  priority    Int
-  isActive    Boolean     @default(true)
-  promptSet   PromptSet   @relation(fields: [promptSetId], references: [id], onDelete: Cascade)
-  promptRuns  PromptRun[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String                @id @default(cuid())
+  promptSetId    String
+  text           String
+  category       String
+  intent         String
+  persona        String
+  funnelStage    String
+  priority       Int
+  isActive       Boolean               @default(true)
+  promptSet      PromptSet             @relation(fields: [promptSetId], references: [id], onDelete: Cascade)
+  promptRuns     PromptRun[]
+  contentReviews PromptContentReview[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
   @@index([promptSetId, isActive])
 }
@@ -445,6 +447,33 @@ model Recommendation {
   updatedAt           DateTime             @updatedAt
 
   @@index([brandId, status])
+}
+
+model PromptContentReview {
+  id                  String   @id @default(cuid())
+  brandId             String
+  promptId            String
+  promptText          String   @db.Text
+  searchQuery         String   @db.Text
+  resultUrl           String?
+  resultTitle         String?
+  foundOwnedResult    Boolean  @default(false)
+  score               Int?
+  summary             String?  @db.Text
+  rankingReadiness    String?  @db.Text
+  issuesJson          Json     @default("[]")
+  recommendationsJson Json     @default("[]")
+  rawText             String?  @db.Text
+  rawJson             Json?
+  status              String   @default("completed")
+  errorMessage        String?  @db.Text
+  brand               Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  prompt              Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([brandId, createdAt])
+  @@index([promptId, createdAt])
 }
 
 model Lead {

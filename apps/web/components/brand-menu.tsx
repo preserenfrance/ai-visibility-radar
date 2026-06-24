@@ -37,7 +37,7 @@ const items: BrandMenuItem[] = [
   {
     key: "actions",
     label: "Ideje za izboljšanje",
-    paid: true,
+    paid: false,
     href: (brandId) => `/app/brands/${brandId}/actions`,
   },
 ];

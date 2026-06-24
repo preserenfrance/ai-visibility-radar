@@ -748,6 +748,287 @@ export async function createScanForBrand(
   });
 }
 
+export async function reviewPromptContentForBrand(promptId: string) {
+  const prompt = await prisma.prompt.findUnique({
+    where: { id: promptId },
+    include: {
+      promptSet: {
+        include: {
+          brand: true,
+        },
+      },
+    },
+  });
+  if (!prompt) throw new Error("Prompt not found");
+
+  const brand = prompt.promptSet.brand;
+  const domain = normalizeDomain(brand.domain);
+  const searchQuery = `${prompt.text} site:${domain}`;
+
+  try {
+    const review = await runPromptContentReviewWithOpenAi({
+      prompt: prompt.text,
+      searchQuery,
+      brandName: brand.name,
+      domain,
+      country: brand.country,
+      language: brand.language,
+    });
+
+    return prisma.promptContentReview.create({
+      data: {
+        brandId: brand.id,
+        promptId: prompt.id,
+        promptText: prompt.text,
+        searchQuery,
+        resultUrl: review.resultUrl,
+        resultTitle: review.resultTitle,
+        foundOwnedResult: review.foundOwnedResult,
+        score: review.score,
+        summary: review.summary,
+        rankingReadiness: review.rankingReadiness,
+        issuesJson: review.issues,
+        recommendationsJson: review.recommendations,
+        rawText: review.rawText,
+        rawJson: JSON.parse(JSON.stringify(review.rawJson)),
+        status: "completed",
+      },
+    });
+  } catch (error) {
+    return prisma.promptContentReview.create({
+      data: {
+        brandId: brand.id,
+        promptId: prompt.id,
+        promptText: prompt.text,
+        searchQuery,
+        status: "failed",
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown review error",
+      },
+    });
+  }
+}
+
+type PromptContentReviewInput = {
+  prompt: string;
+  searchQuery: string;
+  brandName: string;
+  domain: string;
+  country: string;
+  language: string;
+};
+
+type PromptContentReviewOutput = {
+  foundOwnedResult: boolean;
+  resultTitle: string | null;
+  resultUrl: string | null;
+  score: number;
+  summary: string;
+  rankingReadiness: string;
+  issues: string[];
+  recommendations: string[];
+  rawText: string;
+  rawJson: unknown;
+};
+
+async function runPromptContentReviewWithOpenAi(
+  input: PromptContentReviewInput,
+): Promise<PromptContentReviewOutput> {
+  const config = getConfig();
+  if (!config.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is required for prompt content review");
+  }
+
+  const models = await aiModelSettings();
+  const model = aiModelForProvider(models, "openai", true);
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      input: buildPromptContentReviewPrompt(input),
+      tools: [
+        {
+          type: "web_search",
+          search_context_size: "medium",
+        },
+      ],
+      tool_choice: "auto",
+      include: ["web_search_call.action.sources"],
+    }),
+  });
+
+  const rawJson = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      `OpenAI Responses API error ${response.status}: ${JSON.stringify(rawJson)}`,
+    );
+  }
+
+  const rawText = extractOpenAiResponseText(rawJson);
+  const parsed = parseJsonObject(rawText);
+  return normalizePromptContentReviewOutput(
+    parsed,
+    rawText,
+    rawJson,
+    input.domain,
+  );
+}
+
+function buildPromptContentReviewPrompt(input: PromptContentReviewInput) {
+  return [
+    "You evaluate whether a measured website already has content that can help ChatGPT recommend or cite it for a buyer prompt.",
+    "Use web search. Treat the search as a Google-style query and use exactly this query:",
+    input.searchQuery,
+    "",
+    "Take the first organic result from the measured domain. If no result from that domain exists, do not invent a URL.",
+    "Open or inspect the result when available and judge the actual page content, not just the snippet.",
+    "",
+    `Measured brand: ${input.brandName}`,
+    `Measured domain: ${input.domain}`,
+    `Market: ${input.country}`,
+    `Prompt language: ${input.language}`,
+    `Buyer prompt: ${input.prompt}`,
+    "",
+    "Score from 1 to 10 for how ready the page is to rank or be cited in ChatGPT for this prompt.",
+    "Use 1-3 for no result, irrelevant content, or very thin content; 4-6 for partial coverage; 7 for useful but incomplete content; 8-10 for strong, specific, citation-ready content.",
+    "If the score is below 8, give concrete improvements for the page.",
+    "Return only strict JSON. Do not wrap it in markdown.",
+    "",
+    `{
+  "foundOwnedResult": boolean,
+  "resultTitle": string | null,
+  "resultUrl": string | null,
+  "score": number,
+  "summary": string,
+  "rankingReadiness": string,
+  "issues": string[],
+  "improvements": string[]
+}`,
+  ].join("\n");
+}
+
+function normalizePromptContentReviewOutput(
+  parsed: unknown,
+  rawText: string,
+  rawJson: unknown,
+  domain: string,
+): PromptContentReviewOutput {
+  const record = isObjectRecord(parsed) ? parsed : {};
+  const sources = extractOpenAiResponseSources(rawJson).filter((source) =>
+    isPageFromDomain(source.url, domain),
+  );
+  const parsedResultUrl = optionalText(record.resultUrl);
+  const resultUrl =
+    parsedResultUrl && isPageFromDomain(parsedResultUrl, domain)
+      ? parsedResultUrl
+      : (sources[0]?.url ?? null);
+  const resultTitle =
+    optionalText(record.resultTitle) ?? sources[0]?.title ?? null;
+  const foundOwnedResult = Boolean(resultUrl);
+  const score = foundOwnedResult ? clampReviewScore(record.score) : 1;
+  const issues = toStringArray(record.issues).slice(0, 8);
+  const parsedRecommendations = toStringArray(record.improvements).slice(0, 8);
+  const recommendations =
+    parsedRecommendations.length || score >= 8
+      ? parsedRecommendations
+      : defaultPromptContentRecommendations(foundOwnedResult);
+
+  return {
+    foundOwnedResult,
+    resultTitle,
+    resultUrl,
+    score,
+    summary:
+      optionalText(record.summary) ??
+      (foundOwnedResult
+        ? "Stran je bila najdena, vendar model ni vrnil povzetka."
+        : "Za ta prompt na domeni ni bil najden primeren rezultat."),
+    rankingReadiness:
+      optionalText(record.rankingReadiness) ??
+      (score >= 8
+        ? "Vsebina je primerna za AI odgovore."
+        : "Vsebina potrebuje izboljšave pred zanesljivim rangiranjem."),
+    issues,
+    recommendations,
+    rawText,
+    rawJson,
+  };
+}
+
+function defaultPromptContentRecommendations(foundOwnedResult: boolean) {
+  if (!foundOwnedResult) {
+    return [
+      "Dodaj namensko stran ali razdelek, ki neposredno odgovori na ta prompt.",
+      "Vključi konkretne produkte ali storitve, primere uporabe, cene oziroma pogoje in dokazila.",
+      "Poskrbi, da je stran indeksabilna in jasno povezana iz navigacije ali relevantnih kategorij.",
+    ];
+  }
+  return [
+    "Dopolni najdeno stran z neposrednim odgovorom na prompt že v uvodnem delu.",
+    "Dodaj primerjave, konkretne podatke, FAQ in dokazila, ki jih lahko AI model povzame ali citira.",
+    "Jasno poveži vsebino z znamko, ponudbo, lokacijo in nakupnim naslednjim korakom.",
+  ];
+}
+
+function clampReviewScore(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.min(10, Math.max(1, Math.round(numeric)));
+}
+
+function optionalText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function extractOpenAiResponseText(rawJson: any): string {
+  if (typeof rawJson?.output_text === "string") return rawJson.output_text;
+  const blocks: string[] = [];
+  walkJson(rawJson, (value) => {
+    if (!isObjectRecord(value)) return;
+    if (
+      (value.type === "output_text" || value.type === "text") &&
+      typeof value.text === "string"
+    ) {
+      blocks.push(value.text);
+    }
+  });
+  return blocks.join("\n").trim();
+}
+
+function extractOpenAiResponseSources(rawJson: unknown) {
+  const sources: Array<{ url: string; title?: string | null }> = [];
+  const seen = new Set<string>();
+  walkJson(rawJson, (value) => {
+    if (!isObjectRecord(value)) return;
+    const url = optionalText(value.url);
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    sources.push({
+      url,
+      title: optionalText(value.title),
+    });
+  });
+  return sources;
+}
+
+function walkJson(value: unknown, visitor: (value: unknown) => void) {
+  if (!value || typeof value !== "object") return;
+  visitor(value);
+  if (Array.isArray(value)) {
+    for (const item of value) walkJson(item, visitor);
+    return;
+  }
+  for (const item of Object.values(value)) walkJson(item, visitor);
+}
+
 export function recurringScanCadenceForPlan(
   plan: Plan,
 ): RecurringScanCadence | null {

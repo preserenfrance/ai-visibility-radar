@@ -1,14 +1,18 @@
 import { redirect } from "next/navigation";
 import { BrandMenu } from "@/components/brand-menu";
 import { PaidFeaturePaywall } from "@/components/paid-feature-paywall";
-import { hasActivePaidPlan, paidFeatureFromValue, paidFeatureLabels } from "@/lib/billing";
+import {
+  hasActivePaidPlan,
+  paidFeatureFromValue,
+  paidFeatureLabels,
+} from "@/lib/billing";
 import { requireBrandAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function BrandPaywallPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ brandId: string }>;
   searchParams?: Promise<{ feature?: string }>;
@@ -17,7 +21,7 @@ export default async function BrandPaywallPage({
   const feature = paidFeatureFromValue((await searchParams)?.feature);
   const { brand } = await requireBrandAccess(brandId);
 
-  if (hasActivePaidPlan(brand.organization)) {
+  if (feature === "actions" || hasActivePaidPlan(brand.organization)) {
     redirect(`/app/brands/${brandId}/${feature}`);
   }
 
@@ -28,7 +32,11 @@ export default async function BrandPaywallPage({
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <BrandMenu brandId={brandId} active={feature} />
-      <PaidFeaturePaywall brandId={brandId} organizationId={brand.organizationId} feature={feature} />
+      <PaidFeaturePaywall
+        brandId={brandId}
+        organizationId={brand.organizationId}
+        feature={feature}
+      />
     </section>
   );
 }
