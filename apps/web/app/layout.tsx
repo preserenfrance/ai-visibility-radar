@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AI Visibility Radar",
-  description: "Merjenje ponovljive vidnosti znamke v ChatGPT, Gemini in Claude."
+  description:
+    "Merjenje ponovljive vidnosti znamke v ChatGPT, Gemini in Claude.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="sl">
       <body>
@@ -17,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex-1">{children}</div>
           <SiteFooter />
         </div>
+        <Analytics />
       </body>
     </html>
   );

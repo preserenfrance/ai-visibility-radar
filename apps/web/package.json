@@ -25,18 +25,19 @@
     "@bull-board/api": "^6.7.0",
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-slot": "^1.1.1",
+    "@vercel/analytics": "^2.0.1",
     "bullmq": "^5.34.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "ioredis": "^5.4.1",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "stripe": "^17.4.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/react": "^19.0.1",
