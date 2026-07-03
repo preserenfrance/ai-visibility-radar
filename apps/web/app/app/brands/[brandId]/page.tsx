@@ -2,7 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { normalizeDomain } from "@ai-radar/shared";
-import { Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  PackageSearch,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import {
@@ -21,7 +26,9 @@ import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
 import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
 import {
   createScanForBrand,
+  generateBrandCustomerConcernsSummary,
   generateBrandChatGptSummary,
+  generateBrandProductSummary,
   manualScanUsageForOrganization,
 } from "@/lib/services";
 
@@ -64,33 +71,73 @@ async function startProviderScan(formData: FormData) {
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
 }
 
-async function refreshBrandChatGptSummary(formData: FormData) {
+type BrandInsightType = "summary" | "customerConcerns" | "products";
+
+async function refreshBrandChatGptInsight(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
+  const insight = String(formData.get("insight") ?? "");
+  if (!isBrandInsightType(insight)) {
+    throw new Error("Bad Request: neveljaven vpogled znamke");
+  }
   const { brand } = await requireBrandAccess(brandId);
+  const input = {
+    name: brand.name,
+    domain: brand.domain,
+    description: brand.description,
+    industry: brand.industry,
+    country: brand.country,
+    language: brand.language,
+  };
 
   try {
-    const summary = await generateBrandChatGptSummary({
-      name: brand.name,
-      domain: brand.domain,
-      description: brand.description,
-      industry: brand.industry,
-      country: brand.country,
-      language: brand.language,
-    });
+    const now = new Date();
+    const summary =
+      insight === "summary"
+        ? await generateBrandChatGptSummary(input)
+        : insight === "customerConcerns"
+          ? await generateBrandCustomerConcernsSummary(input)
+          : await generateBrandProductSummary(input);
+
     await prisma.brand.update({
       where: { id: brandId },
-      data: {
-        chatGptBrandSummary: summary,
-        chatGptBrandSummaryUpdatedAt: summary ? new Date() : undefined,
-      },
+      data: brandInsightUpdateData(insight, summary, now),
     });
   } catch (error) {
-    console.error("ChatGPT brand summary refresh failed", error);
-    redirect(`/app/brands/${brandId}?brandSummary=error`);
+    console.error("ChatGPT brand insight refresh failed", error);
+    redirect(`/app/brands/${brandId}?brandInsight=error`);
   }
 
   redirect(`/app/brands/${brandId}`);
+}
+
+function isBrandInsightType(value: string): value is BrandInsightType {
+  return (
+    value === "summary" || value === "customerConcerns" || value === "products"
+  );
+}
+
+function brandInsightUpdateData(
+  insight: BrandInsightType,
+  summary: string | null,
+  now: Date,
+) {
+  if (insight === "summary") {
+    return {
+      chatGptBrandSummary: summary,
+      chatGptBrandSummaryUpdatedAt: summary ? now : null,
+    };
+  }
+  if (insight === "customerConcerns") {
+    return {
+      chatGptCustomerConcernsSummary: summary,
+      chatGptCustomerConcernsSummaryUpdatedAt: summary ? now : null,
+    };
+  }
+  return {
+    chatGptProductSummary: summary,
+    chatGptProductSummaryUpdatedAt: summary ? now : null,
+  };
 }
 
 export default async function BrandPage({
@@ -98,7 +145,7 @@ export default async function BrandPage({
   searchParams,
 }: {
   params: Promise<{ brandId: string }>;
-  searchParams?: Promise<{ brandSummary?: string }>;
+  searchParams?: Promise<{ brandInsight?: string; brandSummary?: string }>;
 }) {
   const { brandId } = await params;
   const query = await searchParams;
@@ -166,7 +213,8 @@ export default async function BrandPage({
   const automaticScanAccess = canRunAutomaticScans(brand.organization);
   const recurringScanActive = brand.recurringScanActive && automaticScanAccess;
   const recurringScanScheduled = automaticScanAccess;
-  const brandSummaryError = query?.brandSummary === "error";
+  const brandInsightError =
+    query?.brandInsight === "error" || query?.brandSummary === "error";
   const mentionedDomainSeries = buildMentionedDomainSeries(
     mentionTrendScanRuns,
     brand.domain,
@@ -196,89 +244,86 @@ export default async function BrandPage({
     <section className="mx-auto max-w-7xl px-5 py-8">
       <BrandMenu brandId={brand.id} active="overview" />
 
-      <Card className="mb-6">
-        <CardContent className="grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-start">
+      <section className="mb-6 rounded-md border bg-card px-5 py-4">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase text-muted-foreground">
-              Znamka
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-2xl font-semibold">{brand.name}</h1>
+              <Badge variant="secondary">{brand.country}</Badge>
+              <Badge variant="secondary">{brand.language}</Badge>
+              {brand.industry && <Badge>{brand.industry}</Badge>}
             </div>
-            <h1 className="mt-1 text-3xl font-semibold">{brand.name}</h1>
-            <p className="text-muted-foreground">{brand.domain}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{brand.domain}</p>
           </div>
-          <div className="flex flex-wrap gap-2 md:justify-end">
-            <Badge variant="secondary">{brand.country}</Badge>
-            <Badge variant="secondary">{brand.language}</Badge>
-            {brand.industry && <Badge>{brand.industry}</Badge>}
-          </div>
-          <div className="grid gap-3 rounded-md border bg-white p-4 text-sm md:col-span-2 md:grid-cols-3">
-            <div>
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Konkurenti
-              </div>
-              <div className="mt-1 text-lg font-semibold">
-                {brand.competitors.length}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Prompti
-              </div>
-              <div className="mt-1 text-lg font-semibold">
-                {promptSet?.prompts.length ?? 0}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Reden scan
-              </div>
-              <div className="mt-1 text-lg font-semibold">
-                {recurringScanScheduled
+
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
+            <CompactBrandFact
+              label="Konkurenti"
+              value={brand.competitors.length}
+            />
+            <CompactBrandFact
+              label="Prompti"
+              value={promptSet?.prompts.length ?? 0}
+            />
+            <CompactBrandFact
+              label="Reden scan"
+              value={
+                recurringScanScheduled
                   ? cadenceLabel(brand.recurringScanCadence ?? "weekly")
-                  : "ni aktiven"}
-              </div>
-              {recurringScanScheduled && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {brand.recurringScanNextRunAt
-                    ? `Naslednji: ${brand.recurringScanNextRunAt.toLocaleString("sl-SI")}`
-                    : recurringScanActive
-                      ? "Naslednji termin se nastavlja."
-                      : "Naslednji termin se nastavi ob naslednjem cron zagonu."}
-                </div>
-              )}
-            </div>
+                  : "ni aktiven"
+              }
+              detail={
+                recurringScanScheduled && brand.recurringScanNextRunAt
+                  ? brand.recurringScanNextRunAt.toLocaleString("sl-SI")
+                  : recurringScanActive
+                    ? "termin se nastavlja"
+                    : undefined
+              }
+            />
+            <CompactBrandFact
+              label="Ročni scani"
+              value={`${manualScanUsage.remaining}/${manualScanUsage.limit}`}
+              detail={`reset ${manualScanUsage.resetAt.toLocaleDateString("sl-SI")}`}
+            />
           </div>
-          <div className="rounded-md border bg-secondary/30 p-4 md:col-span-2">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Sparkles className="h-4 w-4 text-primary" />
-                ChatGPT pogled na znamko
-              </div>
-              <form action={refreshBrandChatGptSummary}>
-                <input type="hidden" name="brandId" value={brand.id} />
-                <Button type="submit" size="sm" variant="outline">
-                  {brand.chatGptBrandSummary ? "Osveži" : "Pripravi"}
-                </Button>
-              </form>
-            </div>
-            {brand.chatGptBrandSummary ? (
-              <p className="text-sm leading-6 text-muted-foreground">
-                {brand.chatGptBrandSummary}
-              </p>
-            ) : (
-              <p className="text-sm leading-6 text-muted-foreground">
-                ChatGPT pogled se pripravi ob ustvarjanju nove kampanje ali s
-                klikom na gumb Pripravi.
-              </p>
-            )}
-            {brandSummaryError && (
-              <p className="mt-2 text-xs text-destructive">
-                ChatGPT pogleda trenutno ni bilo mogoče pripraviti. Preveri
-                OpenAI nastavitev ali poskusi ponovno.
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="mt-4 grid divide-y overflow-hidden rounded-md border bg-background lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+          <BrandInsightPanel
+            brandId={brand.id}
+            insight="summary"
+            icon="summary"
+            title="ChatGPT pogled na znamko"
+            value={brand.chatGptBrandSummary}
+            updatedAt={brand.chatGptBrandSummaryUpdatedAt}
+            emptyText="Pogled še ni pripravljen."
+          />
+          <BrandInsightPanel
+            brandId={brand.id}
+            insight="customerConcerns"
+            icon="concerns"
+            title="Kaj moti nezadovoljne stranke"
+            value={brand.chatGptCustomerConcernsSummary}
+            updatedAt={brand.chatGptCustomerConcernsSummaryUpdatedAt}
+            emptyText="Javne pripombe še niso pripravljene."
+          />
+          <BrandInsightPanel
+            brandId={brand.id}
+            insight="products"
+            icon="products"
+            title="Ključni produkti in ponudba"
+            value={brand.chatGptProductSummary}
+            updatedAt={brand.chatGptProductSummaryUpdatedAt}
+            emptyText="Povzetek ponudbe še ni pripravljen."
+          />
+        </div>
+        {brandInsightError && (
+          <p className="mt-3 text-xs text-destructive">
+            ChatGPT vpogleda trenutno ni bilo mogoče pripraviti. Preveri OpenAI
+            nastavitev ali poskusi ponovno.
+          </p>
+        )}
+      </section>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
@@ -398,6 +443,85 @@ export default async function BrandPage({
       />
     </section>
   );
+}
+
+function CompactBrandFact({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string | number;
+  detail?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs font-semibold uppercase text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 truncate text-base font-semibold">{value}</div>
+      {detail && (
+        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+          {detail}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type BrandInsightIcon = "summary" | "concerns" | "products";
+
+function BrandInsightPanel({
+  brandId,
+  insight,
+  icon,
+  title,
+  value,
+  updatedAt,
+  emptyText,
+}: {
+  brandId: string;
+  insight: BrandInsightType;
+  icon: BrandInsightIcon;
+  title: string;
+  value: string | null;
+  updatedAt: Date | null;
+  emptyText: string;
+}) {
+  const Icon = brandInsightIcon(icon);
+
+  return (
+    <section className="min-w-0 p-4">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Icon className="h-4 w-4 shrink-0 text-primary" />
+          <h2 className="truncate text-sm font-semibold">{title}</h2>
+        </div>
+        <form action={refreshBrandChatGptInsight}>
+          <input type="hidden" name="brandId" value={brandId} />
+          <input type="hidden" name="insight" value={insight} />
+          <Button type="submit" size="sm" variant="ghost" className="h-8 px-2">
+            <RefreshCw className="h-3.5 w-3.5" />
+            {value ? "Osveži" : "Pripravi"}
+          </Button>
+        </form>
+      </div>
+      <p className="text-sm leading-6 text-muted-foreground">
+        {value ?? emptyText}
+      </p>
+      {updatedAt && (
+        <div className="mt-2 text-xs text-muted-foreground">
+          {updatedAt.toLocaleString("sl-SI")}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function brandInsightIcon(icon: BrandInsightIcon) {
+  if (icon === "concerns") return AlertTriangle;
+  if (icon === "products") return PackageSearch;
+  return Sparkles;
 }
 
 type TrendDay = {

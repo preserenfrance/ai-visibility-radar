@@ -5,7 +5,7 @@ import { normalizeDomain } from "@ai-radar/shared";
 import { requireCurrentUser, requireOrganizationAccess } from "@/lib/auth";
 import { ok, parseBody, route } from "@/lib/http";
 import {
-  generateBrandChatGptSummarySafely,
+  generateBrandChatGptInsightsSafely,
   recurringScanActivationData,
 } from "@/lib/services";
 
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       );
     }
     const normalizedDomain = normalizeDomain(input.domain);
-    const chatGptBrandSummary = await generateBrandChatGptSummarySafely({
+    const chatGptInsights = await generateBrandChatGptInsightsSafely({
       name: input.name,
       domain: normalizedDomain,
       description: input.description,
@@ -72,8 +72,15 @@ export async function POST(request: Request) {
         name: input.name,
         domain: normalizedDomain,
         description: input.description,
-        chatGptBrandSummary,
-        chatGptBrandSummaryUpdatedAt: chatGptBrandSummary
+        chatGptBrandSummary: chatGptInsights.brandSummary,
+        chatGptBrandSummaryUpdatedAt: chatGptInsights.brandSummary
+          ? new Date()
+          : undefined,
+        chatGptCustomerConcernsSummary: chatGptInsights.customerConcernsSummary,
+        chatGptCustomerConcernsSummaryUpdatedAt:
+          chatGptInsights.customerConcernsSummary ? new Date() : undefined,
+        chatGptProductSummary: chatGptInsights.productSummary,
+        chatGptProductSummaryUpdatedAt: chatGptInsights.productSummary
           ? new Date()
           : undefined,
         industry: input.industry,

@@ -1,6 +1,6 @@
 export type AiEngineProvider = "openai" | "google" | "anthropic" | "mock";
 
-export type Plan = "free" | "starter" | "growth";
+export type Plan = "free" | "starter" | "growth" | "disabled";
 
 export type PromptCategory =
   | "category"
@@ -140,18 +140,22 @@ export type ScoreBreakdown = {
   accuracyScore: number;
 };
 
-export const ENGINE_PROVIDERS: AiEngineProvider[] = ["openai", "google", "anthropic"];
+export const ENGINE_PROVIDERS: AiEngineProvider[] = [
+  "openai",
+  "google",
+  "anthropic",
+];
 
 export const FREE_AUDIT_LIMITS = {
   maxPages: 10,
   promptCount: 3,
-  repeatCount: 1
+  repeatCount: 1,
 } as const;
 
 export const MVP_LIMITS = {
   maxPages: 50,
   promptCount: 25,
-  repeatCount: 1
+  repeatCount: 1,
 } as const;
 
 export const JOB_NAMES = {
@@ -163,14 +167,16 @@ export const JOB_NAMES = {
   scoreScan: "score_scan",
   generateRecommendations: "generate_recommendations",
   sendEmailReport: "send_email_report",
-  syncLeadToAdmin: "sync_lead_to_admin"
+  syncLeadToAdmin: "sync_lead_to_admin",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 
 export function domainFromUrl(value: string): string | undefined {
   try {
-    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
+    const url = value.startsWith("http")
+      ? new URL(value)
+      : new URL(`https://${value}`);
     return url.hostname.replace(/^www\./, "").toLowerCase();
   } catch {
     return undefined;

@@ -14,11 +14,14 @@ import {
 } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
-import { activateRecurringScansForOrganizationPlan } from "@/lib/services";
+import {
+  activateRecurringScansForOrganizationPlan,
+  deactivateRecurringScansForOrganization,
+} from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
-const plans: Plan[] = ["free", "starter", "growth"];
+const plans: Plan[] = ["free", "starter", "growth", "disabled"];
 
 async function updateAccountPlan(formData: FormData) {
   "use server";
@@ -29,27 +32,81 @@ async function updateAccountPlan(formData: FormData) {
   if (!organizationId || !isPlan(plan))
     throw new Error("Bad Request: neveljaven account plan");
 
+  await setOrganizationPlan(organizationId, plan);
+
+  redirect("/admin?updated=1");
+}
+
+async function deactivateAccountPlan(formData: FormData) {
+  "use server";
+  await requireAdminUser();
+
+  const organizationId = String(formData.get("organizationId") ?? "");
+  if (!organizationId) throw new Error("Bad Request: manjka organizacija");
+
+  await setOrganizationPlan(organizationId, "disabled");
+
+  redirect("/admin?updated=disabled");
+}
+
+async function setOrganizationPlan(organizationId: string, plan: Plan) {
   await prisma.organization.update({
     where: { id: organizationId },
     data: { plan },
   });
 
+  const billingStatus =
+    plan === "starter" || plan === "growth" ? "active" : "canceled";
   await prisma.billingSubscription.upsert({
     where: { organizationId },
     update: {
       plan,
-      status: plan === "free" ? "canceled" : "active",
+      status: billingStatus,
     },
     create: {
       organizationId,
       plan,
-      status: plan === "free" ? "canceled" : "active",
+      status: billingStatus,
     },
   });
 
-  await activateRecurringScansForOrganizationPlan(organizationId, plan);
+  if (plan === "disabled") {
+    await deactivateRecurringScansForOrganization(organizationId);
+    await cancelActiveScansForOrganization(organizationId);
+    return;
+  }
 
-  redirect("/admin?updated=1");
+  await activateRecurringScansForOrganizationPlan(organizationId, plan);
+}
+
+async function cancelActiveScansForOrganization(organizationId: string) {
+  const canceledAt = new Date();
+  await prisma.$transaction([
+    prisma.promptRun.updateMany({
+      where: {
+        status: { in: ["queued", "running"] },
+        scanRun: {
+          status: { in: ["queued", "running"] },
+          brand: { organizationId },
+        },
+      },
+      data: {
+        status: "skipped",
+        finishedAt: canceledAt,
+        errorMessage: "Preklicano zaradi deaktiviranega paketa.",
+      },
+    }),
+    prisma.scanRun.updateMany({
+      where: {
+        status: { in: ["queued", "running"] },
+        brand: { organizationId },
+      },
+      data: {
+        status: "canceled",
+        finishedAt: canceledAt,
+      },
+    }),
+  ]);
 }
 
 export default async function AdminPage({
@@ -151,7 +208,7 @@ export default async function AdminPage({
         <MetricCard label="Leadi" value={leadCount} />
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
+      <div className="mb-6 grid gap-4 md:grid-cols-4">
         {planSummaries.map((summary) => (
           <Card key={summary.plan}>
             <CardHeader>
@@ -188,6 +245,7 @@ export default async function AdminPage({
                 <TH>Uporabnik</TH>
                 <TH>Registriran</TH>
                 <TH>Organizacija</TH>
+                <TH>Status</TH>
                 <TH>Znamke</TH>
                 <TH>Nivo</TH>
                 <TH>Billing</TH>
@@ -209,6 +267,9 @@ export default async function AdminPage({
                       </TD>
                       <TD>{user.createdAt.toLocaleString("sl-SI")}</TD>
                       <TD>brez organizacije</TD>
+                      <TD>
+                        <Badge variant="secondary">brez accounta</Badge>
+                      </TD>
                       <TD>0</TD>
                       <TD>
                         <Badge variant="secondary">-</Badge>
@@ -245,6 +306,9 @@ export default async function AdminPage({
                         </div>
                       </TD>
                       <TD>
+                        <AccountStatusBadge plan={organization.plan} />
+                      </TD>
+                      <TD>
                         {organization._count.brands} / {limits.brandCount}
                       </TD>
                       <TD>
@@ -254,30 +318,48 @@ export default async function AdminPage({
                         <BillingBadge organization={organization} />
                       </TD>
                       <TD>
-                        <form
-                          action={updateAccountPlan}
-                          className="flex flex-wrap items-center gap-2"
-                        >
-                          <input
-                            type="hidden"
-                            name="organizationId"
-                            value={organization.id}
-                          />
-                          <select
-                            name="plan"
-                            defaultValue={organization.plan}
-                            className="h-9 rounded-md border bg-background px-3 text-sm"
+                        <div className="flex flex-wrap items-center gap-2">
+                          <form
+                            action={updateAccountPlan}
+                            className="flex flex-wrap items-center gap-2"
                           >
-                            {plans.map((plan) => (
-                              <option key={plan} value={plan}>
-                                {plan}
-                              </option>
-                            ))}
-                          </select>
-                          <Button type="submit" size="sm" variant="outline">
-                            Shrani
-                          </Button>
-                        </form>
+                            <input
+                              type="hidden"
+                              name="organizationId"
+                              value={organization.id}
+                            />
+                            <select
+                              name="plan"
+                              defaultValue={organization.plan}
+                              className="h-9 rounded-md border bg-background px-3 text-sm"
+                            >
+                              {plans.map((plan) => (
+                                <option key={plan} value={plan}>
+                                  {plan}
+                                </option>
+                              ))}
+                            </select>
+                            <Button type="submit" size="sm" variant="outline">
+                              Shrani
+                            </Button>
+                          </form>
+                          {organization.plan !== "disabled" && (
+                            <form action={deactivateAccountPlan}>
+                              <input
+                                type="hidden"
+                                name="organizationId"
+                                value={organization.id}
+                              />
+                              <Button
+                                type="submit"
+                                size="sm"
+                                variant="destructive"
+                              >
+                                Deaktiviraj
+                              </Button>
+                            </form>
+                          )}
+                        </div>
                       </TD>
                     </TR>
                   );
@@ -383,9 +465,15 @@ function InlineMetric({ label, value }: { label: string; value: number }) {
 }
 
 function PlanBadge({ plan }: { plan: Plan }) {
+  if (plan === "disabled") return <Badge variant="danger">disabled</Badge>;
   if (plan === "growth") return <Badge>growth</Badge>;
   if (plan === "starter") return <Badge variant="warning">starter</Badge>;
   return <Badge variant="secondary">free</Badge>;
+}
+
+function AccountStatusBadge({ plan }: { plan: Plan }) {
+  if (plan === "disabled") return <Badge variant="danger">deaktiviran</Badge>;
+  return <Badge variant="success">aktiven</Badge>;
 }
 
 function BillingBadge({
@@ -400,6 +488,9 @@ function BillingBadge({
   };
 }) {
   const subscription = organization.billingSubscription;
+  if (organization.plan === "disabled") {
+    return <Badge variant="danger">deaktivirano</Badge>;
+  }
   if (organization.plan !== "free" && !subscription?.stripeSubscriptionId) {
     return <Badge variant="success">ročno aktivno</Badge>;
   }
@@ -423,5 +514,10 @@ function BillingBadge({
 }
 
 function isPlan(value: string): value is Plan {
-  return value === "free" || value === "starter" || value === "growth";
+  return (
+    value === "free" ||
+    value === "starter" ||
+    value === "growth" ||
+    value === "disabled"
+  );
 }

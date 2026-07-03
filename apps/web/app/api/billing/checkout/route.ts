@@ -35,6 +35,9 @@ export async function POST(request: Request) {
       where: { id: input.organizationId },
     });
     if (!organization) throw new Error("Organization not found");
+    if (organization.plan === "disabled") {
+      throw new Error("Bad Request: account je deaktiviran.");
+    }
     if (input.brandId) {
       const brand = await prisma.brand.findUnique({
         where: { id: input.brandId },

@@ -22,6 +22,13 @@ export const PLAN_LIMITS: Record<
     scanCadence: "none" | "manual" | "weekly";
   }
 > = {
+  disabled: {
+    brandCount: 0,
+    promptsPerBrand: 0,
+    scansPerMonth: 0,
+    aiCallsPerMonth: 0,
+    scanCadence: "none",
+  },
   free: {
     brandCount: 1,
     promptsPerBrand: 10,

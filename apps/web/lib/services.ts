@@ -634,7 +634,7 @@ export type EngineSelection = {
   searchEnabled?: boolean;
 };
 
-export type PaidPlan = Exclude<Plan, "free">;
+export type PaidPlan = "starter" | "growth";
 export type RecurringScanCadence = "weekly" | "daily";
 
 export type BrandChatGptSummaryInput = {
@@ -646,8 +646,38 @@ export type BrandChatGptSummaryInput = {
   language: string;
 };
 
+type BrandChatGptInsightType =
+  | "brandSummary"
+  | "customerConcerns"
+  | "productSummary";
+
+export type BrandChatGptInsights = {
+  brandSummary: string | null;
+  customerConcernsSummary: string | null;
+  productSummary: string | null;
+};
+
 export async function generateBrandChatGptSummary(
   input: BrandChatGptSummaryInput,
+) {
+  return generateBrandChatGptInsight(input, "brandSummary");
+}
+
+export async function generateBrandCustomerConcernsSummary(
+  input: BrandChatGptSummaryInput,
+) {
+  return generateBrandChatGptInsight(input, "customerConcerns");
+}
+
+export async function generateBrandProductSummary(
+  input: BrandChatGptSummaryInput,
+) {
+  return generateBrandChatGptInsight(input, "productSummary");
+}
+
+async function generateBrandChatGptInsight(
+  input: BrandChatGptSummaryInput,
+  insightType: BrandChatGptInsightType,
 ) {
   const domain = normalizeDomain(input.domain);
   const models = await aiModelSettings();
@@ -656,7 +686,7 @@ export async function generateBrandChatGptSummary(
     searchEnabled: true,
   });
   const output = await adapter.runPrompt({
-    prompt: buildBrandChatGptSummaryPrompt({ ...input, domain }),
+    prompt: buildBrandChatGptInsightPrompt({ ...input, domain }, insightType),
     language: input.language,
     country: input.country,
     brandName: input.name,
@@ -670,18 +700,83 @@ export async function generateBrandChatGptSummary(
 export async function generateBrandChatGptSummarySafely(
   input: BrandChatGptSummaryInput,
 ) {
+  return generateBrandChatGptInsightSafely(input, "brandSummary");
+}
+
+export async function generateBrandCustomerConcernsSummarySafely(
+  input: BrandChatGptSummaryInput,
+) {
+  return generateBrandChatGptInsightSafely(input, "customerConcerns");
+}
+
+export async function generateBrandProductSummarySafely(
+  input: BrandChatGptSummaryInput,
+) {
+  return generateBrandChatGptInsightSafely(input, "productSummary");
+}
+
+export async function generateBrandChatGptInsightsSafely(
+  input: BrandChatGptSummaryInput,
+): Promise<BrandChatGptInsights> {
+  const [brandSummary, customerConcernsSummary, productSummary] =
+    await Promise.all([
+      generateBrandChatGptSummarySafely(input),
+      generateBrandCustomerConcernsSummarySafely(input),
+      generateBrandProductSummarySafely(input),
+    ]);
+
+  return {
+    brandSummary,
+    customerConcernsSummary,
+    productSummary,
+  };
+}
+
+async function generateBrandChatGptInsightSafely(
+  input: BrandChatGptSummaryInput,
+  insightType: BrandChatGptInsightType,
+) {
   try {
-    return await generateBrandChatGptSummary(input);
+    return await generateBrandChatGptInsight(input, insightType);
   } catch (error) {
-    console.warn("ChatGPT brand summary failed", error);
+    console.warn(`ChatGPT brand ${insightType} failed`, error);
     return null;
   }
 }
 
-function buildBrandChatGptSummaryPrompt(input: BrandChatGptSummaryInput) {
+const brandChatGptInsightPrompts: Record<
+  BrandChatGptInsightType,
+  {
+    role: string;
+    focus: string;
+  }
+> = {
+  brandSummary: {
+    role: "You are ChatGPT giving a first public impression of a brand for an AI visibility campaign.",
+    focus:
+      "Summarize what the brand appears to do, who it serves, and what it is known for. If the brand has little public information, say that clearly instead of inventing details.",
+  },
+  customerConcerns: {
+    role: "You are ChatGPT researching public customer sentiment for an AI visibility campaign.",
+    focus:
+      "Focus on recurring public complaints, objections, weak points, limitations, or review themes from customers who are not satisfied with the brand. If reliable negative feedback is limited, say that clearly and do not speculate.",
+  },
+  productSummary: {
+    role: "You are ChatGPT identifying a brand's core commercial offer for an AI visibility campaign.",
+    focus:
+      "Identify the most important products, services, categories, or offers the brand provides. Prioritize concrete product and service categories over marketing adjectives; if the offer is unclear, say that clearly.",
+  },
+};
+
+function buildBrandChatGptInsightPrompt(
+  input: BrandChatGptSummaryInput,
+  insightType: BrandChatGptInsightType,
+) {
+  const insight = brandChatGptInsightPrompts[insightType];
   return [
-    "You are ChatGPT giving a first public impression of a brand for an AI visibility campaign.",
-    "Use current public information when search is available. If the brand has little public information, say that clearly instead of inventing details.",
+    insight.role,
+    "Use current public information when search is available. Prefer reliable public sources and the brand website.",
+    insight.focus,
     "Write exactly three short sentences. No bullets, no headline, no markdown.",
     isSlovenianLanguage(input.language)
       ? "Write in natural Slovenian with correct č, š and ž."
@@ -1957,7 +2052,7 @@ export async function createFreeAudit(input: {
       },
     });
     auditStep = "brand";
-    const chatGptBrandSummary = await generateBrandChatGptSummarySafely({
+    const chatGptInsights = await generateBrandChatGptInsightsSafely({
       name: input.brandName,
       domain: input.domain,
       country: input.country,
@@ -1971,8 +2066,15 @@ export async function createFreeAudit(input: {
         country: input.country,
         language: input.language,
         aliases: [],
-        chatGptBrandSummary,
-        chatGptBrandSummaryUpdatedAt: chatGptBrandSummary
+        chatGptBrandSummary: chatGptInsights.brandSummary,
+        chatGptBrandSummaryUpdatedAt: chatGptInsights.brandSummary
+          ? new Date()
+          : undefined,
+        chatGptCustomerConcernsSummary: chatGptInsights.customerConcernsSummary,
+        chatGptCustomerConcernsSummaryUpdatedAt:
+          chatGptInsights.customerConcernsSummary ? new Date() : undefined,
+        chatGptProductSummary: chatGptInsights.productSummary,
+        chatGptProductSummaryUpdatedAt: chatGptInsights.productSummary
           ? new Date()
           : undefined,
       },

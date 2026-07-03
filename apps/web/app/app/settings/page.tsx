@@ -99,6 +99,7 @@ export default async function SettingsPage() {
                         hasStripeCustomer={Boolean(
                           organization.stripeCustomerId,
                         )}
+                        disabled={effectivePlan === "disabled"}
                       />
                     </TD>
                   </TR>

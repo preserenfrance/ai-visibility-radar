@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { CalendarClock, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type Plan = "free" | "starter" | "growth";
+type Plan = "free" | "starter" | "growth" | "disabled";
 
 export function RegularScanControls({
   brandId,
@@ -19,6 +19,14 @@ export function RegularScanControls({
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  if (organizationPlan === "disabled") {
+    return (
+      <span className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-medium text-destructive">
+        Paket deaktiviran
+      </span>
+    );
+  }
+
   const automaticScanAccess =
     organizationPlan === "free" ||
     organizationPlan === "starter" ||

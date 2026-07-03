@@ -13,7 +13,7 @@ type OrganizationPlanAccess = {
 
 export function hasActivePaidPlan(organization: OrganizationPlanAccess) {
   // Organization.plan is the access source of truth; Stripe status is billing metadata.
-  return organization.plan !== "free";
+  return organization.plan === "starter" || organization.plan === "growth";
 }
 
 export function canRunManualScans(organization: OrganizationPlanAccess) {
@@ -21,12 +21,13 @@ export function canRunManualScans(organization: OrganizationPlanAccess) {
 }
 
 export function canRunAutomaticScans(organization: OrganizationPlanAccess) {
-  return Boolean(organization.plan);
+  return organization.plan !== "disabled";
 }
 
 export function effectivePlanForOrganization(
   organization: OrganizationPlanAccess,
 ): Plan {
+  if (organization.plan === "disabled") return "disabled";
   return hasActivePaidPlan(organization) ? organization.plan : "free";
 }
 

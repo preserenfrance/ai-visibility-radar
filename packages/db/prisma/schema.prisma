@@ -11,6 +11,7 @@ enum Plan {
   free
   starter
   growth
+  disabled
 }
 
 enum MembershipRole {
@@ -172,34 +173,38 @@ model Membership {
 }
 
 model Brand {
-  id                            String                @id @default(cuid())
-  organizationId                String
-  name                          String
-  domain                        String
-  description                   String?
-  chatGptBrandSummary           String?               @db.Text
-  chatGptBrandSummaryUpdatedAt  DateTime?
-  industry                      String?
-  country                       String
-  language                      String
-  aliases                       Json                  @default("[]")
-  recurringScanActive           Boolean               @default(false)
-  recurringScanCadence          ScanCadence?
-  recurringScanPlan             Plan?
-  recurringScanActivatedAt      DateTime?
-  recurringScanLastRunAt        DateTime?
-  recurringScanNextRunAt        DateTime?
-  recurringScanProviderVariants Json                  @default("[]")
-  organization                  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  competitors                   Competitor[]
-  crawlSnapshots                CrawlSnapshot[]
-  promptSets                    PromptSet[]
-  scanRuns                      ScanRun[]
-  scoreSnapshots                ScoreSnapshot[]
-  recommendations               Recommendation[]
-  promptContentReviews          PromptContentReview[]
-  createdAt                     DateTime              @default(now())
-  updatedAt                     DateTime              @updatedAt
+  id                                      String                @id @default(cuid())
+  organizationId                          String
+  name                                    String
+  domain                                  String
+  description                             String?
+  chatGptBrandSummary                     String?               @db.Text
+  chatGptBrandSummaryUpdatedAt            DateTime?
+  chatGptCustomerConcernsSummary          String?               @db.Text
+  chatGptCustomerConcernsSummaryUpdatedAt DateTime?
+  chatGptProductSummary                   String?               @db.Text
+  chatGptProductSummaryUpdatedAt          DateTime?
+  industry                                String?
+  country                                 String
+  language                                String
+  aliases                                 Json                  @default("[]")
+  recurringScanActive                     Boolean               @default(false)
+  recurringScanCadence                    ScanCadence?
+  recurringScanPlan                       Plan?
+  recurringScanActivatedAt                DateTime?
+  recurringScanLastRunAt                  DateTime?
+  recurringScanNextRunAt                  DateTime?
+  recurringScanProviderVariants           Json                  @default("[]")
+  organization                            Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  competitors                             Competitor[]
+  crawlSnapshots                          CrawlSnapshot[]
+  promptSets                              PromptSet[]
+  scanRuns                                ScanRun[]
+  scoreSnapshots                          ScoreSnapshot[]
+  recommendations                         Recommendation[]
+  promptContentReviews                    PromptContentReview[]
+  createdAt                               DateTime              @default(now())
+  updatedAt                               DateTime              @updatedAt
 
   @@index([organizationId])
 }
