@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
-import { sendEmail } from "@ai-radar/email";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "@ai-radar/email";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 60;
@@ -10,8 +10,12 @@ export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-export function safeRedirectPath(value: string | null | undefined, fallback = "/app/dashboard") {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
+export function safeRedirectPath(
+  value: string | null | undefined,
+  fallback = "/app/dashboard",
+) {
+  if (!value || !value.startsWith("/") || value.startsWith("//"))
+    return fallback;
   return value;
 }
 
@@ -22,46 +26,63 @@ export async function createUserAccount(input: {
   organizationName?: string;
 }) {
   const email = normalizeEmail(input.email);
-  const existing = await prisma.user.findUnique({ where: { email }, include: { memberships: true } });
-  if (existing?.passwordHash) throw new Error("Conflict: račun s tem emailom že obstaja");
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    include: { memberships: true },
+  });
+  if (existing?.passwordHash)
+    throw new Error("Conflict: račun s tem emailom že obstaja");
 
   const passwordHash = await hashPassword(input.password);
   const user = existing
     ? await prisma.user.update({
         where: { id: existing.id },
         data: { name: input.name, passwordHash },
-        include: { memberships: true }
+        include: { memberships: true },
       })
     : await prisma.user.create({
         data: { email, name: input.name, passwordHash },
-        include: { memberships: true }
+        include: { memberships: true },
       });
 
   if (user.memberships.length === 0) {
     await prisma.organization.create({
       data: {
-        name: input.organizationName || input.name || email.split("@")[0] || "Moja organizacija",
+        name:
+          input.organizationName ||
+          input.name ||
+          email.split("@")[0] ||
+          "Moja organizacija",
         memberships: {
           create: {
             userId: user.id,
-            role: "owner"
-          }
-        }
-      }
+            role: "owner",
+          },
+        },
+      },
     });
   }
 
-  return prisma.user.findUniqueOrThrow({
+  const userWithMemberships = await prisma.user.findUniqueOrThrow({
     where: { id: user.id },
-    include: { memberships: { include: { organization: true } } }
+    include: { memberships: { include: { organization: true } } },
   });
+
+  await sendAccountNotification("welcome email", () =>
+    sendWelcomeEmail({
+      to: userWithMemberships.email,
+      name: userWithMemberships.name,
+    }),
+  );
+
+  return userWithMemberships;
 }
 
 export async function authenticateUser(emailInput: string, password: string) {
   const email = normalizeEmail(emailInput);
   const user = await prisma.user.findUnique({
     where: { email },
-    include: { memberships: { include: { organization: true } } }
+    include: { memberships: { include: { organization: true } } },
   });
 
   const valid = await verifyPassword(password, user?.passwordHash);
@@ -80,19 +101,14 @@ export async function requestPasswordReset(emailInput: string) {
     where: { id: user.id },
     data: {
       passwordResetTokenHash: hashResetToken(token),
-      passwordResetExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS)
-    }
+      passwordResetExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
   });
 
-  const emailResult = await sendEmail({
+  const emailResult = await sendPasswordResetEmail({
     to: email,
-    subject: "Ponastavitev gesla za AI Visibility Radar",
-    html: [
-      "<p>Pozdravljeni,</p>",
-      "<p>Prejeli smo zahtevo za ponastavitev gesla.</p>",
-      `<p><a href="${resetUrl}">Kliknite tukaj za nastavitev novega gesla</a>.</p>`,
-      "<p>Povezava velja 1 uro. Če zahteve niste oddali vi, lahko to sporočilo ignorirate.</p>"
-    ].join("")
+    resetUrl,
+    expiresInMinutes: RESET_TOKEN_TTL_MS / 1000 / 60,
   });
 
   return { sent: true, skipped: Boolean(emailResult.skipped), resetUrl };
@@ -102,22 +118,36 @@ export async function resetPasswordWithToken(token: string, password: string) {
   const user = await prisma.user.findFirst({
     where: {
       passwordResetTokenHash: hashResetToken(token),
-      passwordResetExpiresAt: { gt: new Date() }
-    }
+      passwordResetExpiresAt: { gt: new Date() },
+    },
   });
-  if (!user) throw new Error("Bad Request: povezava za ponastavitev gesla ni veljavna ali je potekla");
+  if (!user)
+    throw new Error(
+      "Bad Request: povezava za ponastavitev gesla ni veljavna ali je potekla",
+    );
 
   await prisma.user.update({
     where: { id: user.id },
     data: {
       passwordHash: await hashPassword(password),
       passwordResetTokenHash: null,
-      passwordResetExpiresAt: null
-    }
+      passwordResetExpiresAt: null,
+    },
   });
   return user;
 }
 
 function hashResetToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+async function sendAccountNotification(
+  label: string,
+  send: () => Promise<{ id?: string; skipped?: boolean }>,
+) {
+  try {
+    await send();
+  } catch (error) {
+    console.warn(`Account ${label} failed`, error);
+  }
 }

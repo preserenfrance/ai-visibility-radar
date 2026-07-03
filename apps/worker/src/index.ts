@@ -9,7 +9,7 @@ import {
   scanConcurrencyLimit,
   tryStartScanRun,
 } from "@ai-radar/db";
-import { sendAuditReportEmail } from "@ai-radar/email";
+import { sendAuditReportEmail, sendScanCompletedEmail } from "@ai-radar/email";
 import { parseAiResponse } from "@ai-radar/parser";
 import { generatePromptSet } from "@ai-radar/prompts";
 import { generateSalesBrief } from "@ai-radar/reports";
@@ -446,17 +446,24 @@ async function processScoreScan(scanRunId: string) {
     update: score,
     create: { brandId: scan.brandId, scanRunId, ...score },
   });
+  const completedPromptRuns = scan.promptRuns.filter(
+    (run) => run.status === "completed",
+  ).length;
+  const failedPromptRuns = scan.promptRuns.filter(
+    (run) => run.status === "failed",
+  ).length;
+  const finalStatus = completedPromptRuns > 0 ? "completed" : "failed";
+  const shouldNotifyScanCompleted =
+    finalStatus === "completed" &&
+    scan.status !== "completed" &&
+    scan.triggerType !== "free_audit";
+
   await prisma.scanRun.update({
     where: { id: scanRunId },
     data: {
-      status: scan.promptRuns.some((run) => run.status === "completed")
-        ? "completed"
-        : "failed",
-      completedPromptRuns: scan.promptRuns.filter(
-        (run) => run.status === "completed",
-      ).length,
-      failedPromptRuns: scan.promptRuns.filter((run) => run.status === "failed")
-        .length,
+      status: finalStatus,
+      completedPromptRuns,
+      failedPromptRuns,
       finishedAt: new Date(),
     },
   });
@@ -468,6 +475,9 @@ async function processScoreScan(scanRunId: string) {
       entityId: scanRunId,
     },
   });
+  if (shouldNotifyScanCompleted) {
+    await notifyScanCompleted(scanRunId);
+  }
   return snapshot;
 }
 
@@ -624,6 +634,62 @@ async function topCompetitorForScan(scanRunId: string) {
   return mentions[0]?.entityName;
 }
 
+async function notifyScanCompleted(scanRunId: string) {
+  const scan = await prisma.scanRun.findUnique({
+    where: { id: scanRunId },
+    include: {
+      scoreSnapshot: true,
+      brand: {
+        include: {
+          organization: {
+            include: {
+              memberships: {
+                include: { user: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!scan?.scoreSnapshot) return;
+  if (scan.triggerType !== "manual" && scan.triggerType !== "scheduled") return;
+
+  const scoreSnapshot = scan.scoreSnapshot;
+  const triggerType = scan.triggerType;
+  const recipients = uniqueNotificationRecipients(
+    scan.brand.organization.memberships.map((membership) => membership.user),
+  );
+  const results = await Promise.allSettled(
+    recipients.map((recipient) =>
+      sendScanCompletedEmail({
+        to: recipient.email,
+        recipientName: recipient.name,
+        brandName: scan.brand.name,
+        brandDomain: scan.brand.domain,
+        brandId: scan.brandId,
+        scanRunId: scan.id,
+        triggerType,
+        visibilityScore: scoreSnapshot.visibilityScore,
+        completedPromptRuns: scan.completedPromptRuns,
+        failedPromptRuns: scan.failedPromptRuns,
+        totalPromptRuns: scan.totalPromptRuns,
+        finishedAt: scan.finishedAt,
+      }),
+    ),
+  );
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.warn("Scan completion email failed", {
+        scanRunId,
+        email: recipients[index]?.email,
+        error: result.reason,
+      });
+    }
+  });
+}
+
 function parsedResultsForScan(promptRuns: Array<any>) {
   return promptRuns
     .map((run) => {
@@ -663,4 +729,20 @@ function toCitationArray(value: unknown) {
             : normalizeDomain(String(item.url)),
         }))
     : [];
+}
+
+function uniqueNotificationRecipients(
+  users: Array<{ email: string; name: string | null }>,
+) {
+  const seen = new Set<string>();
+  const recipients: Array<{ email: string; name: string | null }> = [];
+
+  for (const user of users) {
+    const email = user.email.trim().toLowerCase();
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    recipients.push({ email, name: user.name });
+  }
+
+  return recipients;
 }

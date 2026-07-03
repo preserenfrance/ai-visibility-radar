@@ -29,7 +29,7 @@ import {
   type Plan,
   type PromptCategory,
 } from "@ai-radar/shared";
-import { sendAuditReportEmail } from "@ai-radar/email";
+import { sendAuditReportEmail, sendScanCompletedEmail } from "@ai-radar/email";
 import { generateSalesBrief } from "@ai-radar/reports";
 import { aiModelForProvider, aiModelSettings } from "@/lib/ai-model-settings";
 import {
@@ -1703,11 +1703,17 @@ export async function scoreScan(scanRunId: string) {
   const failedPromptRuns = scan.promptRuns.filter(
     (promptRun) => promptRun.status === "failed",
   ).length;
+  const finalStatus =
+    failedPromptRuns === scan.promptRuns.length ? "failed" : "completed";
+  const shouldNotifyScanCompleted =
+    finalStatus === "completed" &&
+    scan.status !== "completed" &&
+    scan.triggerType !== "free_audit";
+
   await prisma.scanRun.update({
     where: { id: scanRunId },
     data: {
-      status:
-        failedPromptRuns === scan.promptRuns.length ? "failed" : "completed",
+      status: finalStatus,
       completedPromptRuns,
       failedPromptRuns,
       finishedAt: new Date(),
@@ -1723,7 +1729,67 @@ export async function scoreScan(scanRunId: string) {
     },
   });
 
+  if (shouldNotifyScanCompleted) {
+    await notifyScanCompleted(scanRunId);
+  }
+
   return scoreSnapshot;
+}
+
+async function notifyScanCompleted(scanRunId: string) {
+  const scan = await prisma.scanRun.findUnique({
+    where: { id: scanRunId },
+    include: {
+      scoreSnapshot: true,
+      brand: {
+        include: {
+          organization: {
+            include: {
+              memberships: {
+                include: { user: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!scan?.scoreSnapshot) return;
+  if (scan.triggerType !== "manual" && scan.triggerType !== "scheduled") return;
+
+  const scoreSnapshot = scan.scoreSnapshot;
+  const triggerType = scan.triggerType;
+  const recipients = uniqueNotificationRecipients(
+    scan.brand.organization.memberships.map((membership) => membership.user),
+  );
+  const results = await Promise.allSettled(
+    recipients.map((recipient) =>
+      sendScanCompletedEmail({
+        to: recipient.email,
+        recipientName: recipient.name,
+        brandName: scan.brand.name,
+        brandDomain: scan.brand.domain,
+        brandId: scan.brandId,
+        scanRunId: scan.id,
+        triggerType,
+        visibilityScore: scoreSnapshot.visibilityScore,
+        completedPromptRuns: scan.completedPromptRuns,
+        failedPromptRuns: scan.failedPromptRuns,
+        totalPromptRuns: scan.totalPromptRuns,
+        finishedAt: scan.finishedAt,
+      }),
+    ),
+  );
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.warn("Scan completion email failed", {
+        scanRunId,
+        email: recipients[index]?.email,
+        error: result.reason,
+      });
+    }
+  });
 }
 
 export async function createFreeAudit(input: {
@@ -2008,6 +2074,22 @@ function splitCompetitors(value?: string) {
       .filter(Boolean)
       .slice(0, 10) ?? []
   );
+}
+
+function uniqueNotificationRecipients(
+  users: Array<{ email: string; name: string | null }>,
+) {
+  const seen = new Set<string>();
+  const recipients: Array<{ email: string; name: string | null }> = [];
+
+  for (const user of users) {
+    const email = user.email.trim().toLowerCase();
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    recipients.push({ email, name: user.name });
+  }
+
+  return recipients;
 }
 
 function startOfMonth(from = new Date()) {
