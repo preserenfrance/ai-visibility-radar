@@ -424,6 +424,8 @@ function modelSummaries(runs: Array<any>) {
     return {
       id: run.id,
       engineName: run.engine.engineName,
+      provider: run.engine.provider,
+      searchEnabled: run.engine.searchEnabled,
       status: run.status,
       brandMentioned:
         typeof parsed?.brandMentioned === "boolean"

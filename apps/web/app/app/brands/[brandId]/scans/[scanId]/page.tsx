@@ -116,7 +116,7 @@ export default async function ScanPage({
                   <TR key={group.promptId}>
                     <TD colSpan={5} className="p-0">
                       <details>
-                        <summary className="grid cursor-pointer gap-3 p-3 md:grid-cols-[minmax(20rem,1.5fr)_1fr_auto_auto_auto] md:items-center">
+                        <summary className="grid cursor-pointer gap-3 p-3 md:grid-cols-[minmax(20rem,1.5fr)_auto_auto_auto_auto] md:items-center">
                           <span className="font-medium">
                             {group.promptText}
                           </span>
@@ -208,6 +208,8 @@ function modelSummaries(runs: Array<any>) {
     return {
       id: run.id,
       engineName: run.engine.engineName,
+      provider: run.engine.provider,
+      searchEnabled: run.engine.searchEnabled,
       status: run.status,
       brandMentioned:
         typeof parsed?.brandMentioned === "boolean"
