@@ -130,7 +130,7 @@ function runRegularScans(request: Request) {
 
     const pendingScans = await prisma.scanRun.findMany({
       where: {
-        triggerType: "scheduled",
+        triggerType: { in: ["manual", "scheduled"] },
         status: { in: ["queued", "running"] },
       },
       orderBy: { createdAt: "asc" },

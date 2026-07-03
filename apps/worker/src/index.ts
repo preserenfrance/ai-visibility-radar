@@ -200,19 +200,31 @@ async function processCreateScan(scanRunId: string) {
     include: { promptRuns: true },
   });
   if (!scan) throw new Error("Scan not found");
+  if (scan.status === "canceled") return { scanRunId, skipped: "canceled" };
 
   await processPromptRunsInBatches(
+    scanRunId,
     scan.promptRuns.map((promptRun) => promptRun.id),
   );
+  if (await isScanCanceled(scanRunId)) {
+    return { scanRunId, skipped: "canceled" };
+  }
   await processScoreScan(scanRunId);
+  if (await isScanCanceled(scanRunId)) {
+    return { scanRunId, skipped: "canceled" };
+  }
   await processGenerateRecommendations(scanRunId);
   return { scanRunId };
 }
 
-async function processPromptRunsInBatches(promptRunIds: string[]) {
+async function processPromptRunsInBatches(
+  scanRunId: string,
+  promptRunIds: string[],
+) {
   const concurrency = promptRunConcurrencyLimit();
 
   for (let index = 0; index < promptRunIds.length; index += concurrency) {
+    if (await isScanCanceled(scanRunId)) return;
     const batch = promptRunIds.slice(index, index + concurrency);
     await Promise.allSettled(
       batch.map((promptRunId) => processRunPrompt(promptRunId)),
@@ -266,6 +278,10 @@ async function processRunPrompt(promptRunId: string) {
     },
   });
   if (!promptRun) throw new Error("Prompt run not found");
+  if (promptRun.scanRun.status === "canceled") {
+    await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
+    return null;
+  }
   if (promptRun.aiResponse) return promptRun.aiResponse;
   if (promptRun.status !== "queued") {
     throw new Error(`Prompt run is already ${promptRun.status}`);
@@ -280,6 +296,10 @@ async function processRunPrompt(promptRunId: string) {
   }
 
   try {
+    if (await isScanCanceled(promptRun.scanRunId)) {
+      await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
+      return null;
+    }
     const adapter = createAiAdapter(promptRun.engine.provider, {
       modelOverride: promptRun.engine.model.startsWith("env:")
         ? undefined
@@ -298,6 +318,10 @@ async function processRunPrompt(promptRunId: string) {
       })),
       searchEnabled: promptRun.engine.searchEnabled,
     });
+    if (await isScanCanceled(promptRun.scanRunId)) {
+      await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
+      return null;
+    }
     const aiResponse = await prisma.aiResponse.create({
       data: {
         promptRunId,
@@ -439,6 +463,7 @@ async function processScoreScan(scanRunId: string) {
     },
   });
   if (!scan) throw new Error("Scan not found");
+  if (scan.status === "canceled") return null;
   const results = parsedResultsForScan(scan.promptRuns);
   const score = calculateVisibilityScore(results);
   const snapshot = await prisma.scoreSnapshot.upsert({
@@ -495,6 +520,7 @@ async function processGenerateRecommendations(scanRunId: string) {
     },
   });
   if (!scan) throw new Error("Scan not found");
+  if (scan.status === "canceled") return { count: 0, skipped: "canceled" };
   const drafts = generateRecommendationDrafts(
     parsedResultsForScan(scan.promptRuns),
   );
@@ -632,6 +658,31 @@ async function topCompetitorForScan(scanRunId: string) {
     take: 1,
   });
   return mentions[0]?.entityName;
+}
+
+async function isScanCanceled(scanRunId: string) {
+  const scan = await prisma.scanRun.findUnique({
+    where: { id: scanRunId },
+    select: { status: true },
+  });
+  return scan?.status === "canceled";
+}
+
+async function skipPromptRunIfPending(
+  promptRunId: string,
+  errorMessage: string,
+) {
+  await prisma.promptRun.updateMany({
+    where: {
+      id: promptRunId,
+      status: { in: ["queued", "running"] },
+    },
+    data: {
+      status: "skipped",
+      finishedAt: new Date(),
+      errorMessage,
+    },
+  });
 }
 
 async function notifyScanCompleted(scanRunId: string) {

@@ -4,6 +4,7 @@ import type React from "react";
 import { Activity, CalendarClock, Clock3, Mail, RefreshCw } from "lucide-react";
 import { type EmailEventType, type ScanRunStatus, prisma } from "@ai-radar/db";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,58 @@ type RecurringBrand = {
   };
 };
 
+async function cancelScanRun(formData: FormData) {
+  "use server";
+  await requireAdminUser();
+
+  const scanRunId = String(formData.get("scanRunId") ?? "");
+  if (!scanRunId) throw new Error("Bad Request: manjka scanRunId");
+
+  await prisma.$transaction([
+    prisma.scanRun.updateMany({
+      where: {
+        id: scanRunId,
+        status: { in: ["queued", "running"] },
+      },
+      data: {
+        status: "canceled",
+        finishedAt: new Date(),
+      },
+    }),
+    prisma.promptRun.updateMany({
+      where: {
+        scanRunId,
+        status: { in: ["queued", "running"] },
+      },
+      data: {
+        status: "skipped",
+        finishedAt: new Date(),
+        errorMessage: "Preklicano v adminu.",
+      },
+    }),
+  ]);
+
+  redirect("/admin/operations?updated=scan-canceled");
+}
+
+async function stopRecurringScan(formData: FormData) {
+  "use server";
+  await requireAdminUser();
+
+  const brandId = String(formData.get("brandId") ?? "");
+  if (!brandId) throw new Error("Bad Request: manjka brandId");
+
+  await prisma.brand.update({
+    where: { id: brandId },
+    data: {
+      recurringScanActive: false,
+      recurringScanNextRunAt: null,
+    },
+  });
+
+  redirect("/admin/operations?updated=recurring-stopped");
+}
+
 export default async function AdminOperationsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/operations");
@@ -47,9 +100,9 @@ export default async function AdminOperationsPage() {
 
   const [
     recurringBrands,
-    pendingScheduledScans,
-    currentQueuedScheduledScans,
-    currentRunningScheduledScans,
+    pendingScans,
+    currentQueuedScans,
+    currentRunningScans,
     scheduledScanStatusGroups,
     emailStatusAll,
     emailStatusLastDay,
@@ -78,7 +131,7 @@ export default async function AdminOperationsPage() {
     }),
     prisma.scanRun.findMany({
       where: {
-        triggerType: "scheduled",
+        triggerType: { in: ["manual", "scheduled"] },
         status: { in: ["queued", "running"] },
       },
       orderBy: { createdAt: "asc" },
@@ -101,13 +154,13 @@ export default async function AdminOperationsPage() {
     }),
     prisma.scanRun.count({
       where: {
-        triggerType: "scheduled",
+        triggerType: { in: ["manual", "scheduled"] },
         status: "queued",
       },
     }),
     prisma.scanRun.count({
       where: {
-        triggerType: "scheduled",
+        triggerType: { in: ["manual", "scheduled"] },
         status: "running",
       },
     }),
@@ -241,14 +294,8 @@ export default async function AdminOperationsPage() {
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <MetricCard
-          label="Scheduled queued"
-          value={currentQueuedScheduledScans}
-        />
-        <MetricCard
-          label="Scheduled running"
-          value={currentRunningScheduledScans}
-        />
+        <MetricCard label="Queued operacije" value={currentQueuedScans} />
+        <MetricCard label="Running operacije" value={currentRunningScans} />
         <MetricCard label="Zaključeni 7 dni" value={completedScheduledScans} />
         <MetricCard
           label="Napake 7 dni"
@@ -303,6 +350,7 @@ export default async function AdminOperationsPage() {
                   <TH>Organizacija</TH>
                   <TH>Kadenca</TH>
                   <TH>Naslednji termin</TH>
+                  <TH>Akcija</TH>
                 </TR>
               </THead>
               <TBody>
@@ -329,11 +377,19 @@ export default async function AdminOperationsPage() {
                     <TD>
                       {brand.recurringScanNextRunAt?.toLocaleString("sl-SI")}
                     </TD>
+                    <TD>
+                      <form action={stopRecurringScan}>
+                        <input type="hidden" name="brandId" value={brand.id} />
+                        <Button type="submit" size="sm" variant="outline">
+                          Ustavi urnik
+                        </Button>
+                      </form>
+                    </TD>
                   </TR>
                 ))}
                 {recurringBrands.length === 0 && (
                   <TR>
-                    <TD colSpan={4} className="text-muted-foreground">
+                    <TD colSpan={5} className="text-muted-foreground">
                       Ni aktivnih scheduled pregledov.
                     </TD>
                   </TR>
@@ -345,9 +401,9 @@ export default async function AdminOperationsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Queued / running scheduled scani</CardTitle>
+            <CardTitle>Queued / running scani</CardTitle>
             <CardDescription>
-              Trenutni scheduled scan runi, ki čakajo ali se izvajajo.
+              Trenutni ročni in scheduled scan runi, ki čakajo ali se izvajajo.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -355,12 +411,14 @@ export default async function AdminOperationsPage() {
               <THead>
                 <TR>
                   <TH>Znamka</TH>
+                  <TH>Tip</TH>
                   <TH>Status</TH>
                   <TH>Ustvarjeno</TH>
+                  <TH>Akcija</TH>
                 </TR>
               </THead>
               <TBody>
-                {pendingScheduledScans.map((scan) => (
+                {pendingScans.map((scan) => (
                   <TR key={scan.id}>
                     <TD>
                       <Link
@@ -373,16 +431,25 @@ export default async function AdminOperationsPage() {
                         {scan.brand.organization.name}
                       </div>
                     </TD>
+                    <TD>{scan.triggerType}</TD>
                     <TD>
                       <ScanStatusBadge status={scan.status} />
                     </TD>
                     <TD>{scan.createdAt.toLocaleString("sl-SI")}</TD>
+                    <TD>
+                      <form action={cancelScanRun}>
+                        <input type="hidden" name="scanRunId" value={scan.id} />
+                        <Button type="submit" size="sm" variant="outline">
+                          Prekini
+                        </Button>
+                      </form>
+                    </TD>
                   </TR>
                 ))}
-                {pendingScheduledScans.length === 0 && (
+                {pendingScans.length === 0 && (
                   <TR>
-                    <TD colSpan={3} className="text-muted-foreground">
-                      Ni scheduled scanov v queueju.
+                    <TD colSpan={5} className="text-muted-foreground">
+                      Ni ročnih ali scheduled scanov v queueju.
                     </TD>
                   </TR>
                 )}

@@ -1346,12 +1346,21 @@ export async function runScanNow(scanRunId: string) {
     },
   });
   if (!scan) throw new Error("Scan not found");
+  if (scan.status === "canceled") return scan;
 
   await runPromptRunsInBatches(
+    scanRunId,
     scan.promptRuns
       .filter((promptRun) => !promptRun.aiResponse)
       .map((promptRun) => promptRun.id),
   );
+
+  if (await isScanCanceled(scanRunId)) {
+    return prisma.scanRun.findUnique({
+      where: { id: scanRunId },
+      include: { promptRuns: true, scoreSnapshot: true },
+    });
+  }
 
   return scoreScan(scanRunId);
 }
@@ -1416,6 +1425,13 @@ export async function runNextScanStep(scanRunId: string) {
     );
   }
 
+  if (await isScanCanceled(scanRunId)) {
+    return prisma.scanRun.findUnique({
+      where: { id: scanRunId },
+      include: { scoreSnapshot: true },
+    });
+  }
+
   const remainingPromptRuns = await prisma.promptRun.count({
     where: {
       scanRunId,
@@ -1433,10 +1449,14 @@ export async function runNextScanStep(scanRunId: string) {
   });
 }
 
-async function runPromptRunsInBatches(promptRunIds: string[]) {
+async function runPromptRunsInBatches(
+  scanRunId: string,
+  promptRunIds: string[],
+) {
   const concurrency = promptRunConcurrencyLimit();
 
   for (let index = 0; index < promptRunIds.length; index += concurrency) {
+    if (await isScanCanceled(scanRunId)) return;
     const batch = promptRunIds.slice(index, index + concurrency);
     await Promise.allSettled(
       batch.map((promptRunId) => runPromptRun(promptRunId)),
@@ -1459,6 +1479,10 @@ export async function runPromptRun(promptRunId: string) {
     },
   });
   if (!promptRun) throw new Error("Prompt run not found");
+  if (promptRun.scanRun.status === "canceled") {
+    await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
+    return null;
+  }
   if (promptRun.aiResponse) return promptRun.aiResponse;
   if (promptRun.status !== "queued") {
     throw new Error(`Prompt run is already ${promptRun.status}`);
@@ -1473,6 +1497,10 @@ export async function runPromptRun(promptRunId: string) {
   }
 
   try {
+    if (await isScanCanceled(promptRun.scanRunId)) {
+      await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
+      return null;
+    }
     const adapter = createAiAdapter(promptRun.engine.provider, {
       modelOverride: promptRun.engine.model.startsWith("env:")
         ? undefined
@@ -1491,6 +1519,10 @@ export async function runPromptRun(promptRunId: string) {
       })),
       searchEnabled: promptRun.engine.searchEnabled,
     });
+    if (await isScanCanceled(promptRun.scanRunId)) {
+      await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
+      return null;
+    }
 
     const aiResponse = await prisma.aiResponse.create({
       data: {
@@ -1632,11 +1664,37 @@ export async function parseResponse(aiResponseId: string) {
   return result;
 }
 
+async function isScanCanceled(scanRunId: string) {
+  const scan = await prisma.scanRun.findUnique({
+    where: { id: scanRunId },
+    select: { status: true },
+  });
+  return scan?.status === "canceled";
+}
+
+async function skipPromptRunIfPending(
+  promptRunId: string,
+  errorMessage: string,
+) {
+  await prisma.promptRun.updateMany({
+    where: {
+      id: promptRunId,
+      status: { in: ["queued", "running"] },
+    },
+    data: {
+      status: "skipped",
+      finishedAt: new Date(),
+      errorMessage,
+    },
+  });
+}
+
 export async function scoreScan(scanRunId: string) {
   const scan = await prisma.scanRun.findUnique({
     where: { id: scanRunId },
     include: {
       brand: true,
+      scoreSnapshot: true,
       promptRuns: {
         include: {
           prompt: true,
@@ -1651,6 +1709,7 @@ export async function scoreScan(scanRunId: string) {
     },
   });
   if (!scan) throw new Error("Scan not found");
+  if (scan.status === "canceled") return scan.scoreSnapshot;
 
   const parsedResults = scan.promptRuns
     .map((promptRun) => {
