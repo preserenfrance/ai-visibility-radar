@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { normalizeDomain } from "@ai-radar/shared";
 import { Sparkles } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
@@ -34,6 +35,19 @@ const MENTION_TREND_SERIES: MentionTrendSeries[] = [
   { key: "google:search", label: "Gemini + search", color: "#c026d3" },
   { key: "anthropic:base", label: "Claude", color: "#ea580c" },
   { key: "anthropic:search", label: "Claude + search", color: "#dc2626" },
+];
+
+const MENTIONED_DOMAIN_COLORS = [
+  "#0891b2",
+  "#16a34a",
+  "#d97706",
+  "#dc2626",
+  "#4f46e5",
+  "#0d9488",
+  "#9333ea",
+  "#ca8a04",
+  "#be123c",
+  "#15803d",
 ];
 
 async function startProviderScan(formData: FormData) {
@@ -129,7 +143,7 @@ export default async function BrandPage({
         promptRuns: {
           include: {
             engine: true,
-            aiResponse: { include: { parsedResult: true } },
+            aiResponse: { include: { parsedResult: true, citations: true } },
           },
         },
       },
@@ -153,9 +167,15 @@ export default async function BrandPage({
   const recurringScanActive = brand.recurringScanActive && automaticScanAccess;
   const recurringScanScheduled = automaticScanAccess;
   const brandSummaryError = query?.brandSummary === "error";
+  const mentionedDomainSeries = buildMentionedDomainSeries(
+    mentionTrendScanRuns,
+    brand.domain,
+  );
   const mentionTrendPoints = buildMentionTrendPoints(
     trendDays,
     mentionTrendScanRuns,
+    mentionedDomainSeries,
+    brand.domain,
   );
   const promptAdditionMarkers = buildPromptAdditionMarkers(
     trendDays,
@@ -269,6 +289,7 @@ export default async function BrandPage({
 
       <MentionsTrendChart
         series={MENTION_TREND_SERIES}
+        domainSeries={mentionedDomainSeries}
         points={mentionTrendPoints}
         promptMarkers={promptAdditionMarkers}
       />
@@ -379,6 +400,10 @@ type MentionTrendScanRun = {
         mentionCount: number;
         parsedJson: unknown;
       } | null;
+      citations: Array<{
+        domain: string;
+        isOwnedDomain: boolean;
+      }>;
     } | null;
   }>;
 };
@@ -402,7 +427,11 @@ function mentionTrendDays(): TrendDay[] {
 function buildMentionTrendPoints(
   days: TrendDay[],
   scanRuns: MentionTrendScanRun[],
+  domainSeries: MentionTrendSeries[],
+  brandDomain: string,
 ): MentionTrendPoint[] {
+  const chartSeries = [...MENTION_TREND_SERIES, ...domainSeries];
+  const domainKeys = new Set(domainSeries.map((series) => series.key));
   const points = new Map(
     days.map((day) => [
       day.key,
@@ -410,7 +439,7 @@ function buildMentionTrendPoints(
         date: day.key,
         label: day.label,
         values: Object.fromEntries(
-          MENTION_TREND_SERIES.map((series) => [series.key, 0]),
+          chartSeries.map((series) => [series.key, 0]),
         ) as Record<string, number>,
       },
     ]),
@@ -425,13 +454,87 @@ function buildMentionTrendPoints(
         promptRun.engine.provider,
         promptRun.engine.searchEnabled,
       );
-      if (!(key in point.values)) continue;
-      point.values[key] =
-        (point.values[key] ?? 0) + mentionCountForPromptRun(promptRun);
+      if (key in point.values) {
+        point.values[key] =
+          (point.values[key] ?? 0) + mentionCountForPromptRun(promptRun);
+      }
+
+      for (const [domain, count] of domainCountsForPromptRun(
+        promptRun,
+        brandDomain,
+      )) {
+        const domainKey = mentionedDomainSeriesKey(domain);
+        if (!domainKeys.has(domainKey)) continue;
+        point.values[domainKey] = (point.values[domainKey] ?? 0) + count;
+      }
     }
   }
 
   return days.map((day) => points.get(day.key)!);
+}
+
+function buildMentionedDomainSeries(
+  scanRuns: MentionTrendScanRun[],
+  brandDomain: string,
+): MentionTrendSeries[] {
+  const totals = new Map<string, number>();
+
+  for (const scanRun of scanRuns) {
+    for (const promptRun of scanRun.promptRuns) {
+      for (const [domain, count] of domainCountsForPromptRun(
+        promptRun,
+        brandDomain,
+      )) {
+        totals.set(domain, (totals.get(domain) ?? 0) + count);
+      }
+    }
+  }
+
+  return [...totals.entries()]
+    .sort(
+      ([leftDomain, leftCount], [rightDomain, rightCount]) =>
+        rightCount - leftCount || leftDomain.localeCompare(rightDomain),
+    )
+    .slice(0, 10)
+    .map(([domain, total], index) => ({
+      key: mentionedDomainSeriesKey(domain),
+      label: domain,
+      color:
+        MENTIONED_DOMAIN_COLORS[index % MENTIONED_DOMAIN_COLORS.length] ??
+        "#64748b",
+      total,
+    }));
+}
+
+function domainCountsForPromptRun(
+  promptRun: MentionTrendScanRun["promptRuns"][number],
+  brandDomain: string,
+) {
+  const counts = new Map<string, number>();
+  for (const citation of promptRun.aiResponse?.citations ?? []) {
+    const domain = normalizeMentionedDomain(citation.domain);
+    if (!domain) continue;
+    if (citation.isOwnedDomain || isOwnedDomain(domain, brandDomain)) continue;
+
+    counts.set(domain, (counts.get(domain) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+function normalizeMentionedDomain(value: string | null | undefined) {
+  const domain = normalizeDomain(value ?? "");
+  return domain || null;
+}
+
+function isOwnedDomain(domain: string, brandDomain: string) {
+  const ownedDomain = normalizeMentionedDomain(brandDomain);
+  if (!ownedDomain) return false;
+  return domain === ownedDomain || domain.endsWith(`.${ownedDomain}`);
+}
+
+function mentionedDomainSeriesKey(domain: string) {
+  return `domain:${domain}`;
 }
 
 function buildPromptAdditionMarkers(

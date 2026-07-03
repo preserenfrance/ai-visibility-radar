@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { LineChart, MousePointer2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ export type MentionTrendSeries = {
   key: string;
   label: string;
   color: string;
+  total?: number;
 };
 
 export type MentionTrendPoint = {
@@ -35,19 +36,50 @@ const PLOT = {
 
 export function MentionsTrendChart({
   series,
+  domainSeries = [],
   points,
   promptMarkers,
 }: {
   series: MentionTrendSeries[];
+  domainSeries?: MentionTrendSeries[];
   points: MentionTrendPoint[];
   promptMarkers: PromptAdditionMarker[];
 }) {
-  const [visibleSeries, setVisibleSeries] = useState(
-    () => new Set(series.map((item) => item.key)),
+  const allSeries = useMemo(
+    () => [...series, ...domainSeries],
+    [domainSeries, series],
   );
+  const allSeriesKeys = useMemo(
+    () => allSeries.map((item) => item.key).join("|"),
+    [allSeries],
+  );
+  const [visibleSeries, setVisibleSeries] = useState(
+    () => new Set(allSeries.map((item) => item.key)),
+  );
+  const previousSeriesKeys = useRef<string | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const activeSeries = series.filter((item) => visibleSeries.has(item.key));
+  useEffect(() => {
+    const previousKeys = new Set(
+      previousSeriesKeys.current?.split("|").filter(Boolean) ?? [],
+    );
+    setVisibleSeries((current) => {
+      const allowed = new Set(allSeries.map((item) => item.key));
+      const next = new Set<string>();
+
+      for (const key of current) {
+        if (allowed.has(key)) next.add(key);
+      }
+      for (const item of allSeries) {
+        if (!previousKeys.has(item.key)) next.add(item.key);
+      }
+
+      return next;
+    });
+    previousSeriesKeys.current = allSeriesKeys;
+  }, [allSeries, allSeriesKeys]);
+
+  const activeSeries = allSeries.filter((item) => visibleSeries.has(item.key));
   const plotWidth = VIEWBOX_WIDTH - PLOT.left - PLOT.right;
   const plotHeight = VIEWBOX_HEIGHT - PLOT.top - PLOT.bottom;
   const maxValue = niceMax(
@@ -110,7 +142,7 @@ export function MentionsTrendChart({
   const hoverX = hoverIndex === null ? null : xForIndex(hoverIndex);
   const hoverMarker = hoverPoint ? markerByDate.get(hoverPoint.date) : null;
   const hasData = points.some((point) =>
-    series.some((item) => (point.values[item.key] ?? 0) > 0),
+    allSeries.some((item) => (point.values[item.key] ?? 0) > 0),
   );
 
   return (
@@ -123,8 +155,7 @@ export function MentionsTrendChart({
               Omembe skozi čas
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Zadnjih 30 dni po modelih; oznake na grafu prikazujejo dodane
-              prompte.
+              Zadnjih 30 dni po modelih in najpogosteje omenjenih domenah.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -342,6 +373,53 @@ export function MentionsTrendChart({
             </div>
           )}
         </div>
+
+        {domainSeries.length > 0 && (
+          <div className="mt-4 border-t pt-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
+                Najpogosteje omenjene domene
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Top {domainSeries.length}
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              {domainSeries.map((item) => {
+                const checked = visibleSeries.has(item.key);
+                return (
+                  <label
+                    key={item.key}
+                    className={cn(
+                      "flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm transition-colors",
+                      checked ? "border-primary/30" : "opacity-60",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 shrink-0"
+                      checked={checked}
+                      onChange={() => toggleSeries(item.key)}
+                    />
+                    <span
+                      className="h-2.5 w-5 shrink-0 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1 truncate font-medium">
+                      {item.label}
+                    </span>
+                    {typeof item.total === "number" && (
+                      <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+                        {item.total}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {!hasData && (
           <div className="mt-3 rounded-md border bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
