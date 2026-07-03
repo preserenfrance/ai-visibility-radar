@@ -40,6 +40,17 @@ import {
 import { enqueueJob } from "@/lib/queue";
 import { systemPromptContent } from "@/lib/system-prompts";
 
+const PROMPT_EXECUTION_TIMEOUT_MS = positiveNumberFromEnv(
+  "PROMPT_EXECUTION_TIMEOUT_MS",
+  30_000,
+  10_000,
+);
+const PARSER_EXECUTION_TIMEOUT_MS = positiveNumberFromEnv(
+  "PARSER_EXECUTION_TIMEOUT_MS",
+  12_000,
+  5_000,
+);
+
 export async function crawlBrand(
   brandId: string,
   maxPages: number = MVP_LIMITS.maxPages,
@@ -1507,18 +1518,22 @@ export async function runPromptRun(promptRunId: string) {
         : promptRun.engine.model,
       searchEnabled: promptRun.engine.searchEnabled,
     });
-    const output = await adapter.runPrompt({
-      prompt: promptRun.prompt.text,
-      language: promptRun.scanRun.brand.language,
-      country: promptRun.scanRun.brand.country,
-      brandName: promptRun.scanRun.brand.name,
-      brandDomain: promptRun.scanRun.brand.domain,
-      competitors: promptRun.scanRun.brand.competitors.map((competitor) => ({
-        name: competitor.name,
-        domain: competitor.domain ?? undefined,
-      })),
-      searchEnabled: promptRun.engine.searchEnabled,
-    });
+    const output = await withTimeout(
+      adapter.runPrompt({
+        prompt: promptRun.prompt.text,
+        language: promptRun.scanRun.brand.language,
+        country: promptRun.scanRun.brand.country,
+        brandName: promptRun.scanRun.brand.name,
+        brandDomain: promptRun.scanRun.brand.domain,
+        competitors: promptRun.scanRun.brand.competitors.map((competitor) => ({
+          name: competitor.name,
+          domain: competitor.domain ?? undefined,
+        })),
+        searchEnabled: promptRun.engine.searchEnabled,
+      }),
+      PROMPT_EXECUTION_TIMEOUT_MS,
+      `AI prompt run ${promptRunId}`,
+    );
     if (await isScanCanceled(promptRun.scanRunId)) {
       await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
       return null;
@@ -1587,21 +1602,25 @@ export async function parseResponse(aiResponseId: string) {
   if (aiResponse.parsedResult) return aiResponse.parsedResult;
 
   const config = getConfig();
-  const parsed = await parseAiResponse({
-    brandName: aiResponse.promptRun.scanRun.brand.name,
-    brandDomain: aiResponse.promptRun.scanRun.brand.domain,
-    brandAliases: toStringArray(aiResponse.promptRun.scanRun.brand.aliases),
-    competitors: aiResponse.promptRun.scanRun.brand.competitors,
-    knownBrandFacts: [
-      aiResponse.promptRun.scanRun.brand.description ?? "",
-      aiResponse.promptRun.scanRun.brand.industry ?? "",
-    ].filter(Boolean),
-    prompt: aiResponse.promptRun.prompt.text,
-    rawAiAnswer: aiResponse.rawText,
-    citations: toCitationArray(aiResponse.citationsJson),
-    parserProvider: config.PARSER_PROVIDER,
-    parserModel: config.PARSER_MODEL,
-  });
+  const parsed = await withTimeout(
+    parseAiResponse({
+      brandName: aiResponse.promptRun.scanRun.brand.name,
+      brandDomain: aiResponse.promptRun.scanRun.brand.domain,
+      brandAliases: toStringArray(aiResponse.promptRun.scanRun.brand.aliases),
+      competitors: aiResponse.promptRun.scanRun.brand.competitors,
+      knownBrandFacts: [
+        aiResponse.promptRun.scanRun.brand.description ?? "",
+        aiResponse.promptRun.scanRun.brand.industry ?? "",
+      ].filter(Boolean),
+      prompt: aiResponse.promptRun.prompt.text,
+      rawAiAnswer: aiResponse.rawText,
+      citations: toCitationArray(aiResponse.citationsJson),
+      parserProvider: config.PARSER_PROVIDER,
+      parserModel: config.PARSER_MODEL,
+    }),
+    PARSER_EXECUTION_TIMEOUT_MS,
+    `AI response parser ${aiResponseId}`,
+  );
 
   const result = await prisma.parsedResult.create({
     data: {
@@ -2219,6 +2238,29 @@ function uniqueNotificationRecipients(
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function positiveNumberFromEnv(
+  name: string,
+  fallback: number,
+  minimum: number,
+) {
+  const parsed = Number(process.env[name]);
+  if (!Number.isFinite(parsed) || parsed < minimum) return fallback;
+  return Math.floor(parsed);
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
 }
 
 function startOfMonth(from = new Date()) {

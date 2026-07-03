@@ -24,8 +24,9 @@ import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const CRON_SCHEDULE = "*/5 * * * *";
-const CRON_LABEL = "vsakih 5 minut";
+const CRON_SCHEDULE = "* * * * *";
+const CRON_LABEL = "vsako minuto";
+const OPERATIONS_PAGE_SIZE = 20;
 
 type RecurringBrand = {
   id: string;
@@ -38,6 +39,11 @@ type RecurringBrand = {
     plan: string;
   };
 };
+
+type AdminOperationsSearchParams = Record<
+  string,
+  string | string[] | undefined
+>;
 
 async function cancelScanRun(formData: FormData) {
   "use server";
@@ -138,11 +144,19 @@ async function stopRecurringScan(formData: FormData) {
   redirect("/admin/operations?updated=recurring-stopped");
 }
 
-export default async function AdminOperationsPage() {
+export default async function AdminOperationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<AdminOperationsSearchParams>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/operations");
   if (!isAdminUser(user))
     return <main className="p-8">Nimate dostopa do admin strani.</main>;
+
+  const query = (await searchParams) ?? {};
+  const requestedScheduledPage = pageFromSearchParam(query.scheduledPage);
+  const requestedQueuePage = pageFromSearchParam(query.queuePage);
 
   const now = new Date();
   const lastHour = addHours(now, -1);
@@ -189,7 +203,8 @@ export default async function AdminOperationsPage() {
         status: { in: ["queued", "running"] },
       },
       orderBy: { createdAt: "asc" },
-      take: 20,
+      skip: (requestedQueuePage - 1) * OPERATIONS_PAGE_SIZE,
+      take: OPERATIONS_PAGE_SIZE,
       include: {
         brand: {
           select: {
@@ -255,6 +270,31 @@ export default async function AdminOperationsPage() {
   ]);
 
   const activeRecurringCount = recurringBrands.length;
+  const pendingScansCount = currentQueuedScans + currentRunningScans;
+  const scheduledPageCount = pageCount(
+    activeRecurringCount,
+    OPERATIONS_PAGE_SIZE,
+  );
+  const queuePageCount = pageCount(pendingScansCount, OPERATIONS_PAGE_SIZE);
+  const scheduledPage = clampPage(requestedScheduledPage, scheduledPageCount);
+  const queuePage = clampPage(requestedQueuePage, queuePageCount);
+
+  if (
+    scheduledPage !== requestedScheduledPage ||
+    queuePage !== requestedQueuePage
+  ) {
+    redirect(
+      operationsPageHref(query, {
+        scheduledPage,
+        queuePage,
+      }),
+    );
+  }
+
+  const paginatedRecurringBrands = recurringBrands.slice(
+    (scheduledPage - 1) * OPERATIONS_PAGE_SIZE,
+    scheduledPage * OPERATIONS_PAGE_SIZE,
+  );
   const dueRecurringCount = recurringBrands.filter(
     (brand) => brand.recurringScanNextRunAt! <= now,
   ).length;
@@ -408,7 +448,7 @@ export default async function AdminOperationsPage() {
                 </TR>
               </THead>
               <TBody>
-                {recurringBrands.slice(0, 20).map((brand) => (
+                {paginatedRecurringBrands.map((brand) => (
                   <TR key={brand.id}>
                     <TD>
                       <Link
@@ -450,6 +490,13 @@ export default async function AdminOperationsPage() {
                 )}
               </TBody>
             </Table>
+            <PaginationControls
+              page={scheduledPage}
+              totalItems={activeRecurringCount}
+              pageSize={OPERATIONS_PAGE_SIZE}
+              pageParam="scheduledPage"
+              query={query}
+            />
           </CardContent>
         </Card>
 
@@ -525,6 +572,13 @@ export default async function AdminOperationsPage() {
                 )}
               </TBody>
             </Table>
+            <PaginationControls
+              page={queuePage}
+              totalItems={pendingScansCount}
+              pageSize={OPERATIONS_PAGE_SIZE}
+              pageParam="queuePage"
+              query={query}
+            />
           </CardContent>
         </Card>
       </div>
@@ -682,6 +736,79 @@ function InlineMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
+function PaginationControls({
+  page,
+  totalItems,
+  pageSize,
+  pageParam,
+  query,
+}: {
+  page: number;
+  totalItems: number;
+  pageSize: number;
+  pageParam: "scheduledPage" | "queuePage";
+  query: AdminOperationsSearchParams;
+}) {
+  const totalPages = pageCount(totalItems, pageSize);
+  const start = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalItems);
+  const previousPage = page - 1;
+  const nextPage = page + 1;
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-sm">
+      <div className="text-muted-foreground">
+        {totalItems === 0
+          ? "Ni zapisov"
+          : `${start.toLocaleString("sl-SI")}-${end.toLocaleString(
+              "sl-SI",
+            )} od ${totalItems.toLocaleString("sl-SI")}`}
+      </div>
+      <div className="flex items-center gap-2">
+        <PaginationButton
+          enabled={page > 1}
+          href={operationsPageHref(query, { [pageParam]: previousPage })}
+        >
+          Prejšnja
+        </PaginationButton>
+        <div className="min-w-20 text-center text-xs text-muted-foreground">
+          {page}/{totalPages}
+        </div>
+        <PaginationButton
+          enabled={page < totalPages}
+          href={operationsPageHref(query, { [pageParam]: nextPage })}
+        >
+          Naslednja
+        </PaginationButton>
+      </div>
+    </div>
+  );
+}
+
+function PaginationButton({
+  children,
+  enabled,
+  href,
+}: {
+  children: React.ReactNode;
+  enabled: boolean;
+  href: string;
+}) {
+  if (!enabled) {
+    return (
+      <Button type="button" size="sm" variant="outline" disabled>
+        {children}
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild size="sm" variant="outline">
+      <Link href={href}>{children}</Link>
+    </Button>
+  );
+}
+
 function scheduledStatusCount(
   groups: Array<{ status: ScanRunStatus; _count: { _all: number } }>,
   status: ScanRunStatus,
@@ -761,4 +888,38 @@ function addHours(date: Date, hours: number) {
   const next = new Date(date);
   next.setHours(next.getHours() + hours);
   return next;
+}
+
+function pageFromSearchParam(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const page = Number.parseInt(raw ?? "", 10);
+  return Number.isFinite(page) && page > 0 ? page : 1;
+}
+
+function pageCount(totalItems: number, pageSize: number) {
+  return Math.max(1, Math.ceil(totalItems / pageSize));
+}
+
+function clampPage(page: number, totalPages: number) {
+  return Math.min(Math.max(page, 1), totalPages);
+}
+
+function operationsPageHref(
+  query: AdminOperationsSearchParams,
+  updates: Record<string, number>,
+) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (key === "updated" || key === "count") continue;
+    const singleValue = Array.isArray(value) ? value[0] : value;
+    if (singleValue) params.set(key, singleValue);
+  }
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value <= 1) params.delete(key);
+    else params.set(key, String(value));
+  }
+
+  const search = params.toString();
+  return search ? `/admin/operations?${search}` : "/admin/operations";
 }

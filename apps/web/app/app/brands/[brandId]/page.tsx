@@ -171,7 +171,13 @@ export default async function BrandPage({
     mentionTrendScanRuns,
     brand.domain,
   );
-  const mentionTrendPoints = buildMentionTrendPoints(
+  const brandMentionTrendPoints = buildMentionTrendPoints(
+    trendDays,
+    mentionTrendScanRuns,
+    [],
+    brand.domain,
+  );
+  const competitorMentionTrendPoints = buildMentionTrendPoints(
     trendDays,
     mentionTrendScanRuns,
     mentionedDomainSeries,
@@ -288,10 +294,23 @@ export default async function BrandPage({
       </div>
 
       <MentionsTrendChart
+        title="Naše omembe skozi čas"
+        description="Zadnjih 30 dni po modelih; oznake na grafu prikazujejo dodane prompte."
         series={MENTION_TREND_SERIES}
-        domainSeries={mentionedDomainSeries}
-        points={mentionTrendPoints}
+        points={brandMentionTrendPoints}
         promptMarkers={promptAdditionMarkers}
+        emptyMessage="V zadnjih 30 dneh še ni zabeleženih naših omemb."
+      />
+
+      <MentionsTrendChart
+        title="Omembe konkurence skozi čas"
+        description="Top 10 najpogosteje omenjenih zunanjih domen v citatih AI odgovorov."
+        series={[]}
+        domainSeries={mentionedDomainSeries}
+        points={competitorMentionTrendPoints}
+        promptMarkers={promptAdditionMarkers}
+        domainSeriesLabel="Najpogosteje omenjene konkurenčne domene"
+        emptyMessage="V zadnjih 30 dneh še ni zabeleženih konkurenčnih domen."
       />
 
       <Card className="mb-6">
@@ -459,13 +478,15 @@ function buildMentionTrendPoints(
           (point.values[key] ?? 0) + mentionCountForPromptRun(promptRun);
       }
 
-      for (const [domain, count] of domainCountsForPromptRun(
-        promptRun,
-        brandDomain,
-      )) {
-        const domainKey = mentionedDomainSeriesKey(domain);
-        if (!domainKeys.has(domainKey)) continue;
-        point.values[domainKey] = (point.values[domainKey] ?? 0) + count;
+      if (domainKeys.size > 0) {
+        for (const [domain, count] of domainCountsForPromptRun(
+          promptRun,
+          brandDomain,
+        )) {
+          const domainKey = mentionedDomainSeriesKey(domain);
+          if (!domainKeys.has(domainKey)) continue;
+          point.values[domainKey] = (point.values[domainKey] ?? 0) + count;
+        }
       }
     }
   }

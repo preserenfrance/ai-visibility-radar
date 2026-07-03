@@ -30,6 +30,16 @@ const config = getConfig();
 if (!config.REDIS_URL) {
   throw new Error("REDIS_URL is required for the worker process");
 }
+const PROMPT_EXECUTION_TIMEOUT_MS = positiveNumber(
+  process.env.PROMPT_EXECUTION_TIMEOUT_MS,
+  45_000,
+  10_000,
+);
+const PARSER_EXECUTION_TIMEOUT_MS = positiveNumber(
+  process.env.PARSER_EXECUTION_TIMEOUT_MS,
+  20_000,
+  5_000,
+);
 const connection = new IORedis(config.REDIS_URL, {
   maxRetriesPerRequest: null,
 });
@@ -252,9 +262,13 @@ async function waitForScanSlot(scanRunId: string) {
   }
 }
 
-function positiveNumber(value: string | undefined, fallback: number) {
+function positiveNumber(
+  value: string | undefined,
+  fallback: number,
+  minimum = 1,
+) {
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Number.isFinite(parsed) && parsed >= minimum ? parsed : fallback;
 }
 
 function sleep(ms: number) {
@@ -306,18 +320,22 @@ async function processRunPrompt(promptRunId: string) {
         : promptRun.engine.model,
       searchEnabled: promptRun.engine.searchEnabled,
     });
-    const output = await adapter.runPrompt({
-      prompt: promptRun.prompt.text,
-      language: promptRun.scanRun.brand.language,
-      country: promptRun.scanRun.brand.country,
-      brandName: promptRun.scanRun.brand.name,
-      brandDomain: promptRun.scanRun.brand.domain,
-      competitors: promptRun.scanRun.brand.competitors.map((competitor) => ({
-        name: competitor.name,
-        domain: competitor.domain ?? undefined,
-      })),
-      searchEnabled: promptRun.engine.searchEnabled,
-    });
+    const output = await withTimeout(
+      adapter.runPrompt({
+        prompt: promptRun.prompt.text,
+        language: promptRun.scanRun.brand.language,
+        country: promptRun.scanRun.brand.country,
+        brandName: promptRun.scanRun.brand.name,
+        brandDomain: promptRun.scanRun.brand.domain,
+        competitors: promptRun.scanRun.brand.competitors.map((competitor) => ({
+          name: competitor.name,
+          domain: competitor.domain ?? undefined,
+        })),
+        searchEnabled: promptRun.engine.searchEnabled,
+      }),
+      PROMPT_EXECUTION_TIMEOUT_MS,
+      `AI prompt run ${promptRunId}`,
+    );
     if (await isScanCanceled(promptRun.scanRunId)) {
       await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
       return null;
@@ -375,21 +393,25 @@ async function processParseResponse(aiResponseId: string) {
   if (!aiResponse) throw new Error("AI response not found");
   if (aiResponse.parsedResult) return aiResponse.parsedResult;
 
-  const parsed = await parseAiResponse({
-    brandName: aiResponse.promptRun.scanRun.brand.name,
-    brandDomain: aiResponse.promptRun.scanRun.brand.domain,
-    brandAliases: toStringArray(aiResponse.promptRun.scanRun.brand.aliases),
-    competitors: aiResponse.promptRun.scanRun.brand.competitors,
-    knownBrandFacts: [
-      aiResponse.promptRun.scanRun.brand.description ?? "",
-      aiResponse.promptRun.scanRun.brand.industry ?? "",
-    ].filter(Boolean),
-    prompt: aiResponse.promptRun.prompt.text,
-    rawAiAnswer: aiResponse.rawText,
-    citations: toCitationArray(aiResponse.citationsJson),
-    parserProvider: config.PARSER_PROVIDER,
-    parserModel: config.PARSER_MODEL,
-  });
+  const parsed = await withTimeout(
+    parseAiResponse({
+      brandName: aiResponse.promptRun.scanRun.brand.name,
+      brandDomain: aiResponse.promptRun.scanRun.brand.domain,
+      brandAliases: toStringArray(aiResponse.promptRun.scanRun.brand.aliases),
+      competitors: aiResponse.promptRun.scanRun.brand.competitors,
+      knownBrandFacts: [
+        aiResponse.promptRun.scanRun.brand.description ?? "",
+        aiResponse.promptRun.scanRun.brand.industry ?? "",
+      ].filter(Boolean),
+      prompt: aiResponse.promptRun.prompt.text,
+      rawAiAnswer: aiResponse.rawText,
+      citations: toCitationArray(aiResponse.citationsJson),
+      parserProvider: config.PARSER_PROVIDER,
+      parserModel: config.PARSER_MODEL,
+    }),
+    PARSER_EXECUTION_TIMEOUT_MS,
+    `AI response parser ${aiResponseId}`,
+  );
 
   const result = await prisma.parsedResult.create({
     data: {
@@ -866,4 +888,17 @@ function uniqueNotificationRecipients(
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
 }

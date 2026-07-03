@@ -14,8 +14,12 @@ import {
 export const maxDuration = 60;
 
 const MAX_NEW_SCANS_PER_TICK = 20;
-const MAX_SCAN_STEPS_PER_TICK = 3;
+const MAX_SCAN_STEPS_PER_TICK = 30;
+const MAX_SCAN_STEPS_PER_SCAN_PER_TICK = 4;
+const SCAN_QUEUE_TIME_BUDGET_MS = 55_000;
+const MIN_STEP_START_BUDGET_MS = 45_000;
 const RECURRING_SCAN_PLANS = ["free", "starter", "growth"] as const;
+const QUEUE_TRIGGER_TYPES = ["manual", "scheduled", "free_audit"] as const;
 
 export async function GET(request: Request) {
   return runRegularScans(request);
@@ -128,30 +132,98 @@ function runRegularScans(request: Request) {
       }
     }
 
-    const pendingScans = await prisma.scanRun.findMany({
-      where: {
-        triggerType: { in: ["manual", "scheduled"] },
-        status: { in: ["queued", "running"] },
-      },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-      take: MAX_SCAN_STEPS_PER_TICK,
-    });
-
-    const processedSteps: string[] = [];
-    for (const scan of pendingScans) {
-      await runNextScanStep(scan.id).catch(() => null);
-      processedSteps.push(scan.id);
-    }
+    const scanQueue = await processScanQueueUntilBudget();
 
     return ok({
       deactivatedWithoutAutomation: deactivatedWithoutAutomation.count,
       activatedRecurringBrands,
       createdScans,
       failedBrands,
-      processedSteps,
+      scanQueue,
     });
   });
+}
+
+async function processScanQueueUntilBudget() {
+  const deadline = Date.now() + SCAN_QUEUE_TIME_BUDGET_MS;
+  const stepCounts = new Map<string, number>();
+  const processedSteps: Array<{
+    scanRunId: string;
+    status: string | null;
+    durationMs: number;
+  }> = [];
+  const failedSteps: Array<{ scanRunId: string; error: string }> = [];
+  let attemptedSteps = 0;
+
+  while (
+    attemptedSteps < MAX_SCAN_STEPS_PER_TICK &&
+    Date.now() < deadline - MIN_STEP_START_BUDGET_MS
+  ) {
+    const scan = await nextPendingScanForCron(stepCounts);
+    if (!scan) break;
+
+    attemptedSteps += 1;
+    stepCounts.set(scan.id, (stepCounts.get(scan.id) ?? 0) + 1);
+    const startedAt = Date.now();
+    try {
+      const updatedScan = await runNextScanStep(scan.id);
+      processedSteps.push({
+        scanRunId: scan.id,
+        status: updatedScan?.status ?? null,
+        durationMs: Date.now() - startedAt,
+      });
+    } catch (error) {
+      failedSteps.push({
+        scanRunId: scan.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const remaining = await prisma.scanRun.count({
+    where: {
+      triggerType: { in: [...QUEUE_TRIGGER_TYPES] },
+      status: { in: ["queued", "running"] },
+    },
+  });
+
+  return {
+    attemptedSteps,
+    processedSteps,
+    failedSteps,
+    remaining,
+    exhaustedBudget: Date.now() >= deadline - MIN_STEP_START_BUDGET_MS,
+  };
+}
+
+async function nextPendingScanForCron(stepCounts: Map<string, number>) {
+  const exhaustedIds = [...stepCounts.entries()]
+    .filter(([, count]) => count >= MAX_SCAN_STEPS_PER_SCAN_PER_TICK)
+    .map(([scanRunId]) => scanRunId);
+  const idFilter = exhaustedIds.length ? { id: { notIn: exhaustedIds } } : {};
+  const baseWhere = {
+    triggerType: { in: [...QUEUE_TRIGGER_TYPES] },
+    ...idFilter,
+  };
+
+  return (
+    (await prisma.scanRun.findFirst({
+      where: {
+        ...baseWhere,
+        status: "running",
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    })) ??
+    prisma.scanRun.findFirst({
+      where: {
+        ...baseWhere,
+        status: "queued",
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    })
+  );
 }
 
 function isAuthorizedCronRequest(request: Request) {

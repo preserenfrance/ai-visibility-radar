@@ -39,11 +39,19 @@ export function MentionsTrendChart({
   domainSeries = [],
   points,
   promptMarkers,
+  title = "Omembe skozi čas",
+  description = "Zadnjih 30 dni po modelih in najpogosteje omenjenih domenah.",
+  domainSeriesLabel = "Najpogosteje omenjene domene",
+  emptyMessage = "V zadnjih 30 dneh še ni zabeleženih omemb.",
 }: {
   series: MentionTrendSeries[];
   domainSeries?: MentionTrendSeries[];
   points: MentionTrendPoint[];
   promptMarkers: PromptAdditionMarker[];
+  title?: string;
+  description?: string;
+  domainSeriesLabel?: string;
+  emptyMessage?: string;
 }) {
   const allSeries = useMemo(
     () => [...series, ...domainSeries],
@@ -152,11 +160,13 @@ export function MentionsTrendChart({
           <div>
             <CardTitle className="flex items-center gap-2">
               <LineChart className="h-5 w-5 text-primary" />
-              Omembe skozi čas
+              {title}
             </CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Zadnjih 30 dni po modelih in najpogosteje omenjenih domenah.
-            </p>
+            {description && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {description}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <MousePointer2 className="h-4 w-4" />
@@ -165,39 +175,41 @@ export function MentionsTrendChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {series.map((item) => {
-            const checked = visibleSeries.has(item.key);
-            return (
-              <label
-                key={item.key}
-                className={cn(
-                  "flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm transition-colors",
-                  checked ? "border-primary/30" : "opacity-60",
-                )}
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={checked}
-                  onChange={() => toggleSeries(item.key)}
-                />
-                <span
-                  className="h-2.5 w-5 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                  aria-hidden="true"
-                />
-                <span className="font-medium">{item.label}</span>
-              </label>
-            );
-          })}
-        </div>
+        {series.length > 0 && (
+          <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {series.map((item) => {
+              const checked = visibleSeries.has(item.key);
+              return (
+                <label
+                  key={item.key}
+                  className={cn(
+                    "flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm transition-colors",
+                    checked ? "border-primary/30" : "opacity-60",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={checked}
+                    onChange={() => toggleSeries(item.key)}
+                  />
+                  <span
+                    className="h-2.5 w-5 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                    aria-hidden="true"
+                  />
+                  <span className="font-medium">{item.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        )}
 
         <div className="relative overflow-x-auto pb-2">
           <div className="min-w-[760px]">
             <svg
               role="img"
-              aria-label="Graf omemb skozi čas"
+              aria-label={title}
               viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
               className="h-auto w-full"
             >
@@ -378,7 +390,7 @@ export function MentionsTrendChart({
           <div className="mt-4 border-t pt-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Najpogosteje omenjene domene
+                {domainSeriesLabel}
               </div>
               <div className="text-xs text-muted-foreground">
                 Top {domainSeries.length}
@@ -423,7 +435,7 @@ export function MentionsTrendChart({
 
         {!hasData && (
           <div className="mt-3 rounded-md border bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
-            V zadnjih 30 dneh še ni zabeleženih omemb.
+            {emptyMessage}
           </div>
         )}
       </CardContent>
