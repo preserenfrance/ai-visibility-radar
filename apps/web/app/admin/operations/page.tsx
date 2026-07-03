@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type React from "react";
-import { Activity, CalendarClock, Clock3, Mail, RefreshCw } from "lucide-react";
+import {
+  Activity,
+  Ban,
+  CalendarClock,
+  Clock3,
+  Mail,
+  RefreshCw,
+} from "lucide-react";
 import { type EmailEventType, type ScanRunStatus, prisma } from "@ai-radar/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +71,53 @@ async function cancelScanRun(formData: FormData) {
   ]);
 
   redirect("/admin/operations?updated=scan-canceled");
+}
+
+async function cancelQueuedScans() {
+  "use server";
+  await requireAdminUser();
+
+  const canceledAt = new Date();
+  const result = await prisma.$transaction(async (tx) => {
+    const queuedScans = await tx.scanRun.findMany({
+      where: {
+        triggerType: { in: ["manual", "scheduled"] },
+        status: "queued",
+      },
+      select: { id: true },
+    });
+    const scanRunIds = queuedScans.map((scan) => scan.id);
+    if (scanRunIds.length === 0) return { scanRuns: 0, promptRuns: 0 };
+
+    const promptRuns = await tx.promptRun.updateMany({
+      where: {
+        scanRunId: { in: scanRunIds },
+        status: "queued",
+        scanRun: { status: "queued" },
+      },
+      data: {
+        status: "skipped",
+        finishedAt: canceledAt,
+        errorMessage: "Množično preklicano v adminu.",
+      },
+    });
+    const scanRuns = await tx.scanRun.updateMany({
+      where: {
+        id: { in: scanRunIds },
+        status: "queued",
+      },
+      data: {
+        status: "canceled",
+        finishedAt: canceledAt,
+      },
+    });
+
+    return { scanRuns: scanRuns.count, promptRuns: promptRuns.count };
+  });
+
+  redirect(
+    `/admin/operations?updated=queued-scans-canceled&count=${result.scanRuns}`,
+  );
 }
 
 async function stopRecurringScan(formData: FormData) {
@@ -401,10 +455,26 @@ export default async function AdminOperationsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Queued / running scani</CardTitle>
-            <CardDescription>
-              Trenutni ročni in scheduled scan runi, ki čakajo ali se izvajajo.
-            </CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle>Queued / running scani</CardTitle>
+                <CardDescription>
+                  Trenutni ročni in scheduled scan runi, ki čakajo ali se
+                  izvajajo.
+                </CardDescription>
+              </div>
+              <form action={cancelQueuedScans}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="destructive"
+                  disabled={currentQueuedScans === 0}
+                >
+                  <Ban className="h-4 w-4" />
+                  Prekliči queued ({currentQueuedScans.toLocaleString("sl-SI")})
+                </Button>
+              </form>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
