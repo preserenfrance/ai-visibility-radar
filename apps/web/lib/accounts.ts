@@ -5,6 +5,9 @@ import { sendPasswordResetEmail, sendWelcomeEmail } from "@ai-radar/email";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 60;
+const WELCOME_EMAIL_SUBJECT = "Dobrodošli v AI Visibility Radar";
+const PASSWORD_RESET_EMAIL_SUBJECT =
+  "Ponastavitev gesla za AI Visibility Radar";
 
 export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -68,12 +71,15 @@ export async function createUserAccount(input: {
     include: { memberships: { include: { organization: true } } },
   });
 
-  await sendAccountNotification("welcome email", () =>
-    sendWelcomeEmail({
-      to: userWithMemberships.email,
-      name: userWithMemberships.name,
-    }),
-  );
+  await sendAccountNotification({
+    label: "welcome email",
+    subject: WELCOME_EMAIL_SUBJECT,
+    send: () =>
+      sendWelcomeEmail({
+        to: userWithMemberships.email,
+        name: userWithMemberships.name,
+      }),
+  });
 
   return userWithMemberships;
 }
@@ -105,11 +111,26 @@ export async function requestPasswordReset(emailInput: string) {
     },
   });
 
-  const emailResult = await sendPasswordResetEmail({
-    to: email,
-    resetUrl,
-    expiresInMinutes: RESET_TOKEN_TTL_MS / 1000 / 60,
-  });
+  let emailResult: { id?: string; skipped?: boolean };
+  try {
+    emailResult = await sendPasswordResetEmail({
+      to: email,
+      resetUrl,
+      expiresInMinutes: RESET_TOKEN_TTL_MS / 1000 / 60,
+    });
+    await recordAccountEmailEvent({
+      type: emailResult.skipped ? "queued" : "sent",
+      providerId: emailResult.id,
+      subject: PASSWORD_RESET_EMAIL_SUBJECT,
+    });
+  } catch (error) {
+    await recordAccountEmailEvent({
+      type: "failed",
+      subject: PASSWORD_RESET_EMAIL_SUBJECT,
+      error,
+    });
+    throw error;
+  }
 
   return { sent: true, skipped: Boolean(emailResult.skipped), resetUrl };
 }
@@ -141,13 +162,49 @@ function hashResetToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-async function sendAccountNotification(
-  label: string,
-  send: () => Promise<{ id?: string; skipped?: boolean }>,
-) {
+async function sendAccountNotification(input: {
+  label: string;
+  subject: string;
+  send: () => Promise<{ id?: string; skipped?: boolean }>;
+}) {
   try {
-    await send();
+    const result = await input.send();
+    await recordAccountEmailEvent({
+      type: result.skipped ? "queued" : "sent",
+      providerId: result.id,
+      subject: input.subject,
+    });
   } catch (error) {
-    console.warn(`Account ${label} failed`, error);
+    await recordAccountEmailEvent({
+      type: "failed",
+      subject: input.subject,
+      error,
+    });
+    console.warn(`Account ${input.label} failed`, error);
   }
+}
+
+async function recordAccountEmailEvent(input: {
+  type: "queued" | "sent" | "failed";
+  providerId?: string;
+  subject: string;
+  error?: unknown;
+}) {
+  try {
+    await prisma.emailEvent.create({
+      data: {
+        type: input.type,
+        provider: "resend",
+        providerId: input.providerId,
+        subject: input.subject,
+        errorMessage: input.error ? errorMessage(input.error) : undefined,
+      },
+    });
+  } catch (error) {
+    console.warn("Account email event logging failed", error);
+  }
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }

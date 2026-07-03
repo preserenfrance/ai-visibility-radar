@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  Activity,
   BarChart3,
-  ClipboardList,
   DollarSign,
   HelpCircle,
   LogOut,
@@ -11,7 +11,6 @@ import {
   SearchCheck,
   Settings,
   SlidersHorizontal,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearUserSession, getCurrentUser, isAdminUser } from "@/lib/auth";
@@ -90,17 +89,17 @@ function HeaderNavContent({
         />
         {admin && (
           <Nav
-            href="/admin/leads"
-            icon={<ClipboardList className="h-4 w-4" />}
+            href="/admin"
+            icon={<Activity className="h-4 w-4" />}
             label="Admin"
             className={navClassName}
           />
         )}
         {admin && (
           <Nav
-            href="/admin/users"
-            icon={<Users className="h-4 w-4" />}
-            label="Uporabniki"
+            href="/admin/operations"
+            icon={<BarChart3 className="h-4 w-4" />}
+            label="Operacije"
             className={navClassName}
           />
         )}

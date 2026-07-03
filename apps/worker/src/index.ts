@@ -661,8 +661,12 @@ async function notifyScanCompleted(scanRunId: string) {
     scan.brand.organization.memberships.map((membership) => membership.user),
   );
   const results = await Promise.allSettled(
-    recipients.map((recipient) =>
-      sendScanCompletedEmail({
+    recipients.map((recipient) => {
+      const subject = scanCompletedEmailSubject({
+        brandName: scan.brand.name,
+        visibilityScore: scoreSnapshot.visibilityScore,
+      });
+      return sendAndRecordScanCompletedEmail({
         to: recipient.email,
         recipientName: recipient.name,
         brandName: scan.brand.name,
@@ -675,8 +679,9 @@ async function notifyScanCompleted(scanRunId: string) {
         failedPromptRuns: scan.failedPromptRuns,
         totalPromptRuns: scan.totalPromptRuns,
         finishedAt: scan.finishedAt,
-      }),
-    ),
+        subject,
+      });
+    }),
   );
 
   results.forEach((result, index) => {
@@ -688,6 +693,67 @@ async function notifyScanCompleted(scanRunId: string) {
       });
     }
   });
+}
+
+async function sendAndRecordScanCompletedEmail(input: {
+  to: string;
+  recipientName: string | null;
+  brandName: string;
+  brandDomain: string;
+  brandId: string;
+  scanRunId: string;
+  triggerType: "manual" | "scheduled";
+  visibilityScore: number;
+  completedPromptRuns: number;
+  failedPromptRuns: number;
+  totalPromptRuns: number;
+  finishedAt: Date | null;
+  subject: string;
+}) {
+  try {
+    const email = await sendScanCompletedEmail(input);
+    await recordScanEmailEvent({
+      type: email.skipped ? "queued" : "sent",
+      providerId: email.id,
+      subject: input.subject,
+    });
+    return email;
+  } catch (error) {
+    await recordScanEmailEvent({
+      type: "failed",
+      subject: input.subject,
+      error,
+    });
+    throw error;
+  }
+}
+
+async function recordScanEmailEvent(input: {
+  type: "queued" | "sent" | "failed";
+  providerId?: string;
+  subject: string;
+  error?: unknown;
+}) {
+  try {
+    await prisma.emailEvent.create({
+      data: {
+        type: input.type,
+        provider: "resend",
+        providerId: input.providerId,
+        subject: input.subject,
+        errorMessage: input.error ? errorMessage(input.error) : undefined,
+      },
+    });
+  } catch (error) {
+    console.warn("Scan email event logging failed", error);
+  }
+}
+
+function scanCompletedEmailSubject(input: {
+  brandName: string;
+  visibilityScore: number;
+}) {
+  return `AI scan za ${input.brandName} je zaključen (${input.visibilityScore}/100)`;
 }
 
 function parsedResultsForScan(promptRuns: Array<any>) {
@@ -745,4 +811,8 @@ function uniqueNotificationRecipients(
   }
 
   return recipients;
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
