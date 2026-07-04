@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { Activity } from "lucide-react";
@@ -5,7 +6,12 @@ import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import {
   CompetitorMentionCount,
-  ModelMentionBadges,
+  EngineIcon,
+  MentionIndicator,
+  type ModelMentionColumn,
+  type ModelMentionSummary,
+  modelMentionColumnForRun,
+  modelMentionColumns,
 } from "@/components/model-mention-badges";
 import { ScanRunner } from "@/components/scan-runner";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +53,7 @@ export default async function ScanPage({
   if (!scan) return null;
   const scanPending = scan.status === "queued" || scan.status === "running";
   const promptGroups = groupPromptRuns(scan.promptRuns);
+  const modelColumns = modelMentionColumns(modelSummaries(scan.promptRuns));
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -101,77 +108,123 @@ export default async function ScanPage({
           <Table>
             <THead>
               <TR>
-                <TH>Prompt</TH>
-                <TH>Modeli</TH>
-                <TH>Konkurenti</TH>
-                <TH>Najboljši rang</TH>
+                <TH className="min-w-[22rem]">Prompt</TH>
+                {modelColumns.map((column) => (
+                  <TH
+                    key={column.key}
+                    className="w-14 px-2 text-center normal-case"
+                    title={column.label}
+                    aria-label={column.label}
+                  >
+                    <span className="flex justify-center">
+                      <EngineIcon column={column} />
+                    </span>
+                  </TH>
+                ))}
+                <TH className="whitespace-nowrap">Konkurenti</TH>
+                <TH className="whitespace-nowrap">Najboljši rang</TH>
                 <TH>Status</TH>
               </TR>
             </THead>
             <TBody>
               {promptGroups.map((group) => {
                 const status = groupStatus(group.runs);
+                const summaries = modelSummaries(group.runs);
 
                 return (
-                  <TR key={group.promptId}>
-                    <TD colSpan={5} className="p-0">
-                      <details>
-                        <summary className="grid cursor-pointer gap-3 p-3 md:grid-cols-[minmax(20rem,1.5fr)_auto_auto_auto_auto] md:items-center">
-                          <span className="font-medium">
-                            {group.promptText}
-                          </span>
-                          <ModelMentionBadges
-                            runs={modelSummaries(group.runs)}
+                  <Fragment key={group.promptId}>
+                    <TR>
+                      <TD className="max-w-xl font-medium">
+                        {group.promptText}
+                      </TD>
+                      {modelColumns.map((column) => (
+                        <TD key={column.key} className="w-14 px-2 text-center">
+                          <MentionIndicator
+                            runs={runsForModelColumn(summaries, column)}
                           />
-                          <CompetitorMentionCount
-                            names={competitorNamesForRuns(group.runs)}
-                          />
-                          <span>{bestBrandRank(group.runs) ?? "-"}</span>
-                          <Badge variant={statusBadgeVariant(status)}>
-                            {statusLabel(status)}
-                          </Badge>
-                        </summary>
-                        <div className="space-y-3 border-t bg-secondary/20 p-3">
-                          {group.runs.map((run) => (
-                            <div
-                              key={run.id}
-                              className="rounded-md border bg-white p-3"
-                            >
-                              <div className="mb-2 flex flex-wrap items-center gap-2">
-                                <Badge variant="secondary">
-                                  {run.engine.engineName}
-                                </Badge>
-                                <Badge variant={statusBadgeVariant(run.status)}>
-                                  {statusLabel(run.status)}
-                                </Badge>
+                        </TD>
+                      ))}
+                      <TD>
+                        <CompetitorMentionCount
+                          names={competitorNamesForRuns(group.runs)}
+                        />
+                      </TD>
+                      <TD className="whitespace-nowrap">
+                        {formatRank(bestBrandRank(group.runs))}
+                      </TD>
+                      <TD>
+                        <Badge variant={statusBadgeVariant(status)}>
+                          {statusLabel(status)}
+                        </Badge>
+                      </TD>
+                    </TR>
+                    <TR className="hover:bg-transparent">
+                      <TD
+                        colSpan={modelColumns.length + 4}
+                        className="border-t-0 p-0"
+                      >
+                        <details className="bg-secondary/10">
+                          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-primary">
+                            Odgovori modelov in citati
+                          </summary>
+                          <div className="space-y-3 border-t bg-secondary/20 p-3">
+                            {group.runs.map((run) => (
+                              <div
+                                key={run.id}
+                                className="rounded-md border bg-background p-3"
+                              >
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                  <Badge variant="secondary">
+                                    {run.engine.engineName}
+                                  </Badge>
+                                  <Badge
+                                    variant={statusBadgeVariant(run.status)}
+                                  >
+                                    {statusLabel(run.status)}
+                                  </Badge>
+                                </div>
+                                <div className="text-sm font-semibold">
+                                  Izvorni odgovor
+                                </div>
+                                <pre className="mt-1 max-h-72 w-full overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
+                                  {run.aiResponse?.rawText ??
+                                    run.errorMessage ??
+                                    "Ni odgovora"}
+                                </pre>
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  Citati:{" "}
+                                  {run.aiResponse?.citations
+                                    .map(
+                                      (citation: { domain: string | null }) =>
+                                        citation.domain,
+                                    )
+                                    .join(", ") || "-"}
+                                </div>
                               </div>
-                              <div className="text-sm font-semibold">
-                                Izvorni odgovor
-                              </div>
-                              <pre className="mt-1 max-h-72 w-full overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
-                                {run.aiResponse?.rawText ??
-                                  run.errorMessage ??
-                                  "Ni odgovora"}
-                              </pre>
-                              <div className="mt-2 text-xs text-muted-foreground">
-                                Citati:{" "}
-                                {run.aiResponse?.citations
-                                  .map(
-                                    (citation: { domain: string | null }) =>
-                                      citation.domain,
-                                  )
-                                  .join(", ") || "-"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    </TD>
-                  </TR>
+                            ))}
+                          </div>
+                        </details>
+                      </TD>
+                    </TR>
+                  </Fragment>
                 );
               })}
             </TBody>
           </Table>
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <LegendDot
+              className="border-emerald-700 bg-emerald-500"
+              label="znamka omenjena"
+            />
+            <LegendDot
+              className="border-rose-700 bg-rose-500"
+              label="znamka ni omenjena ali je izvedba padla"
+            />
+            <LegendDot
+              className="border-amber-700 bg-amber-400"
+              label="čaka na rezultat"
+            />
+          </div>
         </CardContent>
       </Card>
     </section>
@@ -202,7 +255,7 @@ function groupPromptRuns(promptRuns: Array<any>) {
   return Array.from(groups.values());
 }
 
-function modelSummaries(runs: Array<any>) {
+function modelSummaries(runs: Array<any>): ModelMentionSummary[] {
   return runs.map((run) => {
     const parsed = run.aiResponse?.parsedResult?.parsedJson as any;
     return {
@@ -219,6 +272,28 @@ function modelSummaries(runs: Array<any>) {
         typeof parsed?.brandRank === "number" ? parsed.brandRank : null,
     };
   });
+}
+
+function runsForModelColumn(
+  runs: ModelMentionSummary[],
+  column: ModelMentionColumn,
+) {
+  return runs.filter((run) => modelMentionColumnForRun(run).key === column.key);
+}
+
+function formatRank(rank: number | null) {
+  return rank ? `#${rank}` : "-";
+}
+
+function LegendDot({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span
+        className={`h-3.5 w-3.5 rounded-full border shadow-sm ${className}`}
+      />
+      {label}
+    </span>
+  );
 }
 
 function competitorNamesForRuns(runs: Array<any>) {

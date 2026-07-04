@@ -75,7 +75,7 @@ export function CompetitorMentionCount({ names }: { names: string[] }) {
   );
 }
 
-type ModelMentionColumn = {
+export type ModelMentionColumn = {
   key: string;
   provider: string;
   searchEnabled: boolean;
@@ -83,7 +83,7 @@ type ModelMentionColumn = {
   sortIndex: number;
 };
 
-function modelMentionColumns(runs: ModelMentionSummary[]) {
+export function modelMentionColumns(runs: ModelMentionSummary[]) {
   const columns = new Map<string, ModelMentionColumn>();
   for (const run of runs) {
     const column = modelMentionColumnForRun(run);
@@ -96,7 +96,7 @@ function modelMentionColumns(runs: ModelMentionSummary[]) {
   );
 }
 
-function modelMentionColumnForRun(
+export function modelMentionColumnForRun(
   run: ModelMentionSummary,
 ): ModelMentionColumn {
   const provider = run.provider ?? providerFromEngineName(run.engineName);
@@ -114,7 +114,7 @@ function modelMentionColumnForRun(
   };
 }
 
-function MentionIndicator({ runs }: { runs: ModelMentionSummary[] }) {
+export function MentionIndicator({ runs }: { runs: ModelMentionSummary[] }) {
   const state = mentionState(runs);
   return (
     <span
@@ -164,7 +164,7 @@ function bestRankForRuns(runs: ModelMentionSummary[]) {
   return ranks.length ? Math.min(...ranks) : null;
 }
 
-function EngineIcon({ column }: { column: ModelMentionColumn }) {
+export function EngineIcon({ column }: { column: ModelMentionColumn }) {
   return (
     <span className="relative mx-auto flex h-6 w-6 items-center justify-center">
       {column.provider === "openai" ? (

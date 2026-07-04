@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
+import { processScanQueueUntilBudget } from "@/lib/scan-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,22 @@ async function cancelQueuedScans() {
   );
 }
 
+async function runQueuedScansNow() {
+  "use server";
+  await requireAdminUser();
+
+  const result = await processScanQueueUntilBudget({
+    maxSteps: 24,
+    maxStepsPerScan: 3,
+    timeBudgetMs: 55_000,
+    minStepStartBudgetMs: 8_000,
+  });
+
+  redirect(
+    `/admin/operations?updated=scan-queue-run&steps=${result.attemptedSteps}&remaining=${result.remaining}`,
+  );
+}
+
 async function stopRecurringScan(formData: FormData) {
   "use server";
   await requireAdminUser();
@@ -157,6 +174,9 @@ export default async function AdminOperationsPage({
   const query = (await searchParams) ?? {};
   const requestedScheduledPage = pageFromSearchParam(query.scheduledPage);
   const requestedQueuePage = pageFromSearchParam(query.queuePage);
+  const updateKey = singleSearchParam(query.updated);
+  const queueRunSteps = numberFromSearchParam(query.steps);
+  const queueRunRemaining = numberFromSearchParam(query.remaining);
 
   const now = new Date();
   const lastHour = addHours(now, -1);
@@ -363,6 +383,13 @@ export default async function AdminOperationsPage({
         </div>
       </div>
 
+      {updateKey === "scan-queue-run" && (
+        <div className="mb-6 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+          Queue zagon sprožen: {queueRunSteps.toLocaleString("sl-SI")} korakov,
+          preostalih {queueRunRemaining.toLocaleString("sl-SI")} scanov.
+        </div>
+      )}
+
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
           icon={<RefreshCw className="h-5 w-5" />}
@@ -510,17 +537,29 @@ export default async function AdminOperationsPage({
                   izvajajo.
                 </CardDescription>
               </div>
-              <form action={cancelQueuedScans}>
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="destructive"
-                  disabled={currentQueuedScans === 0}
-                >
-                  <Ban className="h-4 w-4" />
-                  Prekliči queued ({currentQueuedScans.toLocaleString("sl-SI")})
-                </Button>
-              </form>
+              <div className="flex flex-wrap gap-2">
+                <form action={runQueuedScansNow}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={pendingScansCount === 0}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Zaženi queue zdaj
+                  </Button>
+                </form>
+                <form action={cancelQueuedScans}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="destructive"
+                    disabled={currentQueuedScans === 0}
+                  >
+                    <Ban className="h-4 w-4" />
+                    {`Prekliči queued (${currentQueuedScans.toLocaleString("sl-SI")})`}
+                  </Button>
+                </form>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -896,6 +935,16 @@ function pageFromSearchParam(value: string | string[] | undefined) {
   return Number.isFinite(page) && page > 0 ? page : 1;
 }
 
+function numberFromSearchParam(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const number = Number.parseInt(raw ?? "", 10);
+  return Number.isFinite(number) && number >= 0 ? number : 0;
+}
+
+function singleSearchParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function pageCount(totalItems: number, pageSize: number) {
   return Math.max(1, Math.ceil(totalItems / pageSize));
 }
@@ -910,7 +959,13 @@ function operationsPageHref(
 ) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (key === "updated" || key === "count") continue;
+    if (
+      key === "updated" ||
+      key === "count" ||
+      key === "steps" ||
+      key === "remaining"
+    )
+      continue;
     const singleValue = Array.isArray(value) ? value[0] : value;
     if (singleValue) params.set(key, singleValue);
   }
