@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Pogosta vprašanja | AI Visibility Radar",
   description:
-    "Odgovori na najpogostejša vprašanja o AI Visibility Radarju, modelih, cenah, metrikah in rednih scanih.",
+    "Odgovori na najpogostejša vprašanja o AI Visibility Radarju, modelih, cenah, metrikah in rednih pregledih.",
 };
 
 export default async function FaqPage() {
@@ -30,7 +30,7 @@ export default async function FaqPage() {
           <p className="mt-4 max-w-3xl text-muted-foreground">
             Kratki odgovori za podjetja, ki razmišljajo o uporabi, in za
             uporabnike, ki želijo bolje razumeti rezultate, modele, cene in
-            redne scane.
+            redne preglede.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -39,7 +39,7 @@ export default async function FaqPage() {
           </Button>
           <Button asChild>
             <Link href="/ai-visibility-checker">
-              Začni audit <ArrowRight className="h-4 w-4" />
+              Začni pregled <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </div>

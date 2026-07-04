@@ -16,13 +16,9 @@ const promptPlaceholders = [
   "Npr. Kje lahko kupim zanesljiv robotski sesalnik z dobro garancijo in hitro dostavo?",
   "Npr. Katere spletne trgovine priporočate za nakup naravne kozmetike v Sloveniji?",
   "Npr. Katera spletna trgovina ima najboljšo ponudbo pohištva za manjša stanovanja?",
-  "Npr. Kje lahko kupim kakovosten žar za domači vrt z dobro dostavo?",
-  "Npr. Katera spletna trgovina priporoča najboljše izdelke za nego trate?",
-  "Npr. Kje naj kupim kakovostne visoke grede za zelenjavni vrt?",
-  "Npr. Kateri ponudniki imajo dobro izbiro senčnikov za teraso?",
-  "Npr. Kje lahko kupim vrtno orodje za začetnike po razumni ceni?",
 ];
 const MIN_PROMPT_COUNT = 3;
+const MAX_PROMPT_COUNT = promptPlaceholders.length;
 
 export function FreeAuditForm({
   action,
@@ -171,7 +167,7 @@ export function FreeAuditForm({
         </div>
         <div className="grid gap-2">
           <label htmlFor="auditCompetitors" className="text-sm font-medium">
-            Konkurenti (brand)
+            Konkurenti
           </label>
           <Input
             id="auditCompetitors"
@@ -179,13 +175,14 @@ export function FreeAuditForm({
             placeholder="Npr. Mimovrste, Merkur, Bauhaus"
           />
           <p className="-mt-1 text-xs text-muted-foreground">
-            Vnesi imena konkurenčnih brandov, ki jih želiš primerjati z vašo
+            Vnesi imena konkurenčnih znamk, ki jih želiš primerjati s svojo
             znamko. Če jih je več, jih loči z vejico.
           </p>
         </div>
         <fieldset className="grid gap-3 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
-            Vnesi vsaj 3 in največ 10 promptov za test
+            Vnesi vsaj {MIN_PROMPT_COUNT} in največ {MAX_PROMPT_COUNT} vprašanj
+            za test
           </legend>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
@@ -204,7 +201,7 @@ export function FreeAuditForm({
                   Pripravljam predloge
                 </>
               ) : (
-                "Vi mi predlagajte prompte"
+                "Predlagaj vprašanja"
               )}
             </Button>
           </div>
@@ -217,11 +214,11 @@ export function FreeAuditForm({
             <div className="grid gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               <div>
                 <div className="font-medium">
-                  Za audit potrebuješ vsaj 3 prompte.
+                  Za pregled potrebuješ vsaj 3 vprašanja.
                 </div>
                 <p className="mt-1">
-                  Vpiši še en prompt ali pa klikni spodnji gumb in ti pripravimo
-                  predloge, ki jih lahko pregledaš in popraviš.
+                  Vpiši še eno vprašanje ali klikni spodnji gumb in ti
+                  pripravimo predloge, ki jih lahko pregledaš in popraviš.
                 </p>
               </div>
               <Button
@@ -238,7 +235,7 @@ export function FreeAuditForm({
                     Pripravljam predloge
                   </>
                 ) : (
-                  "Vi mi predlagajte prompte"
+                  "Predlagaj vprašanja"
                 )}
               </Button>
             </div>
@@ -249,7 +246,7 @@ export function FreeAuditForm({
                 htmlFor={`auditPrompt-${index}`}
                 className="text-sm font-medium"
               >
-                Prompt {index + 1}
+                Vprašanje {index + 1}
               </label>
               <Textarea
                 id={`auditPrompt-${index}`}
@@ -327,11 +324,11 @@ function SubmitArea() {
         {pending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Pripravljamo prvi report
+            Pripravljamo prvo poročilo
           </>
         ) : (
           <>
-            Zaženi brezplačen audit <ArrowRight className="h-4 w-4" />
+            Zaženi brezplačen pregled <ArrowRight className="h-4 w-4" />
           </>
         )}
       </Button>
@@ -339,11 +336,11 @@ function SubmitArea() {
         <div className="rounded-md border bg-white p-4 text-sm">
           <div className="flex items-center gap-2 font-medium">
             <Activity className="h-4 w-4 animate-pulse text-primary" />
-            Audit teče v ozadju
+            Pregled teče v ozadju
           </div>
           <p className="mt-2 text-muted-foreground">
-            Pošiljamo tvoje prompte na izbrane AI modele in računamo rezultat.
-            To lahko traja nekaj trenutkov.
+            Pošiljamo tvoja vprašanja izbranemu AI modelu in pripravljamo
+            rezultat. To lahko traja nekaj trenutkov.
           </p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-primary" />

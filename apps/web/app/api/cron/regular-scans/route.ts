@@ -1,4 +1,4 @@
-import { prisma } from "@ai-radar/db";
+import { prisma, resetStaleScanWork } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { fail, ok, route } from "@/lib/http";
@@ -11,12 +11,12 @@ import {
   runNextScanStep,
 } from "@/lib/services";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MAX_NEW_SCANS_PER_TICK = 20;
-const MAX_SCAN_STEPS_PER_TICK = 30;
+const MAX_SCAN_STEPS_PER_TICK = 120;
 const MAX_SCAN_STEPS_PER_SCAN_PER_TICK = 4;
-const SCAN_QUEUE_TIME_BUDGET_MS = 55_000;
+const SCAN_QUEUE_TIME_BUDGET_MS = 285_000;
 const MIN_STEP_START_BUDGET_MS = 45_000;
 const RECURRING_SCAN_PLANS = ["free", "starter", "growth"] as const;
 const QUEUE_TRIGGER_TYPES = ["manual", "scheduled", "free_audit"] as const;
@@ -33,6 +33,8 @@ function runRegularScans(request: Request) {
   return route(async () => {
     if (!isAuthorizedCronRequest(request))
       return fail("Cron ni avtoriziran.", 401);
+
+    await resetStaleScanWork();
 
     const now = new Date();
     const deactivatedWithoutAutomation = await prisma.brand.updateMany({

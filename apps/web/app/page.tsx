@@ -36,13 +36,13 @@ const features: Array<{
   {
     title: "Meritev omemb",
     description:
-      "Preveri, ali se tvoja znamka pojavi v odgovorih ChatGPT, Gemini in Claude.",
+      "Preveri, ali se tvoja znamka pojavi v odgovorih ChatGPT, Gemini, Claude in modelih z iskanjem.",
     Icon: Activity,
   },
   {
     title: "Rang med konkurenti",
     description:
-      "Radar pokaže, kdo je v AI odgovorih pred tabo in pri katerih vprašanjih izgubljaš vidnost.",
+      "Radar pokaže, kdo je v AI odgovorih pred tabo, katere domene se najpogosteje ponavljajo in pri katerih vprašanjih izgubljaš vidnost.",
     Icon: Target,
   },
   {
@@ -52,48 +52,48 @@ const features: Array<{
     Icon: BadgeCheck,
   },
   {
-    title: "Sentiment odgovorov",
+    title: "AI pogled na znamko",
     description:
-      "Ni dovolj, da si omenjen. Pomembno je tudi, ali te modeli predstavijo kot dobro izbiro.",
+      "Za vsako znamko dobiš povzetek, kako jo ChatGPT razume, kateri produkti ali storitve so najbolj izpostavljeni in kateri javni zadržki se ponavljajo.",
     Icon: Sparkles,
   },
   {
     title: "Naloge za izboljšave",
     description:
-      "Vsak audit se zaključi s konkretnimi SEO, vsebinskimi in citacijskimi priporočili.",
+      "Vsak pregled se zaključi s konkretnimi vsebinskimi, citacijskimi in pozicijskimi priporočili.",
     Icon: ClipboardList,
   },
   {
-    title: "Varen dostop",
+    title: "Redno spremljanje",
     description:
-      "Prijava, organizacije in admin dostop so ločeni, zato uporabniki vidijo samo svoje podatke.",
+      "Tedenski avtomatski pregledi pokažejo, ali se vidnost izboljšuje ali konkurenca prevzema prostor v AI odgovorih.",
     Icon: ShieldCheck,
   },
 ];
 
 const steps = [
   {
-    title: "Vneseš 3 do 10 testnih promptov",
+    title: "Vneseš 3 do 5 testnih vprašanj",
     description:
-      "Sam določiš vprašanja, ki jih želiš meriti za svojo znamko, trg in konkurente.",
+      "Sam določiš vprašanja kupcev ali jih pustiš predlagati Radarju glede na domeno, trg in konkurente.",
   },
   {
     title: "Modeli dobijo tvoja vprašanja",
     description:
-      "Radar ista vprašanja pošlje izbranim AI modelom, zato meriš natanko tiste scenarije, ki so pomembni zate.",
+      "Brezplačni pregled uporabi ChatGPT, v aplikaciji pa lahko isto logiko uporabljaš še za Gemini, Claude in modele z iskanjem.",
   },
   {
     title: "Dobiš rezultat in prioritete",
     description:
-      "Poročilo pokaže score, omembe, rang, citacije, šibke točke in naslednje korake.",
+      "Rezultat poveže oceno, omembe, rang, citate, konkurenco, vpogled v znamko in naslednje korake.",
   },
 ];
 
 const useCases = [
-  "SEO ekipe, ki želijo meriti AI vidnost poleg klasičnih pozicij v Googlu.",
-  "B2B podjetja, kjer se kupci pred kontaktom informirajo v ChatGPT ali Gemini.",
-  "Agencije, ki želijo strankam pokazati jasen dokaz, zakaj je treba urediti vsebino in avtoriteto.",
-  "Vodstva, ki potrebujejo preprost score in seznam prioritet brez branja tehničnih logov.",
+  "SEO in vsebinske ekipe, ki želijo poleg Googlovih pozicij meriti tudi AI odgovore.",
+  "B2B podjetja, kjer se kupci pred kontaktom najprej informirajo v ChatGPT, Gemini ali Claude.",
+  "Agencije, ki želijo strankam pokazati jasen dokaz, kje jih AI modeli prehitevajo ali narobe razumejo.",
+  "Vodstva, ki potrebujejo preprosto oceno, trend konkurence in seznam prioritet brez branja tehničnih logov.",
 ];
 
 const reviews = [
@@ -106,7 +106,7 @@ const reviews = [
   {
     name: "Tomaž, SEO svetovalec",
     company: "Digitalna agencija",
-    text: "Audit je dober pogovor s stranko odprl v petih minutah. Score, konkurenti in citirani viri so precej bolj razumljivi kot surov seznam promptov.",
+    text: "Pregled je dober pogovor s stranko odprl v petih minutah. Ocena, konkurenti in citirani viri so precej bolj razumljivi kot surov seznam vprašanj.",
     rating: 5,
   },
   {
@@ -118,9 +118,9 @@ const reviews = [
 ];
 
 const metrics = [
-  { label: "AI Visibility Score", value: "0-100" },
-  { label: "Testni prompti", value: "5" },
-  { label: "Primerjava modelov", value: "3 AI" },
+  { label: "Ocena AI vidnosti", value: "0-100" },
+  { label: "Vprašanja v pregledu", value: "3-5" },
+  { label: "Primerjava modelov", value: "3+" },
   { label: "Poročilo", value: "takoj" },
 ];
 
@@ -145,21 +145,23 @@ export default async function HomePage() {
             <div className="max-w-2xl">
               <p className="mb-4 inline-flex items-center gap-2 rounded-sm bg-white/10 px-3 py-1 text-sm">
                 <SearchCheck className="h-4 w-4 text-accent" />
-                Brezplačen AI audit vidnosti
+                Brezplačen prvi AI pregled
               </p>
               <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
-                Preveri, ali te ChatGPT, Gemini in Claude priporočajo.
+                Preveri, kako AI pomočniki vidijo tvojo znamko.
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-slate-200">
-                AI Visibility Radar izmeri, kako pogosto se tvoja znamka pojavi
-                v AI odgovorih, kateri konkurenti te prehitevajo, katere vire
-                modeli citirajo in kaj moraš popraviti, da boš pogosteje
-                priporočena izbira.
+                AI Visibility Radar pokaže, ali se tvoja znamka pojavi v AI
+                odgovorih, kateri konkurenti dobijo več prostora, katere vire
+                modeli uporabljajo in kako ChatGPT javno razume tvojo ponudbo.
+                Prvi pregled uporabi ChatGPT, v aplikaciji pa lahko redno
+                spremljaš tudi rezultate iz Gemini, Claude in modelov z
+                iskanjem.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild size="default">
                   <Link href="/ai-visibility-checker">
-                    Zaženi brezplačen audit <ArrowRight className="h-4 w-4" />
+                    Zaženi prvi pregled <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
                 <Button
@@ -174,7 +176,7 @@ export default async function HomePage() {
             <div className="rounded-lg border border-white/15 bg-white/10 p-5 backdrop-blur">
               <div className="flex items-center justify-between border-b border-white/15 pb-4">
                 <div>
-                  <p className="text-sm text-slate-300">Primer audita</p>
+                  <p className="text-sm text-slate-300">Primer pregleda</p>
                   <h2 className="mt-1 text-2xl font-semibold">
                     Vidnost znamke
                   </h2>
@@ -198,7 +200,7 @@ export default async function HomePage() {
                 <HeroCheck>Omembe znamke v AI odgovorih</HeroCheck>
                 <HeroCheck>Primerjava z najbližjimi konkurenti</HeroCheck>
                 <HeroCheck>
-                  Seznam citiranih virov in vsebinskih vrzeli
+                  ChatGPT pogled na ponudbo in javne zadržke
                 </HeroCheck>
               </div>
             </div>
@@ -211,13 +213,15 @@ export default async function HomePage() {
           <div>
             <Badge variant="secondary">Kaj meri</Badge>
             <h2 className="mt-4 text-3xl font-semibold tracking-normal">
-              AI vidnost je nova plast iskanja. Radar jo naredi merljivo.
+              AI vidnost je nova plast odločanja. Radar jo naredi merljivo.
             </h2>
             <p className="mt-4 leading-7 text-muted-foreground">
               Kupci vedno pogosteje vprašajo AI model, katero podjetje izbrati,
               katero rešitev primerjati ali komu lahko zaupajo. Če te model ne
-              pozna, ne citira ali te predstavi slabše od konkurence, izgubljaš
-              povpraševanja, še preden pridejo do tvoje strani.
+              pozna, te ne citira ali te predstavi slabše od konkurence,
+              izgubljaš povpraševanja, še preden pridejo do tvoje strani. Radar
+              zato združi omembe, rang, citate, konkurente in jasen pregled, kaj
+              AI že ve o tvoji znamki.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -239,12 +243,13 @@ export default async function HomePage() {
         <div className="max-w-2xl">
           <Badge variant="secondary">Kako deluje</Badge>
           <h2 className="mt-4 text-3xl font-semibold">
-            Od tvojih promptov do jasnega načrta izboljšav.
+            Od vprašanj kupcev do jasnega načrta izboljšav.
           </h2>
           <p className="mt-4 leading-7 text-muted-foreground">
-            Audit je narejen tako, da ga razume marketing, prodaja in vodstvo.
-            Ne dobiš samo številke, ampak razlago, zakaj je rezultat takšen in
-            kje je najhitrejši napredek.
+            Pregled je pripravljen tako, da ga razumejo marketing, prodaja in
+            vodstvo. Ne dobiš samo številke, ampak razlago, zakaj je rezultat
+            takšen, pri katerih vprašanjih izgubljaš, katere domene se
+            pojavljajo pri konkurenci in kje je najhitrejši napredek.
           </p>
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -267,26 +272,27 @@ export default async function HomePage() {
           <div>
             <Badge className="bg-white/10 text-white">Primer rezultatov</Badge>
             <h2 className="mt-4 text-3xl font-semibold">
-              Vidiš ne samo, če si omenjen, ampak zakaj.
+              Vidiš ne samo, ali si omenjen, ampak zakaj.
             </h2>
             <p className="mt-4 leading-7 text-slate-300">
-              Poročilo poveže prompt, odgovor modela, rang znamke, citacije,
-              sentiment in konkurente. Tako hitro ločiš med težavo v vsebini,
-              avtoriteti vira, pozicioniranju ali jasnosti ponudbe.
+              Pregled poveže vprašanje, odgovor modela, rang znamke, citacije,
+              sentiment, konkurente in časovni trend. Tako hitro ločiš med
+              težavo v vsebini, avtoriteti vira, pozicioniranju ali jasnosti
+              ponudbe.
             </p>
             <div className="mt-6 grid gap-3">
-              <DarkCheck>Prompti po fazah nakupne poti</DarkCheck>
+              <DarkCheck>Vprašanja po fazah nakupne poti</DarkCheck>
               <DarkCheck>
                 Top konkurenti, ki se ponavljajo v odgovorih
               </DarkCheck>
               <DarkCheck>Viri, ki jih modeli uporabljajo kot dokaz</DarkCheck>
-              <DarkCheck>Prednostne naloge za SEO in vsebino</DarkCheck>
+              <DarkCheck>AI vpogledi v ponudbo in javne pripombe</DarkCheck>
             </div>
           </div>
           <div className="rounded-lg border border-white/15 bg-white/10 p-5">
             <div className="flex items-center justify-between gap-4 border-b border-white/15 pb-4">
               <div>
-                <p className="text-sm text-slate-300">AI Visibility Score</p>
+                <p className="text-sm text-slate-300">Ocena AI vidnosti</p>
                 <div className="mt-1 text-5xl font-semibold">
                   72<span className="text-2xl text-slate-300">/100</span>
                 </div>
@@ -294,7 +300,7 @@ export default async function HomePage() {
               <TrendingUp className="h-10 w-10 text-accent" />
             </div>
             <div className="mt-5 grid gap-3">
-              <ScoreRow label="Omembe znamke" value="8 od 12 promptov" />
+              <ScoreRow label="Omembe znamke" value="8 od 12 vprašanj" />
               <ScoreRow label="Povprečni rang" value="2. mesto" />
               <ScoreRow label="Najmočnejši vir" value="strokovni vodič" />
               <ScoreRow label="Največja vrzel" value="primerjalna vsebina" />
@@ -316,7 +322,7 @@ export default async function HomePage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/ai-visibility-checker">Preveri svoje prompte</Link>
+              <Link href="/ai-visibility-checker">Preveri svoja vprašanja</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/pricing">Poglej cenik</Link>
@@ -340,20 +346,19 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-5 py-16">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-2xl">
-              <Badge variant="secondary">Reviewi</Badge>
+              <Badge variant="secondary">Mnenja</Badge>
               <h2 className="mt-4 text-3xl font-semibold">
                 Mnenja uporabnikov in ekip, ki spremljajo AI vidnost.
               </h2>
               <p className="mt-4 leading-7 text-muted-foreground">
-                Na prvo stran lahko dodamo tudi tvoje realne reviewe. Razdelek
-                je pripravljen tako, da podpira kratke citate, oceno in opis
-                podjetja.
+                Največ vrednosti nastane takrat, ko ekipa vidi konkretne
+                vprašanja, konkurente in vire, ne samo ene abstraktne ocene.
+                Zato so rezultati pripravljeni za pogovor med marketingom, SEO,
+                prodajo in vodstvom.
               </p>
             </div>
             <Button asChild variant="outline">
-              <Link href="mailto:info@ai-visibility-radar.si?subject=Review%20za%20AI%20Visibility%20Radar">
-                Dodaj review
-              </Link>
+              <Link href="/ai-visibility-checker">Začni prvi pregled</Link>
             </Button>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -390,15 +395,15 @@ export default async function HomePage() {
           <div>
             <div className="mb-3 flex items-center gap-2 text-sm text-slate-300">
               <BarChart3 className="h-4 w-4 text-accent" />
-              Prvi audit je brezplačen
+              Prvi pregled je brezplačen
             </div>
             <h2 className="text-3xl font-semibold">
               Poglej, kako te AI modeli vidijo danes.
             </h2>
             <p className="mt-3 max-w-2xl leading-7 text-slate-300">
-              Vnesi domeno in do 10 testnih promptov, prejmi osnovni AI
-              Visibility Score in odkrij, katere vsebine, citacije in primerjave
-              najprej izboljšati.
+              Vnesi domeno in 3 do 5 testnih vprašanj, prejmi osnovno oceno AI
+              vidnosti in odkrij, katere vsebine, citate, primerjave in razlage
+              ponudbe je smiselno najprej izboljšati.
             </p>
           </div>
           <Button
@@ -407,7 +412,7 @@ export default async function HomePage() {
             className="bg-white text-slate-950 hover:bg-slate-200"
           >
             <Link href="/ai-visibility-checker">
-              Zaženi audit <ArrowRight className="h-4 w-4" />
+              Začni prvi pregled <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </div>

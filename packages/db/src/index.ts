@@ -67,10 +67,12 @@ export async function resetStaleScanWork() {
   await prisma.promptRun.updateMany({
     where: {
       status: "running",
-      startedAt: { lt: promptCutoff },
+      OR: [{ startedAt: null }, { startedAt: { lt: promptCutoff } }],
     },
     data: {
       status: "queued",
+      startedAt: null,
+      finishedAt: null,
       errorMessage: "Retry after stale execution timeout.",
     },
   });
@@ -78,10 +80,10 @@ export async function resetStaleScanWork() {
   await prisma.scanRun.updateMany({
     where: {
       status: "running",
-      startedAt: { lt: scanCutoff },
+      OR: [{ startedAt: null }, { startedAt: { lt: scanCutoff } }],
       promptRuns: { none: { status: "running" } },
     },
-    data: { status: "queued" },
+    data: { status: "queued", startedAt: null, finishedAt: null },
   });
 }
 
@@ -140,7 +142,7 @@ export async function tryStartScanRun(
             where: { id: scanRunId },
             data: {
               status: "running",
-              startedAt: scan.startedAt ?? new Date(),
+              startedAt: new Date(),
             },
           });
 

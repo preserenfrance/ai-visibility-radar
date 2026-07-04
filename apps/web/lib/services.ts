@@ -1492,10 +1492,12 @@ export async function runNextScanStep(scanRunId: string) {
     where: {
       scanRunId,
       status: "running",
-      startedAt: { lt: staleCutoff },
+      OR: [{ startedAt: null }, { startedAt: { lt: staleCutoff } }],
     },
     data: {
       status: "queued",
+      startedAt: null,
+      finishedAt: null,
       errorMessage: "Ponovni poskus po preteku časa izvajanja.",
     },
   });

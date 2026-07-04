@@ -24,38 +24,38 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Kako orodje deluje?",
         answer:
-          "Uporabnik vnese znamko, spletno stran, konkurente in prompte. Radar nato te prompte pošlje izbranim AI modelom, shrani odgovore, preveri omembe znamke in konkurentov, izračuna metrike ter prikaže, kje je znamka dobro vidna in kje izgublja priložnosti.",
+          "Uporabnik vnese znamko, spletno stran, konkurente in vprašanja kupcev. Radar nato ta vprašanja pošlje izbranim AI modelom, shrani odgovore, preveri omembe znamke in konkurentov, izračuna metrike ter prikaže, kje je znamka dobro vidna in kje izgublja priložnosti.",
       },
       {
-        question: "Kaj je prompt?",
+        question: "Kaj je vprašanje oziroma prompt?",
         answer:
-          "Prompt je vprašanje, ki ga kupec postavi AI pomočniku. Dober prompt je konkreten in nakupno usmerjen, na primer: Kje lahko kupim kakovostno vrtno pohištvo z dostavo v Sloveniji?",
+          "Prompt je vprašanje, ki ga kupec postavi AI pomočniku. Dobro vprašanje je konkretno in nakupno usmerjeno, na primer: Kje lahko kupim kakovostno vrtno pohištvo z dostavo v Sloveniji?",
       },
       {
-        question: "Ali moram vnašati vseh 10 promptov?",
+        question: "Ali moram vnašati vseh 5 vprašanj v prvem pregledu?",
         answer:
-          "Ne. Za prvi audit moraš vnesti vsaj 3 prompte, lahko pa jih vneseš do 10. Pri znamki lahko kasneje dodaš več promptov, vsak prompt v svojo vrstico. Brezplačni paket je omejen na 10 aktivnih promptov na znamko.",
+          "Ne. Za prvi brezplačni pregled moraš vnesti vsaj 3 vprašanja, lahko pa jih vneseš do 5. Ko si v aplikaciji ustvariš znamko, lahko v brezplačnem paketu uporabljaš do 10 aktivnih vprašanj oziroma promptov na znamko, plačljivi paketi pa imajo višje limite.",
       },
     ],
   },
   {
-    title: "Modeli in scani",
+    title: "Modeli in pregledi",
     items: [
       {
         question: "Katere AI modele uporabljate?",
         answer:
-          "Orodje podpira ChatGPT, Gemini, Claude ter search različice modelov, kjer se zbirajo tudi viri oziroma citati. Vsi pogledi so dostopni v vseh paketih; paketi se razlikujejo po številu promptov in zagonih.",
+          "Orodje podpira ChatGPT, Gemini, Claude ter modele z iskanjem, kjer se zbirajo tudi viri oziroma citati. Vsi pogledi so dostopni v vseh paketih; paketi se razlikujejo po številu aktivnih vprašanj in ročnih pregledih.",
       },
       {
         question:
-          "Kakšna je razlika med navadnimi modeli in modeli s searchom?",
+          "Kakšna je razlika med navadnimi modeli in modeli z iskanjem?",
         answer:
-          "Navadni modeli odgovorijo iz svojega modelskega znanja. Search modeli ob odgovoru iščejo po spletu in pogosto vrnejo vire, zato lahko vidiš, katere domene AI uporablja kot dokaz ali priporočilo.",
+          "Navadni modeli odgovorijo iz svojega modelskega znanja. Modeli z iskanjem ob odgovoru iščejo po spletu in pogosto vrnejo vire, zato lahko vidiš, katere domene AI uporablja kot dokaz ali priporočilo.",
       },
       {
-        question: "Kaj pomeni reden scan?",
+        question: "Kaj pomeni reden pregled?",
         answer:
-          "Reden scan samodejno ponavlja meritev za tvojo znamko. Avtomatski tedenski zagon je vključen v vseh paketih, tudi v brezplačnem.",
+          "Reden pregled samodejno ponavlja meritev za tvojo znamko. Avtomatski tedenski pregled je vključen v vseh paketih, tudi v brezplačnem.",
       },
       {
         question: "Zakaj rezultati med modeli niso enaki?",
@@ -90,7 +90,12 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Kaj so citati?",
         answer:
-          "Citati so viri, ki jih search modeli uporabijo pri odgovoru. V tabeli citatov vidiš, katere domene podpirajo tvojo znamko, katere podpirajo konkurente in katere vire bi bilo smiselno okrepiti.",
+          "Citati so viri, ki jih modeli z iskanjem uporabijo pri odgovoru. V tabeli citatov vidiš, katere domene podpirajo tvojo znamko, katere podpirajo konkurente in katere vire bi bilo smiselno okrepiti.",
+      },
+      {
+        question: "Kaj pomeni ChatGPT pogled na znamko?",
+        answer:
+          "To je kratek AI povzetek javne slike znamke. Prikaže, kako ChatGPT razume znamko, kateri produkti ali storitve so najbolj izpostavljeni in katere javne pripombe ali zadržki se lahko ponavljajo pri nezadovoljnih strankah.",
       },
     ],
   },
@@ -100,22 +105,22 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Koliko stane orodje?",
         answer:
-          "Brezplačni paket omogoča eno znamko, do 10 aktivnih promptov in tedenski avtomatski zagon. Starter paket stane 15,99 EUR na mesec in vključuje več promptov ter 4 ročne scane na mesec. Growth paket stane 39,99 EUR na mesec in vključuje dodatne znamke, več promptov ter 15 ročnih scanov na mesec.",
+          "Brezplačni paket omogoča eno znamko, do 10 aktivnih vprašanj in tedenski avtomatski pregled. Starter paket stane 15,99 EUR na mesec in vključuje več vprašanj ter 4 ročne preglede na mesec. Growth paket stane 39,99 EUR na mesec in vključuje dodatne znamke, več vprašanj ter 15 ročnih pregledov na mesec.",
       },
       {
         question: "Kaj dobim v brezplačnem paketu?",
         answer:
-          "Brezplačni paket vključuje eno znamko, do 10 aktivnih promptov, tedenski avtomatski zagon ter dostop do vseh zavihkov in prikazov. Ročni zagoni promptov so del plačljivih paketov.",
+          "Brezplačni paket vključuje eno znamko, do 10 aktivnih vprašanj, tedenski avtomatski pregled ter dostop do vseh zavihkov in prikazov. Ročni pregledi so del plačljivih paketov.",
       },
       {
         question: "Kdaj potrebujem plačljiv paket?",
         answer:
-          "Plačljiv paket potrebuješ, ko želiš več aktivnih promptov ali ročno zaganjanje meritev. Starter je za eno znamko, Growth pa za več znamk in višje limite.",
+          "Plačljiv paket potrebuješ, ko želiš več aktivnih vprašanj ali ročno zaganjanje meritev. Starter je za eno znamko, Growth pa za več znamk in višje limite.",
       },
       {
         question: "Ali lahko paket kasneje spremenim?",
         answer:
-          "Da. V nastavitvah lahko odpreš plačilni portal in upravljaš naročnino. Če naročnina ni aktivna, se plačljivi zagoni promptov in avtomatski scani ne izvajajo.",
+          "Da. V nastavitvah lahko odpreš plačilni portal in upravljaš naročnino. Če naročnina ni aktivna, se organizacija vrne na brezplačne limite; ročni pregledi plačljivih paketov takrat niso na voljo.",
       },
     ],
   },
@@ -123,9 +128,9 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
     title: "Praktična uporaba",
     items: [
       {
-        question: "Kakšne prompte naj vnesem?",
+        question: "Kakšna vprašanja naj vnesem?",
         answer:
-          "Najboljši prompti so konkretna vprašanja kupcev: kaj kupiti, kje kupiti, kateri ponudnik je dobra izbira, katera trgovina ima določen produkt, kateri izdelek je primeren za določen problem. Manj uporabni so prompti, ki že vsebujejo tvojo znamko, ker takrat meritev ni realna.",
+          "Najboljša so konkretna vprašanja kupcev: kaj kupiti, kje kupiti, kateri ponudnik je dobra izbira, katera trgovina ima določen produkt, kateri izdelek je primeren za določen problem. Manj uporabna so vprašanja, ki že vsebujejo tvojo znamko, ker takrat meritev ni realna.",
       },
       {
         question: "Kaj naredim, če me AI ne omeni?",
@@ -145,7 +150,7 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Ali so rezultati zagotovilo, da me bo AI vedno priporočil?",
         answer:
-          "Ne. AI odgovori se spreminjajo glede na model, čas, prompt in dostopne vire. Radar zato meri ponovljive vzorce in trende, ne absolutne garancije. Prava vrednost je v rednem spremljanju in izboljševanju signalov, ki jih modeli uporabljajo.",
+          "Ne. AI odgovori se spreminjajo glede na model, čas, vprašanje in dostopne vire. Radar zato meri ponovljive vzorce in trende, ne absolutne garancije. Prava vrednost je v rednem spremljanju in izboljševanju signalov, ki jih modeli uporabljajo.",
       },
     ],
   },

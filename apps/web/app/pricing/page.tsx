@@ -17,7 +17,7 @@ const plans: Array<{
     name: "Brezplačno",
     price: "0 €",
     href: "/ai-visibility-checker",
-    cta: "Začni brezplačen audit",
+    cta: "Začni brezplačen pregled",
   },
   {
     id: "starter",
@@ -44,19 +44,19 @@ const features: Array<{
     values: { free: 1, starter: 1, growth: 3 },
   },
   {
-    label: "Prompti na znamko",
+    label: "Aktivna vprašanja na znamko",
     values: { free: 10, starter: 25, growth: 100 },
   },
   {
-    label: "Ročni scani na mesec",
+    label: "Ročni pregledi na mesec",
     values: { free: 0, starter: 4, growth: 15 },
   },
   {
-    label: "Ročni zagon promptov",
+    label: "Ročni pregledi",
     values: { free: false, starter: true, growth: true },
   },
   {
-    label: "Avtomatski zagon promptov",
+    label: "Avtomatski tedenski pregledi",
     values: { free: "tedensko", starter: "tedensko", growth: "tedensko" },
   },
   {
@@ -64,11 +64,15 @@ const features: Array<{
     values: { free: true, starter: true, growth: true },
   },
   {
-    label: "Konkurenti, citati in ideje",
+    label: "Konkurenti, citati in priporočila",
     values: { free: true, starter: true, growth: true },
   },
   {
-    label: "Modeli in search pogledi",
+    label: "Modeli in iskalni pogledi",
+    values: { free: true, starter: true, growth: true },
+  },
+  {
+    label: "ChatGPT pogled na znamko in ponudbo",
     values: { free: true, starter: true, growth: true },
   },
 ];
@@ -81,8 +85,9 @@ export default function PricingPage() {
           <h1 className="text-3xl font-semibold">Cenik</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
             Vsi deli aplikacije so dostopni v vseh paketih. Paketi se
-            razlikujejo po številu znamk, številu promptov ter ročnem oziroma
-            avtomatskem zagonu promptov.
+            razlikujejo po številu znamk, številu aktivnih vprašanj in številu
+            ročnih pregledov na mesec. Avtomatski tedenski pregledi, konkurenti,
+            citati in osnovni AI vpogledi so vključeni v vseh paketih.
           </p>
         </div>
         <Button asChild variant="outline">

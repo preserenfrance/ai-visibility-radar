@@ -49,17 +49,19 @@ export default async function CheckerPage({
             AI Visibility Radar
           </div>
           <h1 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Preveri, ali te ChatGPT priporoča.
+            Preveri, kako ChatGPT vidi tvojo znamko.
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni audit uporabi 3 do 10 promptov, ki jih vneseš sam, jih
-            pošlje na ChatGPT in pokaže začetni rezultat tvoje AI vidnosti.
-            Gemini in Claude sta na voljo v plačljivih paketih.
+            Brezplačni pregled uporabi 3 do 5 vprašanj, ki jih vneseš sam ali
+            jih predlaga Radar. ChatGPT odgovore pretvori v začetno oceno AI
+            vidnosti, prikaže omembe znamke, konkurente in vire, v aplikaciji pa
+            lahko pozneje spremljaš tudi rezultate iz Gemini, Claude in modelov
+            z iskanjem.
           </p>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Zaženi brezplačen audit</CardTitle>
+            <CardTitle>Zaženi brezplačen pregled</CardTitle>
           </CardHeader>
           <FreeAuditForm action={startAudit} errorMessage={errorMessage} />
         </Card>
@@ -116,18 +118,18 @@ function auditErrorCode(error: unknown) {
 function auditErrorMessage(errorCode: string) {
   switch (errorCode) {
     case "openai":
-      return "Audita trenutno ni bilo mogoče zagnati, ker OpenAI API ni pravilno nastavljen ali nima dovolj kvote. Na Vercelu preveri OPENAI_API_KEY in po želji OPENAI_MODEL.";
+      return "Pregleda trenutno ni bilo mogoče zagnati, ker OpenAI API ni pravilno nastavljen ali nima dovolj kvote. Na Vercelu preveri OPENAI_API_KEY in po želji OPENAI_MODEL.";
     case "prompts":
-      return "Za audit moraš vnesti vsaj 3 in največ 10 promptov, vsak z vsaj 3 znaki.";
+      return "Za pregled moraš vnesti vsaj 3 in največ 5 vprašanj, vsako z vsaj 3 znaki.";
     case "database":
-      return "Audita trenutno ni bilo mogoče zagnati, ker povezava z bazo ali migracije niso pripravljene. Preveri Vercel okoljske spremenljivke in produkcijsko bazo.";
+      return "Pregleda trenutno ni bilo mogoče zagnati, ker povezava z bazo ali migracije niso pripravljene. Preveri Vercel okoljske spremenljivke in produkcijsko bazo.";
     case "schema":
-      return "Audita trenutno ni bilo mogoče zagnati, ker produkcijska baza še nima vseh tabel ali stolpcev. Zaženi Prisma db push na Supabase bazo.";
+      return "Pregleda trenutno ni bilo mogoče zagnati, ker produkcijska baza še nima vseh tabel ali stolpcev. Zaženi Prisma db push na Supabase bazo.";
     case "pooler":
-      return "Audita trenutno ni bilo mogoče zagnati zaradi Supabase pooler povezave. Za DATABASE_URL uporabi POSTGRES_PRISMA_URL oziroma Transaction pooler z nastavljenim pgbouncer=true.";
+      return "Pregleda trenutno ni bilo mogoče zagnati zaradi Supabase pooler povezave. Za DATABASE_URL uporabi POSTGRES_PRISMA_URL oziroma Transaction pooler z nastavljenim pgbouncer=true.";
     case "timeout":
-      return "Audit je trajal predolgo. Poskusi z drugo domeno ali ponovno čez nekaj minut.";
+      return "Pregled je trajal predolgo. Poskusi z drugo domeno ali ponovno čez nekaj minut.";
     default:
-      return "Audita trenutno ni bilo mogoče zagnati. Preveri Vercel Function loge za natančen razlog in poskusi ponovno.";
+      return "Pregleda trenutno ni bilo mogoče zagnati. Preveri Vercel Function loge za natančen razlog in poskusi ponovno.";
   }
 }

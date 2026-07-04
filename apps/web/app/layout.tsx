@@ -7,7 +7,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "AI Visibility Radar",
   description:
-    "Merjenje ponovljive vidnosti znamke v ChatGPT, Gemini in Claude.",
+    "Merjenje AI vidnosti znamke v ChatGPT, Gemini in Claude: omembe, konkurenti, citati, trendi in javni AI pogled na ponudbo.",
 };
 
 export default function RootLayout({

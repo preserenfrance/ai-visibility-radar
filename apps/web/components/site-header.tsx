@@ -161,7 +161,7 @@ function HeaderNavContent({
     <>
       <Nav
         href="/ai-visibility-checker"
-        label="Brezplačen audit"
+        label="Brezplačen pregled"
         className={navClassName}
       />
       <Nav href="/pricing" label="Cenik" className={navClassName} />

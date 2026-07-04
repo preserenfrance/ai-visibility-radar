@@ -11,7 +11,7 @@ export function SiteFooter() {
         </div>
         <div className="flex flex-wrap gap-4">
           <Link href="/ai-visibility-checker" className="hover:text-foreground">
-            Brezplačen audit
+            Brezplačen pregled
           </Link>
           <Link href="/pricing" className="hover:text-foreground">
             Cenik
