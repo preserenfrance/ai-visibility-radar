@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Menu } from "lucide-react";
 
 type BrandMenuItem = {
@@ -83,7 +82,7 @@ function BrandMenuLinks({
       {items.map((item) => {
         const selected = active === item.key;
         return (
-          <Link
+          <a
             key={item.key}
             className={[
               "rounded-md border px-3 py-2 font-medium transition",
@@ -95,7 +94,7 @@ function BrandMenuLinks({
             href={item.href(brandId)}
           >
             {item.label}
-          </Link>
+          </a>
         );
       })}
     </>

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Activity,
@@ -28,13 +27,13 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
       <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
-        <Link
+        <a
           href="/"
           className="flex min-w-0 items-center gap-2 text-sm font-semibold"
         >
           <Radar className="h-5 w-5 shrink-0 text-primary" />
           <span className="truncate">AI Visibility Radar</span>
-        </Link>
+        </a>
         <nav className="site-header-desktop-nav hidden flex-wrap items-center justify-end gap-1 text-sm md:flex">
           <HeaderNavContent userEmail={user?.email} admin={admin} />
         </nav>
@@ -167,7 +166,7 @@ function HeaderNavContent({
       <Nav href="/pricing" label="Cenik" className={navClassName} />
       <Nav href="/faq" label="FAQ" className={navClassName} />
       <Button asChild size="sm" className={buttonClassName}>
-        <Link href="/login">Vstop</Link>
+        <a href="/login">Vstop</a>
       </Button>
     </>
   );
@@ -185,7 +184,7 @@ function Nav({
   className?: string;
 }) {
   return (
-    <Link
+    <a
       href={href}
       className={[
         "inline-flex items-center gap-2 rounded-md px-3 py-2 hover:bg-secondary",
@@ -196,6 +195,6 @@ function Nav({
     >
       {icon}
       {label}
-    </Link>
+    </a>
   );
 }

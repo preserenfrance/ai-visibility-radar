@@ -1,13 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { normalizeDomain } from "@ai-radar/shared";
-import {
-  AlertTriangle,
-  PackageSearch,
-  RefreshCw,
-  Sparkles,
-} from "lucide-react";
+import { AlertTriangle, PackageSearch, Sparkles } from "lucide-react";
+import { BrandInsightSubmitButton } from "@/components/brand-insight-submit-button";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import {
@@ -406,12 +401,12 @@ export default async function BrandPage({
               {brand.scanRuns.map((scan) => (
                 <TR key={scan.id}>
                   <TD>
-                    <Link
+                    <a
                       className="text-primary"
                       href={`/app/brands/${brand.id}/scans/${scan.id}`}
                     >
                       {scan.createdAt.toLocaleString("sl-SI")}
-                    </Link>
+                    </a>
                   </TD>
                   <TD>
                     <Badge variant={statusBadgeVariant(scan.status)}>
@@ -500,10 +495,7 @@ function BrandInsightPanel({
         <form action={refreshBrandChatGptInsight}>
           <input type="hidden" name="brandId" value={brandId} />
           <input type="hidden" name="insight" value={insight} />
-          <Button type="submit" size="sm" variant="ghost" className="h-8 px-2">
-            <RefreshCw className="h-3.5 w-3.5" />
-            {value ? "Osveži" : "Pripravi"}
-          </Button>
+          <BrandInsightSubmitButton hasValue={Boolean(value)} />
         </form>
       </div>
       <p className="text-sm leading-6 text-muted-foreground">

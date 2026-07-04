@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +33,7 @@ export default async function AppDashboardPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/ai-visibility-checker">Nova znamka</Link>
+          <a href="/ai-visibility-checker">Nova znamka</a>
         </Button>
       </div>
       <Card>
@@ -66,12 +65,12 @@ export default async function AppDashboardPage() {
                 return (
                   <TR key={brand.id}>
                     <TD>
-                      <Link
+                      <a
                         className="font-medium text-primary"
                         href={`/app/brands/${brand.id}`}
                       >
                         {brand.name}
-                      </Link>
+                      </a>
                       <div className="text-xs text-muted-foreground">
                         {brand.domain}
                       </div>
