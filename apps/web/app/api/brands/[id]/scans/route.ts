@@ -31,7 +31,7 @@ export async function POST(
 ) {
   return route(async () => {
     const { id } = await context.params;
-    const { brand } = await requireBrandAccess(id);
+    const { user, brand } = await requireBrandAccess(id);
     const manualScanAccess = canRunManualScans(brand.organization);
     const input = await parseBody(request, schema);
     const scan = await createScanForBrand(id, {
@@ -45,6 +45,7 @@ export async function POST(
       repeatCount: input.repeatCount,
       runNow: input.runNow,
       searchEnabled: manualScanAccess ? input.searchEnabled : false,
+      initiatedByUserId: user.id,
     });
     return ok({ scan }, 201);
   });

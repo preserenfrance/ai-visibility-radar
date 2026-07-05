@@ -6,6 +6,7 @@ import { crawlDomain } from "@ai-radar/crawler";
 import {
   prisma,
   promptRunConcurrencyLimit,
+  resetStaleScanWork,
   scanConcurrencyLimit,
   tryStartScanRun,
 } from "@ai-radar/db";
@@ -27,9 +28,9 @@ import {
 } from "@ai-radar/shared";
 
 const config = getConfig();
-if (!config.REDIS_URL) {
-  throw new Error("REDIS_URL is required for the worker process");
-}
+const WORKER_QUEUE_DRIVER = (
+  process.env.WORKER_QUEUE_DRIVER ?? (config.REDIS_URL ? "bullmq" : "database")
+).toLowerCase();
 const PROMPT_EXECUTION_TIMEOUT_MS = positiveNumber(
   process.env.PROMPT_EXECUTION_TIMEOUT_MS,
   45_000,
@@ -40,49 +41,181 @@ const PARSER_EXECUTION_TIMEOUT_MS = positiveNumber(
   20_000,
   5_000,
 );
-const connection = new IORedis(config.REDIS_URL, {
-  maxRetriesPerRequest: null,
-});
-
-const worker = new Worker(
-  "ai-visibility-radar",
-  async (job) => {
-    switch (job.name) {
-      case JOB_NAMES.crawlDomain:
-        return processCrawlDomain(job.data.brandId, job.data.maxPages ?? 50);
-      case JOB_NAMES.generatePrompts:
-        return processGeneratePrompts(job.data.brandId, job.data.count ?? 25);
-      case JOB_NAMES.createScan:
-        return processCreateScan(job.data.scanRunId);
-      case JOB_NAMES.runPrompt:
-        return processRunPrompt(job.data.promptRunId);
-      case JOB_NAMES.parseResponse:
-        return processParseResponse(job.data.aiResponseId);
-      case JOB_NAMES.scoreScan:
-        return processScoreScan(job.data.scanRunId);
-      case JOB_NAMES.generateRecommendations:
-        return processGenerateRecommendations(job.data.scanRunId);
-      case JOB_NAMES.sendEmailReport:
-        return processSendEmailReport(job.data.leadId);
-      case JOB_NAMES.syncLeadToAdmin:
-        return processSyncLead(job.data.leadId);
-      default:
-        throw new Error(`Unknown job: ${job.name}`);
-    }
-  },
-  {
-    connection,
-    concurrency: scanConcurrencyLimit(),
-  },
+const DB_WORKER_POLL_MS = positiveNumber(
+  process.env.DB_WORKER_POLL_MS,
+  5_000,
+  1_000,
 );
+const DB_WORKER_IDLE_POLL_MS = positiveNumber(
+  process.env.DB_WORKER_IDLE_POLL_MS,
+  15_000,
+  1_000,
+);
+const DB_WORKER_BATCH_LIMIT = positiveNumber(
+  process.env.DB_WORKER_BATCH_LIMIT,
+  1,
+  1,
+);
+const DB_WORKER_TRIGGER_TYPES = ["manual", "scheduled", "free_audit"] as const;
+let shutdownRequested = false;
 
-worker.on("completed", (job) => {
-  console.log(`Completed ${job.name} ${job.id}`);
+void startWorker().catch(async (error) => {
+  console.error("Worker failed to start", error);
+  await prisma.$disconnect();
+  process.exit(1);
 });
 
-worker.on("failed", (job, error) => {
-  console.error(`Failed ${job?.name} ${job?.id}`, error);
-});
+async function startWorker() {
+  if (WORKER_QUEUE_DRIVER === "database" || WORKER_QUEUE_DRIVER === "db") {
+    await startDatabaseWorker();
+    return;
+  }
+
+  startBullMqWorker();
+}
+
+function startBullMqWorker() {
+  if (!config.REDIS_URL) {
+    throw new Error("REDIS_URL is required for the BullMQ worker process");
+  }
+
+  const connection = new IORedis(config.REDIS_URL, {
+    maxRetriesPerRequest: null,
+  });
+
+  const worker = new Worker(
+    "ai-visibility-radar",
+    async (job) => {
+      switch (job.name) {
+        case JOB_NAMES.crawlDomain:
+          return processCrawlDomain(job.data.brandId, job.data.maxPages ?? 50);
+        case JOB_NAMES.generatePrompts:
+          return processGeneratePrompts(job.data.brandId, job.data.count ?? 25);
+        case JOB_NAMES.createScan:
+          return processCreateScan(job.data.scanRunId);
+        case JOB_NAMES.runPrompt:
+          return processRunPrompt(job.data.promptRunId);
+        case JOB_NAMES.parseResponse:
+          return processParseResponse(job.data.aiResponseId);
+        case JOB_NAMES.scoreScan:
+          return processScoreScan(job.data.scanRunId);
+        case JOB_NAMES.generateRecommendations:
+          return processGenerateRecommendations(job.data.scanRunId);
+        case JOB_NAMES.sendEmailReport:
+          return processSendEmailReport(job.data.leadId);
+        case JOB_NAMES.syncLeadToAdmin:
+          return processSyncLead(job.data.leadId);
+        default:
+          throw new Error(`Unknown job: ${job.name}`);
+      }
+    },
+    {
+      connection,
+      concurrency: scanConcurrencyLimit(),
+    },
+  );
+
+  worker.on("completed", (job) => {
+    console.log(`Completed ${job.name} ${job.id}`);
+  });
+
+  worker.on("failed", (job, error) => {
+    console.error(`Failed ${job?.name} ${job?.id}`, error);
+  });
+
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, async () => {
+      console.log(`Received ${signal}; closing BullMQ worker`);
+      await worker.close();
+      connection.disconnect();
+      await prisma.$disconnect();
+      process.exit(0);
+    });
+  }
+
+  console.log("Started BullMQ worker");
+}
+
+async function startDatabaseWorker() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required for the database scan worker");
+  }
+
+  console.log("Started database scan worker", {
+    pollMs: DB_WORKER_POLL_MS,
+    idlePollMs: DB_WORKER_IDLE_POLL_MS,
+    batchLimit: DB_WORKER_BATCH_LIMIT,
+    scanConcurrencyLimit: scanConcurrencyLimit(),
+  });
+
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      console.log(
+        `Received ${signal}; stopping database worker after current scan`,
+      );
+      shutdownRequested = true;
+    });
+  }
+
+  while (!shutdownRequested) {
+    try {
+      const processedCount = await processQueuedScanBatch();
+      await sleep(
+        processedCount > 0 ? DB_WORKER_POLL_MS : DB_WORKER_IDLE_POLL_MS,
+      );
+    } catch (error) {
+      console.error("Database worker loop failed", error);
+      await sleep(DB_WORKER_IDLE_POLL_MS);
+    }
+  }
+
+  await prisma.$disconnect();
+}
+
+async function processQueuedScanBatch() {
+  await resetStaleScanWork();
+
+  let processedCount = 0;
+  for (
+    let index = 0;
+    index < DB_WORKER_BATCH_LIMIT && !shutdownRequested;
+    index += 1
+  ) {
+    const scan = await nextQueuedScanRun();
+    if (!scan) break;
+
+    console.log(`Processing queued scan ${scan.id}`, {
+      brand: scan.brand.name,
+      triggerType: scan.triggerType,
+      createdAt: scan.createdAt,
+    });
+
+    try {
+      await processCreateScan(scan.id);
+      processedCount += 1;
+    } catch (error) {
+      console.error(`Failed queued scan ${scan.id}`, error);
+    }
+  }
+
+  return processedCount;
+}
+
+async function nextQueuedScanRun() {
+  return prisma.scanRun.findFirst({
+    where: {
+      status: "queued",
+      triggerType: { in: [...DB_WORKER_TRIGGER_TYPES] },
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      triggerType: true,
+      createdAt: true,
+      brand: { select: { name: true } },
+    },
+  });
+}
 
 async function processCrawlDomain(brandId: string, maxPages: number) {
   const brand = await prisma.brand.findUnique({ where: { id: brandId } });
@@ -500,29 +633,34 @@ async function processScoreScan(scanRunId: string) {
     (run) => run.status === "failed",
   ).length;
   const finalStatus = completedPromptRuns > 0 ? "completed" : "failed";
-  const shouldNotifyScanCompleted =
-    finalStatus === "completed" &&
-    scan.status !== "completed" &&
-    scan.triggerType !== "free_audit";
+  const finishedAt = new Date();
 
-  await prisma.scanRun.update({
-    where: { id: scanRunId },
+  const finalizedScan = await prisma.scanRun.updateMany({
+    where: {
+      id: scanRunId,
+      status: { notIn: ["completed", "failed", "canceled"] },
+    },
     data: {
       status: finalStatus,
       completedPromptRuns,
       failedPromptRuns,
-      finishedAt: new Date(),
+      finishedAt,
     },
   });
-  await prisma.auditLog.create({
-    data: {
-      organizationId: scan.brand.organizationId,
-      action: "scan_completed",
-      entityType: "ScanRun",
-      entityId: scanRunId,
-    },
-  });
-  if (shouldNotifyScanCompleted) {
+  if (finalizedScan.count > 0) {
+    await prisma.auditLog.create({
+      data: {
+        organizationId: scan.brand.organizationId,
+        action: "scan_completed",
+        entityType: "ScanRun",
+        entityId: scanRunId,
+      },
+    });
+  }
+  if (finalStatus === "completed" && finalizedScan.count > 0) {
+    if (scan.triggerType === "free_audit") {
+      await processGenerateRecommendations(scanRunId);
+    }
     await notifyScanCompleted(scanRunId);
   }
   return snapshot;
@@ -609,6 +747,10 @@ async function processSendEmailReport(leadId: string) {
       providerId: email.id,
       subject: `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`,
     },
+  });
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { status: "report_sent" },
   });
   return email;
 }
@@ -723,16 +865,32 @@ async function notifyScanCompleted(scanRunId: string) {
           },
         },
       },
+      leads: {
+        select: {
+          id: true,
+          email: true,
+          status: true,
+        },
+      },
     },
   });
   if (!scan?.scoreSnapshot) return;
-  if (scan.triggerType !== "manual" && scan.triggerType !== "scheduled") return;
+  if (
+    scan.triggerType !== "manual" &&
+    scan.triggerType !== "scheduled" &&
+    scan.triggerType !== "free_audit"
+  )
+    return;
+
+  if (scan.triggerType === "free_audit") {
+    await notifyFreeAuditScanCompleted(scan.leads);
+    return;
+  }
 
   const scoreSnapshot = scan.scoreSnapshot;
   const triggerType = scan.triggerType;
-  const recipients = uniqueNotificationRecipients(
-    scan.brand.organization.memberships.map((membership) => membership.user),
-  );
+  const recipients = await scanCompletedNotificationRecipients(scan);
+  if (recipients.length === 0) return;
   const results = await Promise.allSettled(
     recipients.map((recipient) => {
       const subject = scanCompletedEmailSubject({
@@ -766,6 +924,64 @@ async function notifyScanCompleted(scanRunId: string) {
       });
     }
   });
+}
+
+async function scanCompletedNotificationRecipients(scan: {
+  id: string;
+  triggerType: string;
+  brand: {
+    organizationId: string;
+    organization: {
+      memberships: Array<{
+        role: string;
+        user: { email: string; name: string | null };
+      }>;
+    };
+  };
+}) {
+  if (scan.triggerType === "manual") {
+    const startedBy = await prisma.auditLog.findFirst({
+      where: {
+        action: "scan_started",
+        entityType: "ScanRun",
+        entityId: scan.id,
+        userId: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        user: {
+          select: {
+            email: true,
+            name: true,
+            memberships: {
+              where: { organizationId: scan.brand.organizationId },
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+    const user = startedBy?.user;
+    if (!user || user.memberships.length === 0) return [];
+    return uniqueNotificationRecipients([
+      { email: user.email, name: user.name },
+    ]);
+  }
+
+  return uniqueNotificationRecipients(
+    scan.brand.organization.memberships
+      .filter((membership) => membership.role === "owner")
+      .map((membership) => membership.user),
+  );
+}
+
+async function notifyFreeAuditScanCompleted(
+  leads: Array<{ id: string; email: string; status: string }>,
+) {
+  const recipients = leads.filter((lead) => lead.status !== "report_sent");
+  await Promise.allSettled(
+    recipients.map((lead) => processSendEmailReport(lead.id)),
+  );
 }
 
 async function sendAndRecordScanCompletedEmail(input: {

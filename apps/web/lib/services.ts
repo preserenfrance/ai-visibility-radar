@@ -857,6 +857,7 @@ export async function createScanForBrand(
     repeatCount?: number;
     runNow?: boolean;
     searchEnabled?: boolean;
+    initiatedByUserId?: string;
   } = {},
 ) {
   const brand = await prisma.brand.findUnique({
@@ -936,6 +937,7 @@ export async function createScanForBrand(
   await prisma.auditLog.create({
     data: {
       organizationId: brand.organizationId,
+      userId: options.initiatedByUserId,
       action: "scan_started",
       entityType: "ScanRun",
       entityId: scan.id,
@@ -1880,31 +1882,33 @@ export async function scoreScan(scanRunId: string) {
   ).length;
   const finalStatus =
     failedPromptRuns === scan.promptRuns.length ? "failed" : "completed";
-  const shouldNotifyScanCompleted =
-    finalStatus === "completed" &&
-    scan.status !== "completed" &&
-    scan.triggerType !== "free_audit";
+  const finishedAt = new Date();
 
-  await prisma.scanRun.update({
-    where: { id: scanRunId },
+  const finalizedScan = await prisma.scanRun.updateMany({
+    where: {
+      id: scanRunId,
+      status: { notIn: ["completed", "failed", "canceled"] },
+    },
     data: {
       status: finalStatus,
       completedPromptRuns,
       failedPromptRuns,
-      finishedAt: new Date(),
+      finishedAt,
     },
   });
 
-  await prisma.auditLog.create({
-    data: {
-      organizationId: scan.brand.organizationId,
-      action: "scan_completed",
-      entityType: "ScanRun",
-      entityId: scanRunId,
-    },
-  });
+  if (finalizedScan.count > 0) {
+    await prisma.auditLog.create({
+      data: {
+        organizationId: scan.brand.organizationId,
+        action: "scan_completed",
+        entityType: "ScanRun",
+        entityId: scanRunId,
+      },
+    });
+  }
 
-  if (shouldNotifyScanCompleted) {
+  if (finalStatus === "completed" && finalizedScan.count > 0) {
     await notifyScanCompleted(scanRunId);
   }
 
@@ -1927,16 +1931,32 @@ async function notifyScanCompleted(scanRunId: string) {
           },
         },
       },
+      leads: {
+        select: {
+          id: true,
+          email: true,
+          status: true,
+        },
+      },
     },
   });
   if (!scan?.scoreSnapshot) return;
-  if (scan.triggerType !== "manual" && scan.triggerType !== "scheduled") return;
+  if (
+    scan.triggerType !== "manual" &&
+    scan.triggerType !== "scheduled" &&
+    scan.triggerType !== "free_audit"
+  )
+    return;
+
+  if (scan.triggerType === "free_audit") {
+    await notifyFreeAuditScanCompleted(scan.leads);
+    return;
+  }
 
   const scoreSnapshot = scan.scoreSnapshot;
   const triggerType = scan.triggerType;
-  const recipients = uniqueNotificationRecipients(
-    scan.brand.organization.memberships.map((membership) => membership.user),
-  );
+  const recipients = await scanCompletedNotificationRecipients(scan);
+  if (recipients.length === 0) return;
   const results = await Promise.allSettled(
     recipients.map((recipient) => {
       const subject = scanCompletedEmailSubject({
@@ -1970,6 +1990,64 @@ async function notifyScanCompleted(scanRunId: string) {
       });
     }
   });
+}
+
+async function scanCompletedNotificationRecipients(scan: {
+  id: string;
+  triggerType: string;
+  brand: {
+    organizationId: string;
+    organization: {
+      memberships: Array<{
+        role: string;
+        user: { email: string; name: string | null };
+      }>;
+    };
+  };
+}) {
+  if (scan.triggerType === "manual") {
+    const startedBy = await prisma.auditLog.findFirst({
+      where: {
+        action: "scan_started",
+        entityType: "ScanRun",
+        entityId: scan.id,
+        userId: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        user: {
+          select: {
+            email: true,
+            name: true,
+            memberships: {
+              where: { organizationId: scan.brand.organizationId },
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+    const user = startedBy?.user;
+    if (!user || user.memberships.length === 0) return [];
+    return uniqueNotificationRecipients([
+      { email: user.email, name: user.name },
+    ]);
+  }
+
+  return uniqueNotificationRecipients(
+    scan.brand.organization.memberships
+      .filter((membership) => membership.role === "owner")
+      .map((membership) => membership.user),
+  );
+}
+
+async function notifyFreeAuditScanCompleted(
+  leads: Array<{ id: string; email: string; status: string }>,
+) {
+  const recipients = leads.filter((lead) => lead.status !== "report_sent");
+  await Promise.allSettled(
+    recipients.map((lead) => sendLeadAuditEmail(lead.id)),
+  );
 }
 
 async function sendAndRecordScanCompletedEmail(input: {

@@ -55,13 +55,14 @@ const MENTIONED_DOMAIN_COLORS = [
 async function startProviderScan(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
-  const { brand } = await requireBrandAccess(brandId);
+  const { user, brand } = await requireBrandAccess(brandId);
   const manualScanAccess = canRunManualScans(brand.organization);
   const scan = await createScanForBrand(brandId, {
     engineVariants: manualScanAccess
       ? selectedEngineVariantsFromFormData(formData)
       : [{ provider: "openai", searchEnabled: false }],
     runNow: false,
+    initiatedByUserId: user.id,
   });
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
 }

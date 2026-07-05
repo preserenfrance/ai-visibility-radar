@@ -95,10 +95,11 @@ async function addPrompt(formData: FormData) {
 async function startChatGptPromptReview(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
-  await requireBrandAccess(brandId);
+  const { user } = await requireBrandAccess(brandId);
   const scan = await createScanForBrand(brandId, {
     engineVariants: [{ provider: "openai", searchEnabled: false }],
     runNow: false,
+    initiatedByUserId: user.id,
   });
   redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
 }

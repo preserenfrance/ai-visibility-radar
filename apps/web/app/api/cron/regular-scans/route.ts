@@ -9,7 +9,10 @@ import {
   recurringScanCadenceForPlan,
   recurringScanEngineVariantsFromJson,
 } from "@/lib/services";
-import { processScanQueueUntilBudget } from "@/lib/scan-queue";
+import {
+  processScanQueueUntilBudget,
+  SCAN_QUEUE_TRIGGER_TYPES,
+} from "@/lib/scan-queue";
 
 export const maxDuration = 300;
 
@@ -130,7 +133,17 @@ function runRegularScans(request: Request) {
       }
     }
 
-    const scanQueue = await processScanQueueUntilBudget();
+    const scanQueue =
+      process.env.CRON_PROCESS_SCAN_QUEUE === "false"
+        ? {
+            attemptedSteps: 0,
+            processedSteps: [],
+            failedSteps: [],
+            remaining: await queuedScanCount(),
+            exhaustedBudget: false,
+            skipped: "dedicated_worker_enabled",
+          }
+        : await processScanQueueUntilBudget();
 
     return ok({
       deactivatedWithoutAutomation: deactivatedWithoutAutomation.count,
@@ -139,6 +152,15 @@ function runRegularScans(request: Request) {
       failedBrands,
       scanQueue,
     });
+  });
+}
+
+async function queuedScanCount() {
+  return prisma.scanRun.count({
+    where: {
+      triggerType: { in: [...SCAN_QUEUE_TRIGGER_TYPES] },
+      status: { in: ["queued", "running"] },
+    },
   });
 }
 
