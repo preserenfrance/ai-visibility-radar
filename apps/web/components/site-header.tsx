@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import {
   Activity,
   BarChart3,
+  Clock3,
   DollarSign,
   HelpCircle,
   LogOut,
@@ -99,6 +100,14 @@ function HeaderNavContent({
             href="/admin/operations"
             icon={<BarChart3 className="h-4 w-4" />}
             label="Operacije"
+            className={navClassName}
+          />
+        )}
+        {admin && (
+          <Nav
+            href="/admin/scan-monitor"
+            icon={<Clock3 className="h-4 w-4" />}
+            label="Monitor"
             className={navClassName}
           />
         )}
