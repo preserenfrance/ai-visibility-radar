@@ -139,6 +139,7 @@ function runRegularScans(request: Request) {
             attemptedSteps: 0,
             processedSteps: [],
             failedSteps: [],
+            settledExpired: 0,
             remaining: await queuedScanCount(),
             exhaustedBudget: false,
             skipped: "dedicated_worker_enabled",

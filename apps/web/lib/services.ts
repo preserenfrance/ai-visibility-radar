@@ -1880,8 +1880,7 @@ export async function scoreScan(scanRunId: string) {
   const failedPromptRuns = scan.promptRuns.filter(
     (promptRun) => promptRun.status === "failed",
   ).length;
-  const finalStatus =
-    failedPromptRuns === scan.promptRuns.length ? "failed" : "completed";
+  const finalStatus = completedPromptRuns > 0 ? "completed" : "failed";
   const finishedAt = new Date();
 
   const finalizedScan = await prisma.scanRun.updateMany({

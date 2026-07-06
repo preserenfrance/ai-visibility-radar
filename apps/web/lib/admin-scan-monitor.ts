@@ -7,7 +7,10 @@ import {
   type ScanRunStatus,
   type TriggerType,
 } from "@ai-radar/db";
-import { SCAN_QUEUE_TRIGGER_TYPES } from "@/lib/scan-queue";
+import {
+  SCAN_QUEUE_TRIGGER_TYPES,
+  scanQueueMaxActiveMs,
+} from "@/lib/scan-queue";
 
 const ACTIVE_SCAN_STATUSES: ScanRunStatus[] = ["queued", "running"];
 const TERMINAL_SCAN_STATUSES: ScanRunStatus[] = [
@@ -29,6 +32,9 @@ export type AdminScanMonitorSnapshot = {
   window: {
     lastHourStart: string;
     lastDayStart: string;
+  };
+  queuePolicy: {
+    maxActiveMs: number;
   };
   health: {
     queuedScans: number;
@@ -335,6 +341,9 @@ export async function buildAdminScanMonitorSnapshot(): Promise<AdminScanMonitorS
     window: {
       lastHourStart: lastHourStart.toISOString(),
       lastDayStart: lastDayStart.toISOString(),
+    },
+    queuePolicy: {
+      maxActiveMs: scanQueueMaxActiveMs(),
     },
     health: {
       queuedScans: scanStatusCount(currentScanStatusGroups, "queued"),

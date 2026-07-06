@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,13 @@ import type {
 
 const REFRESH_INTERVAL_MS = 10_000;
 
+type ScanMonitorAction = "cleanup-expired" | "settle-scan" | "cancel-scan";
+
+type ScanMonitorActionResponse = {
+  actionResult: unknown;
+  snapshot: AdminScanMonitorSnapshot;
+};
+
 export function AdminScanMonitor({
   initialData,
 }: {
@@ -39,6 +47,9 @@ export function AdminScanMonitor({
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -62,6 +73,40 @@ export function AdminScanMonitor({
       setIsRefreshing(false);
     }
   }, []);
+
+  const runAction = useCallback(
+    async (action: ScanMonitorAction, scanRunId?: string) => {
+      const actionKey = scanRunId ? `${action}:${scanRunId}` : action;
+      setMutatingAction(actionKey);
+      setActionMessage(null);
+      setActionError(null);
+
+      try {
+        const response = await fetch("/api/admin/scan-monitor", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(scanRunId ? { action, scanRunId } : { action }),
+        });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(body?.error ?? "Akcija ni uspela.");
+        }
+
+        const data = body as ScanMonitorActionResponse;
+        setSnapshot(data.snapshot);
+        setActionMessage(actionSuccessMessage(action, data.actionResult));
+      } catch (actionFailure) {
+        setActionError(
+          actionFailure instanceof Error
+            ? actionFailure.message
+            : "Akcija ni uspela.",
+        );
+      } finally {
+        setMutatingAction(null);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -115,6 +160,16 @@ export function AdminScanMonitor({
           <Button
             type="button"
             size="sm"
+            variant="outline"
+            onClick={() => runAction("cleanup-expired")}
+            disabled={Boolean(mutatingAction)}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Zaključi prestare
+          </Button>
+          <Button
+            type="button"
+            size="sm"
             onClick={refresh}
             disabled={isRefreshing}
           >
@@ -134,6 +189,18 @@ export function AdminScanMonitor({
         </div>
       )}
 
+      {actionMessage && (
+        <div className="mb-6 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+          {actionMessage}
+        </div>
+      )}
+
+      {actionError && (
+        <div className="mb-6 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {actionError}
+        </div>
+      )}
+
       {hasHealthWarning && (
         <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <div className="flex items-start gap-2">
@@ -148,6 +215,14 @@ export function AdminScanMonitor({
           </div>
         </div>
       )}
+
+      <div className="mb-6 rounded-md border bg-white px-4 py-3 text-sm text-muted-foreground">
+        Aktivni scan se samodejno zaključi po{" "}
+        <span className="font-medium text-foreground">
+          {formatDuration(snapshot.queuePolicy.maxActiveMs)}
+        </span>
+        , če do takrat še vedno stoji v queueju ali izvajanju.
+      </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
@@ -222,6 +297,9 @@ export function AdminScanMonitor({
           <ScanTable
             scans={snapshot.activeScans}
             empty="Trenutno ni scanov v delu."
+            mutatingAction={mutatingAction}
+            onCancel={(scanRunId) => runAction("cancel-scan", scanRunId)}
+            onSettle={(scanRunId) => runAction("settle-scan", scanRunId)}
           />
         </CardContent>
       </Card>
@@ -454,9 +532,15 @@ function TriggerPanel({ snapshot }: { snapshot: AdminScanMonitorSnapshot }) {
 function ScanTable({
   scans,
   empty,
+  mutatingAction,
+  onCancel,
+  onSettle,
 }: {
   scans: AdminScanMonitorScan[];
   empty: string;
+  mutatingAction?: string | null;
+  onCancel?: (scanRunId: string) => void;
+  onSettle?: (scanRunId: string) => void;
 }) {
   return (
     <Table>
@@ -470,6 +554,7 @@ function ScanTable({
           <TH>Trajanje</TH>
           <TH>Zadnja aktivnost</TH>
           <TH>Napaka</TH>
+          <TH>Akcija</TH>
         </TR>
       </THead>
       <TBody>
@@ -553,11 +638,59 @@ function ScanTable({
                 <span className="text-muted-foreground">-</span>
               )}
             </TD>
+            <TD>
+              {(scan.status === "queued" || scan.status === "running") &&
+              onSettle &&
+              onCancel ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSettle(scan.id)}
+                    disabled={Boolean(mutatingAction)}
+                  >
+                    <CheckCircle2
+                      className={[
+                        "h-4 w-4",
+                        mutatingAction === `settle-scan:${scan.id}`
+                          ? "animate-spin"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    />
+                    Zaključi
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onCancel(scan.id)}
+                    disabled={Boolean(mutatingAction)}
+                  >
+                    <XCircle
+                      className={[
+                        "h-4 w-4",
+                        mutatingAction === `cancel-scan:${scan.id}`
+                          ? "animate-spin"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    />
+                    Prekliči
+                  </Button>
+                </div>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </TD>
           </TR>
         ))}
         {scans.length === 0 && (
           <TR>
-            <TD colSpan={8} className="text-muted-foreground">
+            <TD colSpan={9} className="text-muted-foreground">
               {empty}
             </TD>
           </TR>
@@ -565,6 +698,22 @@ function ScanTable({
       </TBody>
     </Table>
   );
+}
+
+function actionSuccessMessage(action: ScanMonitorAction, result: unknown) {
+  if (action === "cleanup-expired") {
+    const settled =
+      typeof result === "object" && result !== null && "settled" in result
+        ? Number((result as { settled?: unknown }).settled ?? 0)
+        : 0;
+    return `Zaključenih prestarih scanov: ${settled}.`;
+  }
+
+  if (action === "settle-scan") {
+    return "Scan je zaključen in odstranjen iz aktivnega queueja.";
+  }
+
+  return "Scan je preklican in odstranjen iz aktivnega queueja.";
 }
 
 function ProgressBar({ value }: { value: number }) {
