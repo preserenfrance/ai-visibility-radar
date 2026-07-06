@@ -36,6 +36,11 @@ const PROMPT_EXECUTION_TIMEOUT_MS = positiveNumber(
   45_000,
   10_000,
 );
+const SEARCH_PROMPT_EXECUTION_TIMEOUT_MS = positiveNumber(
+  process.env.SEARCH_PROMPT_EXECUTION_TIMEOUT_MS,
+  90_000,
+  30_000,
+);
 const PARSER_EXECUTION_TIMEOUT_MS = positiveNumber(
   process.env.PARSER_EXECUTION_TIMEOUT_MS,
   20_000,
@@ -466,7 +471,7 @@ async function processRunPrompt(promptRunId: string) {
         })),
         searchEnabled: promptRun.engine.searchEnabled,
       }),
-      PROMPT_EXECUTION_TIMEOUT_MS,
+      promptExecutionTimeoutMs(promptRun.engine.searchEnabled),
       `AI prompt run ${promptRunId}`,
     );
     if (await isScanCanceled(promptRun.scanRunId)) {
@@ -1104,6 +1109,12 @@ function uniqueNotificationRecipients(
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function promptExecutionTimeoutMs(searchEnabled: boolean) {
+  return searchEnabled
+    ? SEARCH_PROMPT_EXECUTION_TIMEOUT_MS
+    : PROMPT_EXECUTION_TIMEOUT_MS;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {

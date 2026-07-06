@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
-import { Activity } from "lucide-react";
+import { Activity, X } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import {
@@ -218,8 +218,9 @@ export default async function ScanPage({
             />
             <LegendDot
               className="border-rose-700 bg-rose-500"
-              label="znamka ni omenjena ali je izvedba padla"
+              label="znamka ni omenjena"
             />
+            <LegendError label="napaka pri izvedbi" />
             <LegendDot
               className="border-amber-700 bg-amber-400"
               label="čaka na rezultat"
@@ -291,6 +292,17 @@ function LegendDot({ className, label }: { className: string; label: string }) {
       <span
         className={`h-3.5 w-3.5 rounded-full border shadow-sm ${className}`}
       />
+      {label}
+    </span>
+  );
+}
+
+function LegendError({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-rose-800 bg-rose-600 text-white shadow-sm">
+        <X className="h-2.5 w-2.5" strokeWidth={3} />
+      </span>
       {label}
     </span>
   );

@@ -1,4 +1,5 @@
-import { Search, Sparkles } from "lucide-react";
+import Image from "next/image";
+import { Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -116,6 +117,20 @@ export function modelMentionColumnForRun(
 
 export function MentionIndicator({ runs }: { runs: ModelMentionSummary[] }) {
   const state = mentionState(runs);
+  const title = mentionTitle(runs);
+
+  if (state === "error") {
+    return (
+      <span
+        className="mx-auto flex h-3.5 w-3.5 items-center justify-center rounded-full border border-rose-800 bg-rose-600 text-white shadow-sm"
+        title={title}
+        aria-label={title}
+      >
+        <X className="h-2.5 w-2.5" strokeWidth={3} />
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(
@@ -124,8 +139,8 @@ export function MentionIndicator({ runs }: { runs: ModelMentionSummary[] }) {
         state === "danger" && "border-rose-700 bg-rose-500",
         state === "warning" && "border-amber-700 bg-amber-400",
       )}
-      title={mentionTitle(runs)}
-      aria-label={mentionTitle(runs)}
+      title={title}
+      aria-label={title}
     />
   );
 }
@@ -136,6 +151,11 @@ function mentionState(runs: ModelMentionSummary[]) {
   );
   if (readyRuns.some((run) => run.brandMentioned)) return "success";
   if (readyRuns.length > 0) return "danger";
+  if (
+    runs.some((run) => ["failed", "skipped", "canceled"].includes(run.status))
+  ) {
+    return "error";
+  }
   return "warning";
 }
 
@@ -165,16 +185,18 @@ function bestRankForRuns(runs: ModelMentionSummary[]) {
 }
 
 export function EngineIcon({ column }: { column: ModelMentionColumn }) {
+  const logo = modelLogoForProvider(column.provider);
+
   return (
     <span className="relative mx-auto flex h-6 w-6 items-center justify-center">
-      {column.provider === "openai" ? (
-        <OpenAiMark />
-      ) : column.provider === "google" ? (
-        <Sparkles className="h-4 w-4 text-[#4285f4]" />
-      ) : column.provider === "anthropic" ? (
-        <span className="font-serif text-[15px] font-semibold leading-none text-[#b45309]">
-          C
-        </span>
+      {logo ? (
+        <Image
+          src={logo}
+          alt=""
+          width={22}
+          height={22}
+          className="h-5 w-5 object-contain mix-blend-multiply"
+        />
       ) : (
         <span className="text-[10px] font-semibold uppercase text-muted-foreground">
           AI
@@ -189,29 +211,6 @@ export function EngineIcon({ column }: { column: ModelMentionColumn }) {
   );
 }
 
-function OpenAiMark() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5 text-slate-900"
-      aria-hidden="true"
-    >
-      <g
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      >
-        <path d="M12 3.4a4.1 4.1 0 0 1 3.9 2.8l2.2 1.3a4.1 4.1 0 0 1 .1 7.1 4.1 4.1 0 0 1-4 5.9 4.1 4.1 0 0 1-7.1-1.8l-2.2-1.3a4.1 4.1 0 0 1-.1-7.1 4.1 4.1 0 0 1 4-5.9A4 4 0 0 1 12 3.4Z" />
-        <path d="m8.1 6.2 7.8 4.5v6.9" />
-        <path d="m15.9 6.3-7.8 4.5v6.9" />
-        <path d="m4.8 10.3 7.2 4.1 7.1-4" />
-      </g>
-    </svg>
-  );
-}
-
 function providerFromEngineName(engineName: string) {
   const normalized = engineName.toLowerCase();
   if (normalized.includes("chatgpt") || normalized.includes("openai"))
@@ -221,6 +220,13 @@ function providerFromEngineName(engineName: string) {
   if (normalized.includes("claude") || normalized.includes("anthropic"))
     return "anthropic";
   return normalized.replace(/\s+/g, "-") || "unknown";
+}
+
+function modelLogoForProvider(provider: string) {
+  if (provider === "openai") return "/images/model-logos/chatgpt.png";
+  if (provider === "google") return "/images/model-logos/gemini.png";
+  if (provider === "anthropic") return "/images/model-logos/claude.png";
+  return null;
 }
 
 function providerSortIndex(provider: string) {

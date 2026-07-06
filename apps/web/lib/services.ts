@@ -45,6 +45,11 @@ const PROMPT_EXECUTION_TIMEOUT_MS = positiveNumberFromEnv(
   30_000,
   10_000,
 );
+const SEARCH_PROMPT_EXECUTION_TIMEOUT_MS = positiveNumberFromEnv(
+  "SEARCH_PROMPT_EXECUTION_TIMEOUT_MS",
+  90_000,
+  30_000,
+);
 const PARSER_EXECUTION_TIMEOUT_MS = positiveNumberFromEnv(
   "PARSER_EXECUTION_TIMEOUT_MS",
   12_000,
@@ -1310,7 +1315,11 @@ export function defaultRecurringScanEngineVariants(): EngineSelection[] {
   }));
 }
 
-export function recurringScanActivationData(plan: Plan, from = new Date()) {
+export function recurringScanActivationData(
+  plan: Plan,
+  from = new Date(),
+  options: { nextRunAt?: Date } = {},
+) {
   const cadence = recurringScanCadenceForPlan(plan);
   if (!cadence) return null;
 
@@ -1319,7 +1328,7 @@ export function recurringScanActivationData(plan: Plan, from = new Date()) {
     recurringScanCadence: cadence,
     recurringScanPlan: plan,
     recurringScanActivatedAt: from,
-    recurringScanNextRunAt: from,
+    recurringScanNextRunAt: options.nextRunAt ?? from,
     recurringScanProviderVariants: defaultRecurringScanEngineVariants(),
   };
 }
@@ -1630,7 +1639,7 @@ export async function runPromptRun(promptRunId: string) {
         })),
         searchEnabled: promptRun.engine.searchEnabled,
       }),
-      PROMPT_EXECUTION_TIMEOUT_MS,
+      promptExecutionTimeoutMs(promptRun.engine.searchEnabled),
       `AI prompt run ${promptRunId}`,
     );
     if (await isScanCanceled(promptRun.scanRunId)) {
@@ -2137,6 +2146,16 @@ export async function createFreeAudit(input: {
       country: input.country,
       language: input.language,
     });
+    const recurringActivatedAt = new Date();
+    const recurringCadence = recurringScanCadenceForPlan("free");
+    const recurringScanData = recurringCadence
+      ? recurringScanActivationData("free", recurringActivatedAt, {
+          nextRunAt: nextRecurringScanDate(
+            recurringCadence,
+            recurringActivatedAt,
+          ),
+        })
+      : null;
     const brand = await prisma.brand.create({
       data: {
         organizationId: organization.id,
@@ -2156,6 +2175,7 @@ export async function createFreeAudit(input: {
         chatGptProductSummaryUpdatedAt: chatGptInsights.productSummary
           ? new Date()
           : undefined,
+        ...(recurringScanData ?? {}),
       },
     });
     const competitorNames = splitCompetitors(input.competitors);
@@ -2429,6 +2449,12 @@ function positiveNumberFromEnv(
   const parsed = Number(process.env[name]);
   if (!Number.isFinite(parsed) || parsed < minimum) return fallback;
   return Math.floor(parsed);
+}
+
+function promptExecutionTimeoutMs(searchEnabled: boolean) {
+  return searchEnabled
+    ? SEARCH_PROMPT_EXECUTION_TIMEOUT_MS
+    : PROMPT_EXECUTION_TIMEOUT_MS;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
