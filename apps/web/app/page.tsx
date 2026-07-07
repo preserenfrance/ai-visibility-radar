@@ -24,9 +24,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/auth";
-
-export const dynamic = "force-dynamic";
 
 const features: Array<{
   title: string;
@@ -124,10 +121,7 @@ const metrics = [
   { label: "Poročilo", value: "takoj" },
 ];
 
-export default async function HomePage() {
-  const user = await getCurrentUser();
-  const appHref = user ? "/app/dashboard" : "/login";
-
+export default function HomePage() {
   return (
     <main>
       <section className="relative min-h-[92vh] overflow-hidden bg-slate-950 text-white">
@@ -169,7 +163,7 @@ export default async function HomePage() {
                   variant="outline"
                   className="border-white/40 bg-white/5 text-white hover:bg-white/10"
                 >
-                  <Link href={appHref}>Odpri aplikacijo</Link>
+                  <Link href="/app/dashboard">Odpri aplikacijo</Link>
                 </Button>
               </div>
             </div>

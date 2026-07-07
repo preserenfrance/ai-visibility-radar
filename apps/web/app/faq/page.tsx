@@ -3,9 +3,9 @@ import Link from "next/link";
 import { ArrowRight, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { faqSections } from "@/lib/faqs";
+import { cachedFaqSections } from "@/lib/faqs";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Pogosta vprašanja | AI Visibility Radar",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function FaqPage() {
-  const sections = await faqSections();
+  const sections = await cachedFaqSections();
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-5 py-12">

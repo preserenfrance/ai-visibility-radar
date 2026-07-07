@@ -1,6 +1,8 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@ai-radar/db";
 
 const FAQ_SETTINGS_KEY = "faq_content";
+export const FAQ_CACHE_TAG = "public-faq";
 
 export type FaqItem = {
   question: string;
@@ -157,12 +159,23 @@ export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
 ];
 
 export async function faqSections() {
+  if (!process.env.DATABASE_URL) return DEFAULT_FAQ_SECTIONS;
+
   const saved = await prisma.systemPrompt
     .findUnique({ where: { key: FAQ_SETTINGS_KEY } })
     .catch(() => null);
   if (!saved?.content) return DEFAULT_FAQ_SECTIONS;
   return parseFaqSections(saved.content);
 }
+
+export const cachedFaqSections = unstable_cache(
+  faqSections,
+  ["public-faq-sections"],
+  {
+    revalidate: 300,
+    tags: [FAQ_CACHE_TAG],
+  },
+);
 
 export async function saveFaqSections(
   sections: FaqSection[],

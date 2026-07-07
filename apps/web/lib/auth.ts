@@ -14,10 +14,24 @@ export async function getCurrentUser() {
     include: {
       memberships: {
         include: {
-          organization: true
-        }
-      }
-    }
+          organization: true,
+        },
+      },
+    },
+  });
+}
+
+export async function getCurrentUserSummary() {
+  const cookieStore = await cookies();
+  const userId = readSignedSession(cookieStore.get(COOKIE_NAME)?.value);
+  if (!userId) return null;
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+    },
   });
 }
 
@@ -34,7 +48,7 @@ export async function setUserSession(userId: string) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30
+    maxAge: 60 * 60 * 24 * 30,
   });
   cookieStore.delete(LEGACY_COOKIE_NAME);
 }
@@ -65,8 +79,11 @@ export async function requireAdminUser() {
 
 export async function requireOrganizationAccess(organizationId: string) {
   const user = await requireCurrentUser();
-  const membership = user.memberships.find((item) => item.organizationId === organizationId);
-  if (!membership) throw new Error("Forbidden: organization membership required");
+  const membership = user.memberships.find(
+    (item) => item.organizationId === organizationId,
+  );
+  if (!membership)
+    throw new Error("Forbidden: organization membership required");
   return { user, membership };
 }
 
@@ -76,12 +93,15 @@ export async function requireBrandAccess(brandId: string) {
     where: { id: brandId },
     include: {
       organization: { include: { billingSubscription: true } },
-      competitors: true
-    }
+      competitors: true,
+    },
   });
   if (!brand) throw new Error("Brand not found");
-  const membership = user.memberships.find((item) => item.organizationId === brand.organizationId);
-  if (!membership) throw new Error("Forbidden: organization membership required");
+  const membership = user.memberships.find(
+    (item) => item.organizationId === brand.organizationId,
+  );
+  if (!membership)
+    throw new Error("Forbidden: organization membership required");
   return { user, membership, brand };
 }
 
@@ -91,17 +111,22 @@ export async function requireScanAccess(scanRunId: string) {
     where: { id: scanRunId },
     include: {
       brand: true,
-      promptSet: true
-    }
+      promptSet: true,
+    },
   });
   if (!scan) throw new Error("Scan not found");
-  const membership = user.memberships.find((item) => item.organizationId === scan.brand.organizationId);
-  if (!membership) throw new Error("Forbidden: organization membership required");
+  const membership = user.memberships.find(
+    (item) => item.organizationId === scan.brand.organizationId,
+  );
+  if (!membership)
+    throw new Error("Forbidden: organization membership required");
   return { user, membership, scan };
 }
 
 function signSession(userId: string) {
-  const signature = createHmac("sha256", sessionSecret()).update(userId).digest("base64url");
+  const signature = createHmac("sha256", sessionSecret())
+    .update(userId)
+    .digest("base64url");
   return `${userId}.${signature}`;
 }
 
@@ -110,7 +135,9 @@ function readSignedSession(value?: string) {
   const [userId, signature] = value.split(".");
   if (!userId || !signature) return null;
 
-  const expected = createHmac("sha256", sessionSecret()).update(userId).digest("base64url");
+  const expected = createHmac("sha256", sessionSecret())
+    .update(userId)
+    .digest("base64url");
   const expectedBuffer = Buffer.from(expected);
   const signatureBuffer = Buffer.from(signature);
   if (expectedBuffer.length !== signatureBuffer.length) return null;
@@ -118,5 +145,10 @@ function readSignedSession(value?: string) {
 }
 
 function sessionSecret() {
-  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? process.env.DATABASE_URL ?? "ai-radar-dev-secret";
+  return (
+    process.env.AUTH_SECRET ??
+    process.env.NEXTAUTH_SECRET ??
+    process.env.DATABASE_URL ??
+    "ai-radar-dev-secret"
+  );
 }

@@ -1,4 +1,6 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   Activity,
   BarChart3,
@@ -13,17 +15,38 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearUserSession, getCurrentUser, isAdminUser } from "@/lib/auth";
 
-async function logout() {
-  "use server";
-  await clearUserSession();
-  redirect("/login");
-}
+type HeaderUser = {
+  email: string;
+};
 
-export async function SiteHeader() {
-  const user = await getCurrentUser();
-  const admin = isAdminUser(user);
+export function SiteHeader() {
+  const [session, setSession] = useState<{
+    user: HeaderUser | null;
+    isAdmin: boolean;
+  }>({ user: null, isAdmin: false });
+
+  useEffect(() => {
+    let ignore = false;
+
+    fetch("/api/me", { cache: "no-store", credentials: "same-origin" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!ignore && data) {
+          setSession({
+            user: data.user ? { email: String(data.user.email) } : null,
+            isAdmin: Boolean(data.isAdmin),
+          });
+        }
+      })
+      .catch(() => {
+        if (!ignore) setSession({ user: null, isAdmin: false });
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
@@ -36,7 +59,10 @@ export async function SiteHeader() {
           <span className="truncate">AI Visibility Radar</span>
         </a>
         <nav className="site-header-desktop-nav hidden flex-wrap items-center justify-end gap-1 text-sm md:flex">
-          <HeaderNavContent userEmail={user?.email} admin={admin} />
+          <HeaderNavContent
+            userEmail={session.user?.email}
+            admin={session.isAdmin}
+          />
         </nav>
         <details className="site-header-mobile-menu group md:hidden">
           <summary
@@ -46,7 +72,11 @@ export async function SiteHeader() {
             <Menu className="h-5 w-5" />
           </summary>
           <nav className="absolute right-5 top-[calc(100%+0.5rem)] z-50 grid w-[min(calc(100vw-2.5rem),22rem)] gap-1 rounded-lg border bg-white p-2 text-sm shadow-lg">
-            <HeaderNavContent userEmail={user?.email} admin={admin} mobile />
+            <HeaderNavContent
+              userEmail={session.user?.email}
+              admin={session.isAdmin}
+              mobile
+            />
           </nav>
         </details>
       </div>
@@ -150,17 +180,16 @@ function HeaderNavContent({
         >
           {userEmail}
         </span>
-        <form action={logout}>
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className={buttonClassName}
-          >
-            <LogOut className="h-4 w-4" />
-            Odjava
-          </Button>
-        </form>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={buttonClassName}
+          onClick={logout}
+        >
+          <LogOut className="h-4 w-4" />
+          Odjava
+        </Button>
       </>
     );
   }
@@ -180,6 +209,14 @@ function HeaderNavContent({
       </Button>
     </>
   );
+}
+
+async function logout() {
+  await fetch("/api/auth/logout", {
+    method: "POST",
+    credentials: "same-origin",
+  }).catch(() => null);
+  window.location.href = "/login";
 }
 
 function Nav({

@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
 import {
+  FAQ_CACHE_TAG,
   faqSections,
   resetFaqSections,
   saveFaqSections,
@@ -19,6 +21,7 @@ async function saveFaqs(formData: FormData) {
   const user = await requireAdminUser();
   const sections = parseFaqForm(formData);
   await saveFaqSections(sections, user.email);
+  revalidateTag(FAQ_CACHE_TAG);
   redirect("/admin/faqs?saved=1");
 }
 
@@ -26,6 +29,7 @@ async function resetFaqs(_formData: FormData) {
   "use server";
   const user = await requireAdminUser();
   await resetFaqSections(user.email);
+  revalidateTag(FAQ_CACHE_TAG);
   redirect("/admin/faqs?reset=1");
 }
 

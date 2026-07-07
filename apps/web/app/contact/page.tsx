@@ -6,8 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-export const dynamic = "force-dynamic";
-
 const CONTACT_EMAIL = "hey@llmvisio.com";
 
 async function sendContactMessage(formData: FormData) {
