@@ -25,7 +25,6 @@
     "db:push": "npm --workspace @ai-radar/db exec -- prisma db push --schema prisma/schema.prisma",
     "vercel:build": "node scripts/vercel-build.mjs",
     "worker:dev": "npm --workspace @ai-radar/worker run dev",
-    "worker:railway": "npm --workspace @ai-radar/worker run railway",
     "web:dev": "npm --workspace @ai-radar/web run dev"
   },
   "devDependencies": {

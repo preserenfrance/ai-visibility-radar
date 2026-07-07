@@ -116,7 +116,6 @@ Ustvari hosted PostgreSQL bazo, na primer:
 - Vercel Postgres
 - Neon
 - Supabase
-- Railway Postgres
 
 Kopiraj `DATABASE_URL`.
 
@@ -231,7 +230,7 @@ git push
 
 ## 12. Worker pozneje
 
-Vercel ni primeren za stalni BullMQ worker. Ko bos dodal live provider scans, worker poganjaj loceno, na primer na Railway, Render, Fly.io ali VPS.
+Vercel ni primeren za stalni BullMQ worker. Ko bos dodal live provider scans, worker poganjaj loceno, na primer na Render, Fly.io ali VPS.
 
 Worker command:
 

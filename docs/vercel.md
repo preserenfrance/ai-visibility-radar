@@ -64,7 +64,7 @@ If `REDIS_URL` is not set, web routes that enqueue background scans will skip qu
 
 ## Database
 
-Use a hosted PostgreSQL database such as Vercel Postgres, Neon, Supabase, or Railway Postgres.
+Use a hosted PostgreSQL database such as Vercel Postgres, Neon, or Supabase.
 
 Before the first production deploy, run migrations from a trusted machine or CI job:
 
@@ -78,7 +78,7 @@ The Vercel build runs `pnpm db:generate`, but it does not run migrations automat
 
 ## Worker Runtime
 
-Vercel Serverless Functions are not suitable for the long-running BullMQ worker. Run `apps/worker` on a worker host such as Railway, Render, Fly.io, a VPS, or a container platform.
+Vercel Serverless Functions are not suitable for the long-running BullMQ worker. Run `apps/worker` on a worker host such as Render, Fly.io, a VPS, or a container platform.
 
 Worker command:
 

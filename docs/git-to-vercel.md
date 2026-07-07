@@ -60,7 +60,6 @@ Ustvari hosted PostgreSQL bazo. Najbolj enostavne opcije:
 - Vercel Postgres
 - Neon
 - Supabase
-- Railway Postgres
 
 Kopiraj `DATABASE_URL`.
 
@@ -178,4 +177,4 @@ pnpm db:generate
 npm --workspace @ai-radar/worker run start
 ```
 
-Primer worker hostov: Railway, Render, Fly.io, VPS ali container platform.
+Primer worker hostov: Render, Fly.io, VPS ali container platform.
