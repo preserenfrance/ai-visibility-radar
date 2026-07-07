@@ -9,6 +9,7 @@ export type SendEmailInput = {
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 };
 
 export type ScanCompletedEmailInput = {
@@ -25,6 +26,7 @@ export type ScanCompletedEmailInput = {
   totalPromptRuns: number;
   finishedAt?: Date | string | null;
   appUrl?: string;
+  unsubscribeUrl?: string;
 };
 
 export async function sendEmail(
@@ -47,6 +49,7 @@ export async function sendEmail(
     subject: input.subject,
     html: input.html,
     text: input.text,
+    replyTo: input.replyTo,
   });
 
   if (response.error) {
@@ -60,6 +63,7 @@ export async function sendWelcomeEmail(input: {
   to: string;
   name?: string | null;
   appUrl?: string;
+  preferencesUrl?: string;
 }): Promise<{ id?: string; skipped?: boolean }> {
   const appUrl = input.appUrl ?? getConfig().NEXT_PUBLIC_APP_URL;
   const dashboardUrl = absoluteUrl(appUrl, "/app/dashboard");
@@ -76,18 +80,24 @@ export async function sendWelcomeEmail(input: {
       bodyHtml: [
         `<p>${greeting}</p>`,
         "<p>Vaš račun je pripravljen. V aplikaciji lahko dodate znamko, uredite prompte in zaženete prvi AI visibility scan.</p>",
-        "<p>Ko bo scan zaključen, vam bomo poslali tudi povzetek rezultata.</p>",
+        "<p>E-mail obvestila lahko kadarkoli uredite prek povezave na dnu sporočila.</p>",
       ].join(""),
       cta: {
         label: "Odpri nadzorno ploščo",
         url: dashboardUrl,
       },
+      unsubscribeUrl: input.preferencesUrl,
     }),
     text: [
       "Dobrodošli v AI Visibility Radar.",
       "Vaš račun je pripravljen.",
       `Odprite nadzorno ploščo: ${dashboardUrl}`,
-    ].join("\n"),
+      input.preferencesUrl
+        ? `Nastavitve e-mail obvestil: ${input.preferencesUrl}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
 }
 
@@ -165,6 +175,7 @@ export async function sendScanCompletedEmail(
         url: scanUrl,
       },
       secondaryUrl: dashboardUrl,
+      unsubscribeUrl: input.unsubscribeUrl,
     }),
     text: [
       `Zaključen je ${triggerLabel} AI visibility scan za ${input.brandName} (${input.brandDomain}).`,
@@ -173,6 +184,9 @@ export async function sendScanCompletedEmail(
       `Neuspešni prompti: ${input.failedPromptRuns}`,
       finishedAt ? `Zaključeno: ${finishedAt}` : "",
       `Rezultat scana: ${scanUrl}`,
+      input.unsubscribeUrl
+        ? `Odjava od scan obvestil: ${input.unsubscribeUrl}`
+        : "",
     ]
       .filter(Boolean)
       .join("\n"),
@@ -205,12 +219,16 @@ function renderEmailLayout(input: {
     url: string;
   };
   secondaryUrl?: string;
+  unsubscribeUrl?: string;
 }) {
   const ctaHtml = input.cta
     ? `<p style="margin:28px 0 20px;"><a href="${escapeAttribute(input.cta.url)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;">${escapeHtml(input.cta.label)}</a></p>`
     : "";
   const secondaryHtml = input.secondaryUrl
     ? `<p style="margin:0;color:#6b7280;font-size:13px;">Nadzorna plošča: <a href="${escapeAttribute(input.secondaryUrl)}" style="color:#2563eb;">${escapeHtml(input.secondaryUrl)}</a></p>`
+    : "";
+  const unsubscribeHtml = input.unsubscribeUrl
+    ? ` <a href="${escapeAttribute(input.unsubscribeUrl)}" style="color:#2563eb;">Upravljanje e-mail obvestil in odjava</a>.`
     : "";
 
   return [
@@ -237,7 +255,7 @@ function renderEmailLayout(input: {
     "</td>",
     "</tr>",
     "</table>",
-    '<p style="max-width:620px;margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">To sporočilo ste prejeli, ker uporabljate AI Visibility Radar.</p>',
+    `<p style="max-width:620px;margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">To sporočilo ste prejeli, ker uporabljate AI Visibility Radar.${unsubscribeHtml}</p>`,
     "</td>",
     "</tr>",
     "</table>",

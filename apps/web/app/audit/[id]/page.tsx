@@ -4,6 +4,11 @@ import { prisma } from "@ai-radar/db";
 import { Activity, LockKeyhole, UserPlus } from "lucide-react";
 import { normalizeEmail } from "@/lib/accounts";
 import { getCurrentUser, setUserSession } from "@/lib/auth";
+import {
+  emailConsentData,
+  ensureEmailPreferencesToken,
+} from "@/lib/email-preferences";
+import { triggerUserRegisteredWebhook } from "@/lib/make-webhooks";
 import { hashPassword } from "@/lib/password";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ScanRunner } from "@/components/scan-runner";
@@ -78,6 +83,8 @@ async function createAuditAccount(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const passwordRepeat = String(formData.get("passwordRepeat") ?? "");
+  const marketingEmailConsent = formData.get("marketingEmailConsent") === "on";
+  const scanEmailConsent = formData.get("scanEmailConsent") === "on";
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
@@ -104,6 +111,10 @@ async function createAuditAccount(formData: FormData) {
         data: {
           name: name || existingUser.name,
           passwordHash: await hashPassword(password),
+          ...emailConsentData(
+            { marketingEmailConsent, scanEmailConsent },
+            existingUser,
+          ),
         },
       })
     : await prisma.user.create({
@@ -111,10 +122,26 @@ async function createAuditAccount(formData: FormData) {
           email,
           name: name || undefined,
           passwordHash: await hashPassword(password),
+          ...emailConsentData({ marketingEmailConsent, scanEmailConsent }),
         },
       });
 
   const organizationId = await ensureLeadMembership(lead, user.id);
+  await ensureEmailPreferencesToken(user.id);
+  const registeredUser = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    include: {
+      memberships: {
+        where: { organizationId },
+        include: { organization: true },
+      },
+    },
+  });
+  await triggerUserRegisteredWebhook({
+    source: "free_audit",
+    user: registeredUser,
+    organization: registeredUser.memberships[0]?.organization ?? null,
+  });
   await setUserSession(user.id);
   await prisma.auditLog.create({
     data: {
@@ -420,6 +447,29 @@ function AuditAccountGate({
                 minLength={8}
                 required
               />
+              <label className="flex gap-2 rounded-md border bg-secondary/40 p-3 text-sm">
+                <input
+                  name="scanEmailConsent"
+                  type="checkbox"
+                  defaultChecked
+                  className="mt-1 h-4 w-4"
+                />
+                <span>
+                  Želim prejemati e-mail obvestila o zaključenih scanih in novih
+                  rezultatih.
+                </span>
+              </label>
+              <label className="flex gap-2 rounded-md border bg-secondary/40 p-3 text-sm">
+                <input
+                  name="marketingEmailConsent"
+                  type="checkbox"
+                  className="mt-1 h-4 w-4"
+                />
+                <span>
+                  Strinjam se s prejemanjem marketinških obvestil, novosti in
+                  nasvetov za izboljšanje AI vidnosti.
+                </span>
+              </label>
               <Button type="submit">
                 <UserPlus className="h-4 w-4" />
                 Ustvari račun in pokaži rezultat

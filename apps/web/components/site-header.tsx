@@ -174,6 +174,7 @@ function HeaderNavContent({
       />
       <Nav href="/pricing" label="Cenik" className={navClassName} />
       <Nav href="/faq" label="FAQ" className={navClassName} />
+      <Nav href="/contact" label="Kontakt" className={navClassName} />
       <Button asChild size="sm" className={buttonClassName}>
         <a href="/login">Vstop</a>
       </Button>

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { createAiAdapter } from "@ai-radar/ai";
@@ -897,12 +898,14 @@ async function notifyScanCompleted(scanRunId: string) {
   const recipients = await scanCompletedNotificationRecipients(scan);
   if (recipients.length === 0) return;
   const results = await Promise.allSettled(
-    recipients.map((recipient) => {
+    recipients.map(async (recipient) => {
+      const preferencesToken = await ensureEmailPreferencesToken(recipient.id);
       const subject = scanCompletedEmailSubject({
         brandName: scan.brand.name,
         visibilityScore: scoreSnapshot.visibilityScore,
       });
       return sendAndRecordScanCompletedEmail({
+        userId: recipient.id,
         to: recipient.email,
         recipientName: recipient.name,
         brandName: scan.brand.name,
@@ -915,6 +918,7 @@ async function notifyScanCompleted(scanRunId: string) {
         failedPromptRuns: scan.failedPromptRuns,
         totalPromptRuns: scan.totalPromptRuns,
         finishedAt: scan.finishedAt,
+        unsubscribeUrl: emailPreferencesUrl(preferencesToken, "scans"),
         subject,
       });
     }),
@@ -939,7 +943,12 @@ async function scanCompletedNotificationRecipients(scan: {
     organization: {
       memberships: Array<{
         role: string;
-        user: { email: string; name: string | null };
+        user: {
+          id: string;
+          email: string;
+          name: string | null;
+          scanEmailConsent: boolean;
+        };
       }>;
     };
   };
@@ -956,8 +965,10 @@ async function scanCompletedNotificationRecipients(scan: {
       select: {
         user: {
           select: {
+            id: true,
             email: true,
             name: true,
+            scanEmailConsent: true,
             memberships: {
               where: { organizationId: scan.brand.organizationId },
               select: { id: true },
@@ -968,14 +979,16 @@ async function scanCompletedNotificationRecipients(scan: {
     });
     const user = startedBy?.user;
     if (!user || user.memberships.length === 0) return [];
+    if (!user.scanEmailConsent) return [];
     return uniqueNotificationRecipients([
-      { email: user.email, name: user.name },
+      { id: user.id, email: user.email, name: user.name },
     ]);
   }
 
   return uniqueNotificationRecipients(
     scan.brand.organization.memberships
       .filter((membership) => membership.role === "owner")
+      .filter((membership) => membership.user.scanEmailConsent)
       .map((membership) => membership.user),
   );
 }
@@ -990,6 +1003,7 @@ async function notifyFreeAuditScanCompleted(
 }
 
 async function sendAndRecordScanCompletedEmail(input: {
+  userId: string;
   to: string;
   recipientName: string | null;
   brandName: string;
@@ -1002,11 +1016,13 @@ async function sendAndRecordScanCompletedEmail(input: {
   failedPromptRuns: number;
   totalPromptRuns: number;
   finishedAt: Date | null;
+  unsubscribeUrl: string;
   subject: string;
 }) {
   try {
     const email = await sendScanCompletedEmail(input);
     await recordScanEmailEvent({
+      userId: input.userId,
       type: email.skipped ? "queued" : "sent",
       providerId: email.id,
       subject: input.subject,
@@ -1014,6 +1030,7 @@ async function sendAndRecordScanCompletedEmail(input: {
     return email;
   } catch (error) {
     await recordScanEmailEvent({
+      userId: input.userId,
       type: "failed",
       subject: input.subject,
       error,
@@ -1023,6 +1040,7 @@ async function sendAndRecordScanCompletedEmail(input: {
 }
 
 async function recordScanEmailEvent(input: {
+  userId?: string;
   type: "queued" | "sent" | "failed";
   providerId?: string;
   subject: string;
@@ -1031,6 +1049,7 @@ async function recordScanEmailEvent(input: {
   try {
     await prisma.emailEvent.create({
       data: {
+        userId: input.userId,
         type: input.type,
         provider: "resend",
         providerId: input.providerId,
@@ -1092,19 +1111,58 @@ function toCitationArray(value: unknown) {
 }
 
 function uniqueNotificationRecipients(
-  users: Array<{ email: string; name: string | null }>,
+  users: Array<{ id: string; email: string; name: string | null }>,
 ) {
   const seen = new Set<string>();
-  const recipients: Array<{ email: string; name: string | null }> = [];
+  const recipients: Array<{ id: string; email: string; name: string | null }> =
+    [];
 
   for (const user of users) {
     const email = user.email.trim().toLowerCase();
     if (!email || seen.has(email)) continue;
     seen.add(email);
-    recipients.push({ email, name: user.name });
+    recipients.push({ id: user.id, email, name: user.name });
   }
 
   return recipients;
+}
+
+async function ensureEmailPreferencesToken(userId: string) {
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { emailPreferencesToken: true },
+  });
+  if (existing?.emailPreferencesToken) return existing.emailPreferencesToken;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { emailPreferencesToken: randomBytes(32).toString("base64url") },
+        select: { emailPreferencesToken: true },
+      });
+      if (user.emailPreferencesToken) return user.emailPreferencesToken;
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+    }
+  }
+
+  throw new Error("Could not create email preferences token");
+}
+
+function emailPreferencesUrl(token: string, type?: "marketing" | "scans") {
+  const params = new URLSearchParams({ token });
+  if (type) params.set("type", type);
+  return `${config.NEXT_PUBLIC_APP_URL}/unsubscribe?${params.toString()}`;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "P2002"
+  );
 }
 
 function errorMessage(error: unknown) {

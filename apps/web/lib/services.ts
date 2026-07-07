@@ -30,6 +30,10 @@ import {
   type PromptCategory,
 } from "@ai-radar/shared";
 import { sendAuditReportEmail, sendScanCompletedEmail } from "@ai-radar/email";
+import {
+  emailPreferencesUrl,
+  ensureEmailPreferencesToken,
+} from "@/lib/email-preferences";
 import { generateSalesBrief } from "@ai-radar/reports";
 import { aiModelForProvider, aiModelSettings } from "@/lib/ai-model-settings";
 import {
@@ -1966,12 +1970,14 @@ async function notifyScanCompleted(scanRunId: string) {
   const recipients = await scanCompletedNotificationRecipients(scan);
   if (recipients.length === 0) return;
   const results = await Promise.allSettled(
-    recipients.map((recipient) => {
+    recipients.map(async (recipient) => {
+      const preferencesToken = await ensureEmailPreferencesToken(recipient.id);
       const subject = scanCompletedEmailSubject({
         brandName: scan.brand.name,
         visibilityScore: scoreSnapshot.visibilityScore,
       });
       return sendAndRecordScanCompletedEmail({
+        userId: recipient.id,
         to: recipient.email,
         recipientName: recipient.name,
         brandName: scan.brand.name,
@@ -1984,6 +1990,7 @@ async function notifyScanCompleted(scanRunId: string) {
         failedPromptRuns: scan.failedPromptRuns,
         totalPromptRuns: scan.totalPromptRuns,
         finishedAt: scan.finishedAt,
+        unsubscribeUrl: emailPreferencesUrl(preferencesToken, "scans"),
         subject,
       });
     }),
@@ -2008,7 +2015,12 @@ async function scanCompletedNotificationRecipients(scan: {
     organization: {
       memberships: Array<{
         role: string;
-        user: { email: string; name: string | null };
+        user: {
+          id: string;
+          email: string;
+          name: string | null;
+          scanEmailConsent: boolean;
+        };
       }>;
     };
   };
@@ -2025,8 +2037,10 @@ async function scanCompletedNotificationRecipients(scan: {
       select: {
         user: {
           select: {
+            id: true,
             email: true,
             name: true,
+            scanEmailConsent: true,
             memberships: {
               where: { organizationId: scan.brand.organizationId },
               select: { id: true },
@@ -2037,14 +2051,16 @@ async function scanCompletedNotificationRecipients(scan: {
     });
     const user = startedBy?.user;
     if (!user || user.memberships.length === 0) return [];
+    if (!user.scanEmailConsent) return [];
     return uniqueNotificationRecipients([
-      { email: user.email, name: user.name },
+      { id: user.id, email: user.email, name: user.name },
     ]);
   }
 
   return uniqueNotificationRecipients(
     scan.brand.organization.memberships
       .filter((membership) => membership.role === "owner")
+      .filter((membership) => membership.user.scanEmailConsent)
       .map((membership) => membership.user),
   );
 }
@@ -2059,6 +2075,7 @@ async function notifyFreeAuditScanCompleted(
 }
 
 async function sendAndRecordScanCompletedEmail(input: {
+  userId: string;
   to: string;
   recipientName: string | null;
   brandName: string;
@@ -2071,11 +2088,13 @@ async function sendAndRecordScanCompletedEmail(input: {
   failedPromptRuns: number;
   totalPromptRuns: number;
   finishedAt: Date | null;
+  unsubscribeUrl: string;
   subject: string;
 }) {
   try {
     const email = await sendScanCompletedEmail(input);
     await recordScanEmailEvent({
+      userId: input.userId,
       type: email.skipped ? "queued" : "sent",
       providerId: email.id,
       subject: input.subject,
@@ -2083,6 +2102,7 @@ async function sendAndRecordScanCompletedEmail(input: {
     return email;
   } catch (error) {
     await recordScanEmailEvent({
+      userId: input.userId,
       type: "failed",
       subject: input.subject,
       error,
@@ -2092,6 +2112,7 @@ async function sendAndRecordScanCompletedEmail(input: {
 }
 
 async function recordScanEmailEvent(input: {
+  userId?: string;
   type: "queued" | "sent" | "failed";
   providerId?: string;
   subject: string;
@@ -2100,6 +2121,7 @@ async function recordScanEmailEvent(input: {
   try {
     await prisma.emailEvent.create({
       data: {
+        userId: input.userId,
         type: input.type,
         provider: "resend",
         providerId: input.providerId,
@@ -2422,16 +2444,17 @@ function splitCompetitors(value?: string) {
 }
 
 function uniqueNotificationRecipients(
-  users: Array<{ email: string; name: string | null }>,
+  users: Array<{ id: string; email: string; name: string | null }>,
 ) {
   const seen = new Set<string>();
-  const recipients: Array<{ email: string; name: string | null }> = [];
+  const recipients: Array<{ id: string; email: string; name: string | null }> =
+    [];
 
   for (const user of users) {
     const email = user.email.trim().toLowerCase();
     if (!email || seen.has(email)) continue;
     seen.add(email);
-    recipients.push({ email, name: user.name });
+    recipients.push({ id: user.id, email, name: user.name });
   }
 
   return recipients;

@@ -8,19 +8,21 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   name: z.string().optional(),
-  organizationName: z.string().optional()
+  organizationName: z.string().optional(),
+  marketingEmailConsent: z.boolean().default(false),
+  scanEmailConsent: z.boolean().default(true),
 });
 
 export async function POST(request: Request) {
   return route(async () => {
     const input = await parseBody(request, schema);
-    const user = await createUserAccount(input);
+    const user = await createUserAccount({ ...input, source: "api_signup" });
     await setUserSession(user.id);
     await prisma.auditLog.create({
       data: {
         userId: user.id,
-        action: "login"
-      }
+        action: "login",
+      },
     });
     return ok({ user }, 201);
   });

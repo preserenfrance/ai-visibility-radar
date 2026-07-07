@@ -29,6 +29,8 @@ const envSchema = z.object({
   S3_BUCKET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
+  MAKE_USER_REGISTERED_WEBHOOK_URL: z.string().url().optional(),
+  MAKE_WEBHOOK_SECRET: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   POSTHOG_KEY: z.string().optional(),
 });

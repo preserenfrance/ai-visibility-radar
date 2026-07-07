@@ -2,6 +2,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "@ai-radar/email";
+import {
+  emailConsentData,
+  emailPreferencesUrl,
+  ensureEmailPreferencesToken,
+} from "@/lib/email-preferences";
+import { triggerUserRegisteredWebhook } from "@/lib/make-webhooks";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 60;
@@ -27,6 +33,9 @@ export async function createUserAccount(input: {
   password: string;
   name?: string;
   organizationName?: string;
+  marketingEmailConsent?: boolean;
+  scanEmailConsent?: boolean;
+  source?: "signup" | "api_signup";
 }) {
   const email = normalizeEmail(input.email);
   const existing = await prisma.user.findUnique({
@@ -37,14 +46,27 @@ export async function createUserAccount(input: {
     throw new Error("Conflict: račun s tem emailom že obstaja");
 
   const passwordHash = await hashPassword(input.password);
+  const consent = {
+    marketingEmailConsent: input.marketingEmailConsent ?? false,
+    scanEmailConsent: input.scanEmailConsent ?? true,
+  };
   const user = existing
     ? await prisma.user.update({
         where: { id: existing.id },
-        data: { name: input.name, passwordHash },
+        data: {
+          name: input.name,
+          passwordHash,
+          ...emailConsentData(consent, existing),
+        },
         include: { memberships: true },
       })
     : await prisma.user.create({
-        data: { email, name: input.name, passwordHash },
+        data: {
+          email,
+          name: input.name,
+          passwordHash,
+          ...emailConsentData(consent),
+        },
         include: { memberships: true },
       });
 
@@ -70,15 +92,26 @@ export async function createUserAccount(input: {
     where: { id: user.id },
     include: { memberships: { include: { organization: true } } },
   });
+  const preferencesToken = await ensureEmailPreferencesToken(
+    userWithMemberships.id,
+  );
 
   await sendAccountNotification({
+    userId: userWithMemberships.id,
     label: "welcome email",
     subject: WELCOME_EMAIL_SUBJECT,
     send: () =>
       sendWelcomeEmail({
         to: userWithMemberships.email,
         name: userWithMemberships.name,
+        preferencesUrl: emailPreferencesUrl(preferencesToken),
       }),
+  });
+
+  await triggerUserRegisteredWebhook({
+    source: input.source ?? "signup",
+    user: userWithMemberships,
+    organization: userWithMemberships.memberships[0]?.organization ?? null,
   });
 
   return userWithMemberships;
@@ -119,12 +152,14 @@ export async function requestPasswordReset(emailInput: string) {
       expiresInMinutes: RESET_TOKEN_TTL_MS / 1000 / 60,
     });
     await recordAccountEmailEvent({
+      userId: user.id,
       type: emailResult.skipped ? "queued" : "sent",
       providerId: emailResult.id,
       subject: PASSWORD_RESET_EMAIL_SUBJECT,
     });
   } catch (error) {
     await recordAccountEmailEvent({
+      userId: user.id,
       type: "failed",
       subject: PASSWORD_RESET_EMAIL_SUBJECT,
       error,
@@ -163,6 +198,7 @@ function hashResetToken(token: string) {
 }
 
 async function sendAccountNotification(input: {
+  userId?: string;
   label: string;
   subject: string;
   send: () => Promise<{ id?: string; skipped?: boolean }>;
@@ -170,12 +206,14 @@ async function sendAccountNotification(input: {
   try {
     const result = await input.send();
     await recordAccountEmailEvent({
+      userId: input.userId,
       type: result.skipped ? "queued" : "sent",
       providerId: result.id,
       subject: input.subject,
     });
   } catch (error) {
     await recordAccountEmailEvent({
+      userId: input.userId,
       type: "failed",
       subject: input.subject,
       error,
@@ -185,6 +223,7 @@ async function sendAccountNotification(input: {
 }
 
 async function recordAccountEmailEvent(input: {
+  userId?: string;
   type: "queued" | "sent" | "failed";
   providerId?: string;
   subject: string;
@@ -193,6 +232,7 @@ async function recordAccountEmailEvent(input: {
   try {
     await prisma.emailEvent.create({
       data: {
+        userId: input.userId,
         type: input.type,
         provider: "resend",
         providerId: input.providerId,

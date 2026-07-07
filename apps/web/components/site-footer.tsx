@@ -19,6 +19,12 @@ export function SiteFooter() {
           <Link href="/faq" className="hover:text-foreground">
             FAQ
           </Link>
+          <Link href="/contact" className="hover:text-foreground">
+            Kontakt
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground">
+            Zasebnost
+          </Link>
           <Link href="/login" className="hover:text-foreground">
             Vstop
           </Link>

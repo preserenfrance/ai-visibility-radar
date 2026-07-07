@@ -18,6 +18,8 @@ async function signup(formData: FormData) {
   const passwordRepeat = String(formData.get("passwordRepeat") ?? "");
   const name = String(formData.get("name") ?? "");
   const organizationName = String(formData.get("organizationName") ?? "");
+  const marketingEmailConsent = formData.get("marketingEmailConsent") === "on";
+  const scanEmailConsent = formData.get("scanEmailConsent") === "on";
   const next = safeRedirectPath(
     String(formData.get("next") ?? "/app/dashboard"),
     "/app/dashboard",
@@ -40,6 +42,9 @@ async function signup(formData: FormData) {
       password,
       name,
       organizationName,
+      marketingEmailConsent,
+      scanEmailConsent,
+      source: "signup",
     });
     await setUserSession(user.id);
     await prisma.auditLog.create({
@@ -108,6 +113,29 @@ export default async function SignupPage({
               minLength={8}
               required
             />
+            <label className="flex gap-2 rounded-md border bg-secondary/40 p-3 text-sm">
+              <input
+                name="scanEmailConsent"
+                type="checkbox"
+                defaultChecked
+                className="mt-1 h-4 w-4"
+              />
+              <span>
+                Želim prejemati e-mail obvestila o zaključenih scanih in novih
+                rezultatih.
+              </span>
+            </label>
+            <label className="flex gap-2 rounded-md border bg-secondary/40 p-3 text-sm">
+              <input
+                name="marketingEmailConsent"
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+              />
+              <span>
+                Strinjam se s prejemanjem marketinških obvestil, novosti in
+                nasvetov za izboljšanje AI vidnosti.
+              </span>
+            </label>
             <Button type="submit">Ustvari račun</Button>
           </form>
           <p className="mt-4 text-sm text-muted-foreground">
