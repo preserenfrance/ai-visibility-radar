@@ -1,35 +1,30 @@
 import { Menu } from "lucide-react";
+import { getI18n } from "@/lib/i18n";
 
 type BrandMenuItem = {
   key: "overview" | "prompts" | "competitors" | "citations" | "actions";
-  label: string;
   href: (brandId: string) => string;
 };
 
 const items: BrandMenuItem[] = [
   {
     key: "overview",
-    label: "Osnovni prikaz",
     href: (brandId) => `/app/brands/${brandId}`,
   },
   {
     key: "prompts",
-    label: "Prompti",
     href: (brandId) => `/app/brands/${brandId}/prompts`,
   },
   {
     key: "competitors",
-    label: "Konkurenti",
     href: (brandId) => `/app/brands/${brandId}/competitors`,
   },
   {
     key: "citations",
-    label: "Citati",
     href: (brandId) => `/app/brands/${brandId}/citations`,
   },
   {
     key: "actions",
-    label: "Ideje za izboljšanje",
     href: (brandId) => `/app/brands/${brandId}/actions`,
   },
 ];
@@ -41,16 +36,17 @@ export async function BrandMenu({
   brandId: string;
   active?: BrandMenuItem["key"];
 }) {
-  const activeLabel =
-    items.find((item) => item.key === active)?.label ?? "Meni znamke";
+  const { dictionary } = await getI18n();
+  const labels = dictionary.brandMenu;
+  const activeLabel = (active ? labels[active] : undefined) ?? labels.aria;
 
   return (
     <>
       <nav
-        aria-label="Meni znamke"
+        aria-label={labels.aria}
         className="brand-menu-desktop-nav mb-6 hidden flex-wrap gap-2 text-sm md:flex"
       >
-        <BrandMenuLinks brandId={brandId} active={active} />
+        <BrandMenuLinks brandId={brandId} active={active} labels={labels} />
       </nav>
       <details className="brand-menu-mobile relative mb-6 md:hidden">
         <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md border bg-white px-3 text-sm font-medium shadow-sm [&::-webkit-details-marker]:hidden">
@@ -58,10 +54,15 @@ export async function BrandMenu({
           <Menu className="h-4 w-4 shrink-0 text-muted-foreground" />
         </summary>
         <nav
-          aria-label="Meni znamke"
+          aria-label={labels.aria}
           className="absolute left-0 top-[calc(100%+0.5rem)] z-30 grid w-full gap-1 rounded-lg border bg-white p-2 text-sm shadow-lg"
         >
-          <BrandMenuLinks brandId={brandId} active={active} mobile />
+          <BrandMenuLinks
+            brandId={brandId}
+            active={active}
+            labels={labels}
+            mobile
+          />
         </nav>
       </details>
     </>
@@ -71,10 +72,12 @@ export async function BrandMenu({
 function BrandMenuLinks({
   brandId,
   active,
+  labels,
   mobile = false,
 }: {
   brandId: string;
   active?: BrandMenuItem["key"];
+  labels: Record<BrandMenuItem["key"] | "aria", string>;
   mobile?: boolean;
 }) {
   return (
@@ -93,7 +96,7 @@ function BrandMenuLinks({
             ].join(" ")}
             href={item.href(brandId)}
           >
-            {item.label}
+            {labels[item.key]}
           </a>
         );
       })}

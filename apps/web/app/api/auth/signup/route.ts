@@ -9,6 +9,7 @@ const schema = z.object({
   password: z.string().min(8),
   name: z.string().optional(),
   organizationName: z.string().optional(),
+  locale: z.string().default("sl"),
   marketingEmailConsent: z.boolean().default(false),
   scanEmailConsent: z.boolean().default(true),
 });

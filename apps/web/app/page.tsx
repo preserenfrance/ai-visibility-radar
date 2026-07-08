@@ -25,104 +25,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getI18n } from "@/lib/i18n";
 
-const features: Array<{
-  title: string;
-  description: string;
-  Icon: typeof Activity;
-}> = [
-  {
-    title: "Meritev omemb",
-    description:
-      "Preveri, ali se tvoja znamka pojavi v odgovorih ChatGPT, Gemini, Claude in modelih z iskanjem.",
-    Icon: Activity,
-  },
-  {
-    title: "Rang med konkurenti",
-    description:
-      "Radar pokaže, kdo je v AI odgovorih pred tabo, katere domene se najpogosteje ponavljajo in pri katerih vprašanjih izgubljaš vidnost.",
-    Icon: Target,
-  },
-  {
-    title: "Citirani viri",
-    description:
-      "Vidiš, katere strani AI modeli navajajo kot dokaz in kje moraš okrepiti avtoriteto.",
-    Icon: BadgeCheck,
-  },
-  {
-    title: "AI pogled na znamko",
-    description:
-      "Za vsako znamko dobiš povzetek, kako jo ChatGPT razume, kateri produkti ali storitve so najbolj izpostavljeni in kateri javni zadržki se ponavljajo.",
-    Icon: Sparkles,
-  },
-  {
-    title: "Naloge za izboljšave",
-    description:
-      "Vsak pregled se zaključi s konkretnimi vsebinskimi, citacijskimi in pozicijskimi priporočili.",
-    Icon: ClipboardList,
-  },
-  {
-    title: "Redno spremljanje",
-    description:
-      "Tedenski avtomatski pregledi pokažejo, ali se vidnost izboljšuje ali konkurenca prevzema prostor v AI odgovorih.",
-    Icon: ShieldCheck,
-  },
-];
+const featureIcons = [
+  Activity,
+  Target,
+  BadgeCheck,
+  Sparkles,
+  ClipboardList,
+  ShieldCheck,
+] as const;
 
-const steps = [
-  {
-    title: "Vneseš 3 do 5 testnih vprašanj",
-    description:
-      "Sam določiš vprašanja kupcev ali jih pustiš predlagati Radarju glede na domeno, trg in konkurente.",
-  },
-  {
-    title: "Modeli dobijo tvoja vprašanja",
-    description:
-      "Brezplačni pregled uporabi ChatGPT, v aplikaciji pa lahko isto logiko uporabljaš še za Gemini, Claude in modele z iskanjem.",
-  },
-  {
-    title: "Dobiš rezultat in prioritete",
-    description:
-      "Rezultat poveže oceno, omembe, rang, citate, konkurenco, vpogled v znamko in naslednje korake.",
-  },
-];
+export default async function HomePage() {
+  const { dictionary } = await getI18n();
+  const home = dictionary.home;
 
-const useCases = [
-  "SEO in vsebinske ekipe, ki želijo poleg Googlovih pozicij meriti tudi AI odgovore.",
-  "B2B podjetja, kjer se kupci pred kontaktom najprej informirajo v ChatGPT, Gemini ali Claude.",
-  "Agencije, ki želijo strankam pokazati jasen dokaz, kje jih AI modeli prehitevajo ali narobe razumejo.",
-  "Vodstva, ki potrebujejo preprosto oceno, trend konkurence in seznam prioritet brez branja tehničnih logov.",
-];
-
-const reviews = [
-  {
-    name: "Maja, vodja marketinga",
-    company: "B2B SaaS ekipa",
-    text: "Končno smo videli, zakaj nas AI priporoča pri nekaterih vprašanjih, pri drugih pa sploh ne. Najbolj uporabni so bili konkretni naslednji koraki.",
-    rating: 5,
-  },
-  {
-    name: "Tomaž, SEO svetovalec",
-    company: "Digitalna agencija",
-    text: "Pregled je dober pogovor s stranko odprl v petih minutah. Ocena, konkurenti in citirani viri so precej bolj razumljivi kot surov seznam vprašanj.",
-    rating: 5,
-  },
-  {
-    name: "Nina, ustanoviteljica",
-    company: "Storitveno podjetje",
-    text: "Najprej sem mislila, da gre samo za še eno poročilo. Potem sem videla, kateri konkurenti se ponavljajo v odgovorih, in takoj vedela, kaj moramo popraviti.",
-    rating: 5,
-  },
-];
-
-const metrics = [
-  { label: "Ocena AI vidnosti", value: "0-100" },
-  { label: "Vprašanja v pregledu", value: "3-5" },
-  { label: "Primerjava modelov", value: "3+" },
-  { label: "Poročilo", value: "takoj" },
-];
-
-export default function HomePage() {
   return (
     <main>
       <section className="relative min-h-[92vh] overflow-hidden bg-slate-950 text-white">
@@ -140,18 +57,13 @@ export default function HomePage() {
             <div className="max-w-2xl">
               <p className="mb-4 inline-flex items-center gap-2 rounded-sm bg-white/10 px-3 py-1 text-sm">
                 <SearchCheck className="h-4 w-4 text-accent" />
-                Brezplačen prvi AI pregled
+                {home.eyebrow}
               </p>
               <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
-                Preveri, kako AI pomočniki vidijo tvojo znamko.
+                {home.headline}
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-slate-200">
-                AI Visibility Radar pokaže, ali se tvoja znamka pojavi v AI
-                odgovorih, kateri konkurenti dobijo več prostora, katere vire
-                modeli uporabljajo in kako ChatGPT javno razume tvojo ponudbo.
-                Prvi pregled uporabi ChatGPT, v aplikaciji pa lahko redno
-                spremljaš tudi rezultate iz Gemini, Claude in modelov z
-                iskanjem.
+                {home.intro}
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild size="default">
@@ -160,7 +72,7 @@ export default function HomePage() {
                     eventName="first_scan_cta_click"
                     eventProperties={{ location: "home_hero" }}
                   >
-                    Zaženi prvi pregled <ArrowRight className="h-4 w-4" />
+                    {home.primaryCta} <ArrowRight className="h-4 w-4" />
                   </TrackedAnchor>
                 </Button>
                 <Button
@@ -168,22 +80,24 @@ export default function HomePage() {
                   variant="outline"
                   className="border-white/40 bg-white/5 text-white hover:bg-white/10"
                 >
-                  <Link href="/app/dashboard">Odpri aplikacijo</Link>
+                  <Link href="/app/dashboard">{home.appCta}</Link>
                 </Button>
               </div>
             </div>
             <div className="rounded-lg border border-white/15 bg-white/10 p-5 backdrop-blur">
               <div className="flex items-center justify-between border-b border-white/15 pb-4">
                 <div>
-                  <p className="text-sm text-slate-300">Primer pregleda</p>
+                  <p className="text-sm text-slate-300">{home.sampleEyebrow}</p>
                   <h2 className="mt-1 text-2xl font-semibold">
-                    Vidnost znamke
+                    {home.sampleTitle}
                   </h2>
                 </div>
-                <Badge className="bg-accent/20 text-amber-100">v živo</Badge>
+                <Badge className="bg-accent/20 text-amber-100">
+                  {home.live}
+                </Badge>
               </div>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                {metrics.map((metric) => (
+                {home.metrics.map((metric) => (
                   <div
                     key={metric.label}
                     className="rounded-md border border-white/15 bg-slate-950/45 p-4"
@@ -196,11 +110,9 @@ export default function HomePage() {
                 ))}
               </div>
               <div className="mt-5 space-y-3 text-sm text-slate-200">
-                <HeroCheck>Omembe znamke v AI odgovorih</HeroCheck>
-                <HeroCheck>Primerjava z najbližjimi konkurenti</HeroCheck>
-                <HeroCheck>
-                  ChatGPT pogled na ponudbo in javne zadržke
-                </HeroCheck>
+                {home.heroChecks.map((item) => (
+                  <HeroCheck key={item}>{item}</HeroCheck>
+                ))}
               </div>
             </div>
           </div>
@@ -210,49 +122,44 @@ export default function HomePage() {
       <section className="border-b bg-white">
         <div className="mx-auto grid max-w-7xl gap-6 px-5 py-14 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <Badge variant="secondary">Kaj meri</Badge>
+            <Badge variant="secondary">{home.measureEyebrow}</Badge>
             <h2 className="mt-4 text-3xl font-semibold tracking-normal">
-              AI vidnost je nova plast odločanja. Radar jo naredi merljivo.
+              {home.measureTitle}
             </h2>
             <p className="mt-4 leading-7 text-muted-foreground">
-              Kupci vedno pogosteje vprašajo AI model, katero podjetje izbrati,
-              katero rešitev primerjati ali komu lahko zaupajo. Če te model ne
-              pozna, te ne citira ali te predstavi slabše od konkurence,
-              izgubljaš povpraševanja, še preden pridejo do tvoje strani. Radar
-              zato združi omembe, rang, citate, konkurente in jasen pregled, kaj
-              AI že ve o tvoji znamki.
+              {home.measureText}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {features.map(({ title, description, Icon }) => (
-              <Card key={title}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-primary" /> {title}
-                  </CardTitle>
-                  <CardDescription>{description}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
+            {home.features.map(({ title, description }, index) => {
+              const Icon = featureIcons[index] ?? Activity;
+              return (
+                <Card key={title}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-primary" /> {title}
+                    </CardTitle>
+                    <CardDescription>{description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-16">
         <div className="max-w-2xl">
-          <Badge variant="secondary">Kako deluje</Badge>
+          <Badge variant="secondary">{home.sectionStepsEyebrow}</Badge>
           <h2 className="mt-4 text-3xl font-semibold">
-            Od vprašanj kupcev do jasnega načrta izboljšav.
+            {home.sectionStepsTitle}
           </h2>
           <p className="mt-4 leading-7 text-muted-foreground">
-            Pregled je pripravljen tako, da ga razumejo marketing, prodaja in
-            vodstvo. Ne dobiš samo številke, ampak razlago, zakaj je rezultat
-            takšen, pri katerih vprašanjih izgubljaš, katere domene se
-            pojavljajo pri konkurenci in kje je najhitrejši napredek.
+            {home.sectionStepsText}
           </p>
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {steps.map((step, index) => (
+          {home.steps.map((step, index) => (
             <Card key={step.title}>
               <CardHeader>
                 <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
@@ -269,29 +176,21 @@ export default function HomePage() {
       <section className="bg-slate-900 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[1fr_1fr]">
           <div>
-            <Badge className="bg-white/10 text-white">Primer rezultatov</Badge>
-            <h2 className="mt-4 text-3xl font-semibold">
-              Vidiš ne samo, ali si omenjen, ampak zakaj.
-            </h2>
-            <p className="mt-4 leading-7 text-slate-300">
-              Pregled poveže vprašanje, odgovor modela, rang znamke, citacije,
-              sentiment, konkurente in časovni trend. Tako hitro ločiš med
-              težavo v vsebini, avtoriteti vira, pozicioniranju ali jasnosti
-              ponudbe.
-            </p>
+            <Badge className="bg-white/10 text-white">
+              {home.resultsEyebrow}
+            </Badge>
+            <h2 className="mt-4 text-3xl font-semibold">{home.resultsTitle}</h2>
+            <p className="mt-4 leading-7 text-slate-300">{home.resultsText}</p>
             <div className="mt-6 grid gap-3">
-              <DarkCheck>Vprašanja po fazah nakupne poti</DarkCheck>
-              <DarkCheck>
-                Top konkurenti, ki se ponavljajo v odgovorih
-              </DarkCheck>
-              <DarkCheck>Viri, ki jih modeli uporabljajo kot dokaz</DarkCheck>
-              <DarkCheck>AI vpogledi v ponudbo in javne pripombe</DarkCheck>
+              {home.resultChecks.map((item) => (
+                <DarkCheck key={item}>{item}</DarkCheck>
+              ))}
             </div>
           </div>
           <div className="rounded-lg border border-white/15 bg-white/10 p-5">
             <div className="flex items-center justify-between gap-4 border-b border-white/15 pb-4">
               <div>
-                <p className="text-sm text-slate-300">Ocena AI vidnosti</p>
+                <p className="text-sm text-slate-300">{home.scoreTitle}</p>
                 <div className="mt-1 text-5xl font-semibold">
                   72<span className="text-2xl text-slate-300">/100</span>
                 </div>
@@ -299,10 +198,9 @@ export default function HomePage() {
               <TrendingUp className="h-10 w-10 text-accent" />
             </div>
             <div className="mt-5 grid gap-3">
-              <ScoreRow label="Omembe znamke" value="8 od 12 vprašanj" />
-              <ScoreRow label="Povprečni rang" value="2. mesto" />
-              <ScoreRow label="Najmočnejši vir" value="strokovni vodič" />
-              <ScoreRow label="Največja vrzel" value="primerjalna vsebina" />
+              {home.scoreRows.map((row) => (
+                <ScoreRow key={row.label} label={row.label} value={row.value} />
+              ))}
             </div>
           </div>
         </div>
@@ -310,14 +208,10 @@ export default function HomePage() {
 
       <section className="mx-auto grid max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <Badge variant="secondary">Za koga je</Badge>
-          <h2 className="mt-4 text-3xl font-semibold">
-            Za ekipe, ki želijo vedeti, kaj AI modeli povedo o njih.
-          </h2>
+          <Badge variant="secondary">{home.useCasesEyebrow}</Badge>
+          <h2 className="mt-4 text-3xl font-semibold">{home.useCasesTitle}</h2>
           <p className="mt-4 leading-7 text-muted-foreground">
-            Radar je uporaben za podjetja, ki že vlagajo v SEO, vsebino, PR ali
-            prodajo in želijo preveriti, ali se ta trud pozna tudi v odgovorih
-            generativnih iskalnikov.
+            {home.useCasesText}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
@@ -326,16 +220,16 @@ export default function HomePage() {
                 eventName="first_scan_cta_click"
                 eventProperties={{ location: "home_use_cases" }}
               >
-                Preveri svoja vprašanja
+                {home.checkQuestions}
               </TrackedAnchor>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/pricing">Poglej cenik</Link>
+              <Link href="/pricing">{home.seePricing}</Link>
             </Button>
           </div>
         </div>
         <div className="grid gap-3">
-          {useCases.map((item) => (
+          {home.useCases.map((item) => (
             <div
               key={item}
               className="flex gap-3 rounded-lg border bg-white p-4"
@@ -351,15 +245,12 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-5 py-16">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-2xl">
-              <Badge variant="secondary">Mnenja</Badge>
+              <Badge variant="secondary">{home.reviewsEyebrow}</Badge>
               <h2 className="mt-4 text-3xl font-semibold">
-                Mnenja uporabnikov in ekip, ki spremljajo AI vidnost.
+                {home.reviewsTitle}
               </h2>
               <p className="mt-4 leading-7 text-muted-foreground">
-                Največ vrednosti nastane takrat, ko ekipa vidi konkretne
-                vprašanja, konkurente in vire, ne samo ene abstraktne ocene.
-                Zato so rezultati pripravljeni za pogovor med marketingom, SEO,
-                prodajo in vodstvom.
+                {home.reviewsText}
               </p>
             </div>
             <Button asChild variant="outline">
@@ -368,12 +259,12 @@ export default function HomePage() {
                 eventName="first_scan_cta_click"
                 eventProperties={{ location: "home_reviews" }}
               >
-                Začni prvi pregled
+                {home.startFirstScan}
               </TrackedAnchor>
             </Button>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {reviews.map((review) => (
+            {home.reviews.map((review) => (
               <Card key={review.name}>
                 <CardHeader>
                   <div
@@ -406,15 +297,11 @@ export default function HomePage() {
           <div>
             <div className="mb-3 flex items-center gap-2 text-sm text-slate-300">
               <BarChart3 className="h-4 w-4 text-accent" />
-              Prvi pregled je brezplačen
+              {home.bottomEyebrow}
             </div>
-            <h2 className="text-3xl font-semibold">
-              Poglej, kako te AI modeli vidijo danes.
-            </h2>
+            <h2 className="text-3xl font-semibold">{home.bottomTitle}</h2>
             <p className="mt-3 max-w-2xl leading-7 text-slate-300">
-              Vnesi domeno in 3 do 5 testnih vprašanj, prejmi osnovno oceno AI
-              vidnosti in odkrij, katere vsebine, citate, primerjave in razlage
-              ponudbe je smiselno najprej izboljšati.
+              {home.bottomText}
             </p>
           </div>
           <Button
@@ -427,7 +314,7 @@ export default function HomePage() {
               eventName="first_scan_cta_click"
               eventProperties={{ location: "home_bottom_cta" }}
             >
-              Začni prvi pregled <ArrowRight className="h-4 w-4" />
+              {home.startFirstScan} <ArrowRight className="h-4 w-4" />
             </TrackedAnchor>
           </Button>
         </div>

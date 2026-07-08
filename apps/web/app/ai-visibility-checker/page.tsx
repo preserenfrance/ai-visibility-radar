@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Radar } from "lucide-react";
 import { FreeAuditForm } from "@/components/free-audit-form";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { getI18n } from "@/lib/i18n";
 import { createFreeAudit } from "@/lib/services";
 
 export const maxDuration = 60;
@@ -17,6 +18,7 @@ async function startAudit(formData: FormData) {
       email: String(formData.get("email") ?? ""),
       country: String(formData.get("country") ?? "Slovenija"),
       language: String(formData.get("language") ?? "sl"),
+      locale: String(formData.get("locale") ?? "sl"),
       competitors: String(formData.get("competitors") ?? ""),
       prompts: formData.getAll("prompts").map((prompt) => String(prompt)),
       providers: ["openai"],
@@ -36,8 +38,11 @@ export default async function CheckerPage({
 }: {
   searchParams?: Promise<{ error?: string }>;
 }) {
+  const { locale, dictionary } = await getI18n();
   const errorCode = (await searchParams)?.error;
-  const errorMessage = errorCode ? auditErrorMessage(errorCode) : null;
+  const errorMessage = errorCode
+    ? auditErrorMessage(errorCode, dictionary.checker.errors)
+    : null;
 
   return (
     <main className="min-h-screen bg-background">
@@ -48,21 +53,22 @@ export default async function CheckerPage({
             AI Visibility Radar
           </div>
           <h1 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Preveri, kako ChatGPT vidi tvojo znamko.
+            {dictionary.checker.headline}
           </h1>
           <p className="mt-5 max-w-xl text-muted-foreground">
-            Brezplačni pregled uporabi 3 do 5 vprašanj, ki jih vneseš sam ali
-            jih predlaga Radar. ChatGPT odgovore pretvori v začetno oceno AI
-            vidnosti, prikaže omembe znamke, konkurente in vire, v aplikaciji pa
-            lahko pozneje spremljaš tudi rezultate iz Gemini, Claude in modelov
-            z iskanjem.
+            {dictionary.checker.intro}
           </p>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Zaženi brezplačen pregled</CardTitle>
+            <CardTitle>{dictionary.checker.title}</CardTitle>
           </CardHeader>
-          <FreeAuditForm action={startAudit} errorMessage={errorMessage} />
+          <FreeAuditForm
+            action={startAudit}
+            errorMessage={errorMessage}
+            locale={locale}
+            messages={dictionary.freeAuditForm}
+          />
         </Card>
       </section>
     </main>
@@ -114,21 +120,31 @@ function auditErrorCode(error: unknown) {
   return "unknown";
 }
 
-function auditErrorMessage(errorCode: string) {
+type AuditErrorMessages = {
+  openai: string;
+  prompts: string;
+  database: string;
+  schema: string;
+  pooler: string;
+  timeout: string;
+  unknown: string;
+};
+
+function auditErrorMessage(errorCode: string, messages: AuditErrorMessages) {
   switch (errorCode) {
     case "openai":
-      return "Pregleda trenutno ni bilo mogoče zagnati, ker OpenAI API ni pravilno nastavljen ali nima dovolj kvote. Na Vercelu preveri OPENAI_API_KEY in po želji OPENAI_MODEL.";
+      return messages.openai;
     case "prompts":
-      return "Za pregled moraš vnesti vsaj 3 in največ 5 vprašanj, vsako z vsaj 3 znaki.";
+      return messages.prompts;
     case "database":
-      return "Pregleda trenutno ni bilo mogoče zagnati, ker povezava z bazo ali migracije niso pripravljene. Preveri Vercel okoljske spremenljivke in produkcijsko bazo.";
+      return messages.database;
     case "schema":
-      return "Pregleda trenutno ni bilo mogoče zagnati, ker produkcijska baza še nima vseh tabel ali stolpcev. Zaženi Prisma db push na Supabase bazo.";
+      return messages.schema;
     case "pooler":
-      return "Pregleda trenutno ni bilo mogoče zagnati zaradi Supabase pooler povezave. Za DATABASE_URL uporabi POSTGRES_PRISMA_URL oziroma Transaction pooler z nastavljenim pgbouncer=true.";
+      return messages.pooler;
     case "timeout":
-      return "Pregled je trajal predolgo. Poskusi z drugo domeno ali ponovno čez nekaj minut.";
+      return messages.timeout;
     default:
-      return "Pregleda trenutno ni bilo mogoče zagnati. Preveri Vercel Function loge za natančen razlog in poskusi ponovno.";
+      return messages.unknown;
   }
 }

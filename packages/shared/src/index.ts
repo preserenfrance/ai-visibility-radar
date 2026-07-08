@@ -2,6 +2,26 @@ export type AiEngineProvider = "openai" | "google" | "anthropic" | "mock";
 
 export type Plan = "free" | "starter" | "growth" | "disabled";
 
+export const DEFAULT_LOCALE = "sl";
+export const SUPPORTED_LOCALES = ["sl", "en"] as const;
+export const LOCALE_COOKIE_NAME = "llmvisio_locale";
+export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+
+export function isSupportedLocale(value: unknown): value is SupportedLocale {
+  return (
+    typeof value === "string" &&
+    (SUPPORTED_LOCALES as readonly string[]).includes(value)
+  );
+}
+
+export function normalizeLocale(value: unknown): SupportedLocale {
+  if (typeof value !== "string") return DEFAULT_LOCALE;
+  const lower = value.trim().toLowerCase();
+  if (lower.startsWith("en")) return "en";
+  if (lower.startsWith("sl")) return "sl";
+  return DEFAULT_LOCALE;
+}
+
 export type PromptCategory =
   | "category"
   | "problem"

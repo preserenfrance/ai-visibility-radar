@@ -125,6 +125,7 @@ model User {
   passwordHash            String?
   passwordResetTokenHash  String?
   passwordResetExpiresAt  DateTime?
+  preferredLocale         String       @default("sl")
   marketingEmailConsent   Boolean      @default(false)
   marketingEmailConsentAt DateTime?
   scanEmailConsent        Boolean      @default(true)
@@ -493,6 +494,7 @@ model Lead {
   id             String        @id @default(cuid())
   organizationId String?
   email          String
+  locale         String        @default("sl")
   domain         String
   brandName      String
   companyName    String?

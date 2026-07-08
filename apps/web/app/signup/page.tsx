@@ -8,6 +8,7 @@ import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ async function signup(formData: FormData) {
   const passwordRepeat = String(formData.get("passwordRepeat") ?? "");
   const name = String(formData.get("name") ?? "");
   const organizationName = String(formData.get("organizationName") ?? "");
+  const locale = String(formData.get("locale") ?? "sl");
   const marketingEmailConsent = formData.get("marketingEmailConsent") === "on";
   const scanEmailConsent = formData.get("scanEmailConsent") === "on";
   const next = safeRedirectPath(
@@ -42,6 +44,7 @@ async function signup(formData: FormData) {
       password,
       name,
       organizationName,
+      locale,
       marketingEmailConsent,
       scanEmailConsent,
       source: "signup",
@@ -66,6 +69,8 @@ export default async function SignupPage({
 }) {
   const params = await searchParams;
   const next = safeRedirectPath(params?.next, "/app/dashboard");
+  const { locale, dictionary } = await getI18n();
+  const auth = dictionary.auth;
 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-5 py-10">
@@ -75,16 +80,17 @@ export default async function SignupPage({
             <Radar className="h-5 w-5" />
             AI Visibility Radar
           </div>
-          <CardTitle>Ustvari račun</CardTitle>
+          <CardTitle>{auth.signupTitle}</CardTitle>
         </CardHeader>
         <CardContent>
           {params?.error && (
             <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              {signupError(params.error)}
+              {signupError(params.error, auth.errors)}
             </div>
           )}
           <form action={signup} className="grid gap-3">
             <input type="hidden" name="next" value={next} />
+            <input type="hidden" name="locale" value={locale} />
             <Input
               name="email"
               type="email"
@@ -92,11 +98,14 @@ export default async function SignupPage({
               defaultValue={params?.email ?? ""}
               required
             />
-            <Input name="name" placeholder="Ime in priimek" />
-            <Input name="organizationName" placeholder="Ime organizacije" />
+            <Input name="name" placeholder={auth.namePlaceholder} />
+            <Input
+              name="organizationName"
+              placeholder={auth.organizationPlaceholder}
+            />
             <PasswordInput
               name="password"
-              placeholder="Geslo"
+              placeholder={dictionary.common.password}
               minLength={8}
               aria-describedby="signup-password-help"
               required
@@ -105,11 +114,11 @@ export default async function SignupPage({
               id="signup-password-help"
               className="-mt-2 text-xs text-muted-foreground"
             >
-              Geslo mora vsebovati vsaj 8 znakov. Posebni znaki niso obvezni.
+              {auth.passwordHelp}
             </p>
             <PasswordInput
               name="passwordRepeat"
-              placeholder="Ponovi geslo"
+              placeholder={auth.repeatPassword}
               minLength={8}
               required
             />
@@ -120,10 +129,7 @@ export default async function SignupPage({
                 defaultChecked
                 className="mt-1 h-4 w-4"
               />
-              <span>
-                Želim prejemati e-mail obvestila o zaključenih scanih in novih
-                rezultatih.
-              </span>
+              <span>{auth.scanConsent}</span>
             </label>
             <label className="flex gap-2 rounded-md border bg-secondary/40 p-3 text-sm">
               <input
@@ -131,20 +137,17 @@ export default async function SignupPage({
                 type="checkbox"
                 className="mt-1 h-4 w-4"
               />
-              <span>
-                Strinjam se s prejemanjem marketinških obvestil, novosti in
-                nasvetov za izboljšanje AI vidnosti.
-              </span>
+              <span>{auth.marketingConsent}</span>
             </label>
-            <Button type="submit">Ustvari račun</Button>
+            <Button type="submit">{auth.createAccount}</Button>
           </form>
           <p className="mt-4 text-sm text-muted-foreground">
-            Že imaš račun?{" "}
+            {auth.alreadyHaveAccount}{" "}
             <Link
               className="text-primary"
               href={`/login?next=${encodeURIComponent(next)}`}
             >
-              Prijava
+              {auth.signupLink}
             </Link>
           </p>
         </CardContent>
@@ -153,15 +156,23 @@ export default async function SignupPage({
   );
 }
 
-function signupError(error: string) {
+function signupError(
+  error: string,
+  messages: {
+    short: string;
+    mismatch: string;
+    exists: string;
+    signupDefault: string;
+  },
+) {
   switch (error) {
     case "short":
-      return "Geslo mora imeti vsaj 8 znakov.";
+      return messages.short;
     case "mismatch":
-      return "Gesli se ne ujemata.";
+      return messages.mismatch;
     case "exists":
-      return "Račun s tem emailom že obstaja. Poskusi s prijavo ali ponastavitvijo gesla.";
+      return messages.exists;
     default:
-      return "Računa trenutno ni bilo mogoče ustvariti.";
+      return messages.signupDefault;
   }
 }

@@ -23,6 +23,7 @@ import {
 import {
   JOB_NAMES,
   normalizeDomain,
+  normalizeLocale,
   type CrawledPageSnapshot,
   type ParsedAiResult,
   type ScoreInputResult,
@@ -753,6 +754,7 @@ async function processSendEmailReport(leadId: string) {
   const report = {
     domain: lead.domain,
     brandName: lead.brandName,
+    locale: normalizeLocale(lead.locale),
     score: lead.auditScanRun.scoreSnapshot,
     topCompetitor: await topCompetitorForScan(lead.auditScanRun.id),
     losingPrompts,
@@ -766,7 +768,7 @@ async function processSendEmailReport(leadId: string) {
       type: email.skipped ? "queued" : "sent",
       provider: "resend",
       providerId: email.id,
-      subject: `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`,
+      subject: email.subject,
     },
   });
   await prisma.lead.update({
@@ -918,10 +920,12 @@ async function notifyScanCompleted(scanRunId: string) {
       const subject = scanCompletedEmailSubject({
         brandName: scan.brand.name,
         visibilityScore: scoreSnapshot.visibilityScore,
+        locale: recipient.preferredLocale,
       });
       return sendAndRecordScanCompletedEmail({
         userId: recipient.id,
         to: recipient.email,
+        locale: recipient.preferredLocale,
         recipientName: recipient.name,
         brandName: scan.brand.name,
         brandDomain: scan.brand.domain,
@@ -962,6 +966,7 @@ async function scanCompletedNotificationRecipients(scan: {
           id: string;
           email: string;
           name: string | null;
+          preferredLocale: string;
           scanEmailConsent: boolean;
         };
       }>;
@@ -983,6 +988,7 @@ async function scanCompletedNotificationRecipients(scan: {
             id: true,
             email: true,
             name: true,
+            preferredLocale: true,
             scanEmailConsent: true,
             memberships: {
               where: { organizationId: scan.brand.organizationId },
@@ -996,7 +1002,12 @@ async function scanCompletedNotificationRecipients(scan: {
     if (!user || user.memberships.length === 0) return [];
     if (!user.scanEmailConsent) return [];
     return uniqueNotificationRecipients([
-      { id: user.id, email: user.email, name: user.name },
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        preferredLocale: user.preferredLocale,
+      },
     ]);
   }
 
@@ -1020,6 +1031,7 @@ async function notifyFreeAuditScanCompleted(
 async function sendAndRecordScanCompletedEmail(input: {
   userId: string;
   to: string;
+  locale?: string | null;
   recipientName: string | null;
   brandName: string;
   brandDomain: string;
@@ -1040,7 +1052,7 @@ async function sendAndRecordScanCompletedEmail(input: {
       userId: input.userId,
       type: email.skipped ? "queued" : "sent",
       providerId: email.id,
-      subject: input.subject,
+      subject: email.subject,
     });
     return email;
   } catch (error) {
@@ -1080,7 +1092,11 @@ async function recordScanEmailEvent(input: {
 function scanCompletedEmailSubject(input: {
   brandName: string;
   visibilityScore: number;
+  locale?: string | null;
 }) {
+  if (normalizeLocale(input.locale) === "en") {
+    return `AI scan for ${input.brandName} is complete (${input.visibilityScore}/100)`;
+  }
   return `AI scan za ${input.brandName} je zaključen (${input.visibilityScore}/100)`;
 }
 
@@ -1126,17 +1142,31 @@ function toCitationArray(value: unknown) {
 }
 
 function uniqueNotificationRecipients(
-  users: Array<{ id: string; email: string; name: string | null }>,
+  users: Array<{
+    id: string;
+    email: string;
+    name: string | null;
+    preferredLocale: string;
+  }>,
 ) {
   const seen = new Set<string>();
-  const recipients: Array<{ id: string; email: string; name: string | null }> =
-    [];
+  const recipients: Array<{
+    id: string;
+    email: string;
+    name: string | null;
+    preferredLocale: string;
+  }> = [];
 
   for (const user of users) {
     const email = user.email.trim().toLowerCase();
     if (!email || seen.has(email)) continue;
     seen.add(email);
-    recipients.push({ id: user.id, email, name: user.name });
+    recipients.push({
+      id: user.id,
+      email,
+      name: user.name,
+      preferredLocale: user.preferredLocale,
+    });
   }
 
   return recipients;

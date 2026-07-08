@@ -1,4 +1,4 @@
-import type { ScoreBreakdown } from "@ai-radar/shared";
+import { normalizeLocale, type ScoreBreakdown } from "@ai-radar/shared";
 
 const BRAND_COLORS = {
   background: "#F9FAFB",
@@ -10,9 +10,55 @@ const BRAND_COLORS = {
   card: "#FFFFFF",
 };
 
+const REPORT_COPY = {
+  sl: {
+    eyebrow: "Brezplačen audit",
+    title: (domain: string, score: number) =>
+      `AI Visibility Score za ${escapeHtml(domain)} je ${score}/100`,
+    intro: (brandName: string) =>
+      `${escapeHtml(brandName)} je bil ocenjen prek ponovljivih testnih promptov, ne kot absolutna resnica.`,
+    topCompetitor: "Najmočnejši konkurent v tem pregledu",
+    losingPrompts: "Prompti, kjer znamka izgublja",
+    recommendations: "Priporočila",
+    noData: "ni dovolj podatkov",
+    noRecommendations: "Zaženi celoten scan za podrobnejša priporočila.",
+    cta: "Odpri report",
+    footer:
+      "To sporočilo ste prejeli, ker ste zahtevali brezplačen AI visibility audit.",
+    scoreRows: {
+      mention: "Mention rate",
+      rank: "Average rank",
+      citation: "Citation score",
+      accuracy: "Accuracy score",
+    },
+  },
+  en: {
+    eyebrow: "Free audit",
+    title: (domain: string, score: number) =>
+      `AI Visibility Score for ${escapeHtml(domain)} is ${score}/100`,
+    intro: (brandName: string) =>
+      `${escapeHtml(brandName)} was evaluated through repeatable test prompts, not as an absolute truth.`,
+    topCompetitor: "Strongest competitor in this audit",
+    losingPrompts: "Prompts where the brand is losing",
+    recommendations: "Recommendations",
+    noData: "not enough data",
+    noRecommendations: "Run a full scan for more detailed recommendations.",
+    cta: "Open report",
+    footer:
+      "You received this message because you requested a free AI visibility audit.",
+    scoreRows: {
+      mention: "Mention rate",
+      rank: "Average rank",
+      citation: "Citation score",
+      accuracy: "Accuracy score",
+    },
+  },
+} as const;
+
 export type AuditReportInput = {
   domain: string;
   brandName: string;
+  locale?: string;
   score: ScoreBreakdown;
   topCompetitor?: string;
   losingPrompts: string[];
@@ -21,6 +67,8 @@ export type AuditReportInput = {
 };
 
 export function generateAuditReportHtml(input: AuditReportInput): string {
+  const locale = normalizeLocale(input.locale);
+  const copy = REPORT_COPY[locale];
   const recommendations = input.recommendations
     .slice(0, 3)
     .map(
@@ -34,7 +82,7 @@ export function generateAuditReportHtml(input: AuditReportInput): string {
     .join("");
 
   return `<!doctype html>
-<html lang="sl">
+<html lang="${locale}">
   <body style="margin:0;background:${BRAND_COLORS.background};font-family:Cabin,Arial,Helvetica,sans-serif;color:${BRAND_COLORS.foreground};line-height:1.5;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BRAND_COLORS.background};padding:28px 12px;">
       <tr>
@@ -49,20 +97,20 @@ export function generateAuditReportHtml(input: AuditReportInput): string {
             </tr>
             <tr>
               <td style="padding:28px;">
-                <p style="margin:0 0 12px;color:${BRAND_COLORS.primary};font-size:13px;font-weight:700;text-transform:uppercase;">Brezplačen audit</p>
-                <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:${BRAND_COLORS.foreground};">AI Visibility Score za ${escapeHtml(input.domain)} je ${input.score.visibilityScore}/100</h1>
-                <p style="margin:0 0 18px;color:${BRAND_COLORS.foreground};">${escapeHtml(input.brandName)} je bil ocenjen prek ponovljivih testnih promptov, ne kot absolutna resnica.</p>
-                ${renderScoreTable(input.score)}
-                <p style="margin:18px 0;color:${BRAND_COLORS.foreground};">Najmočnejši konkurent v tem pregledu: <strong>${escapeHtml(input.topCompetitor ?? "ni dovolj podatkov")}</strong></p>
-                <h2 style="margin:24px 0 10px;font-size:17px;color:${BRAND_COLORS.foreground};">Prompti, kjer znamka izgublja</h2>
-                <ol style="margin:0 0 18px;padding-left:22px;color:${BRAND_COLORS.foreground};">${losingPrompts || "<li>Ni dovolj podatkov.</li>"}</ol>
-                <h2 style="margin:24px 0 10px;font-size:17px;color:${BRAND_COLORS.foreground};">Priporočila</h2>
-                <ol style="margin:0 0 24px;padding-left:22px;color:${BRAND_COLORS.foreground};">${recommendations || "<li>Zaženi celoten scan za podrobnejša priporočila.</li>"}</ol>
-                <p style="margin:28px 0 0;"><a href="${escapeHtml(input.reportUrl)}" style="display:inline-block;background:${BRAND_COLORS.primary};color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;">Odpri report</a></p>
+                <p style="margin:0 0 12px;color:${BRAND_COLORS.primary};font-size:13px;font-weight:700;text-transform:uppercase;">${copy.eyebrow}</p>
+                <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:${BRAND_COLORS.foreground};">${copy.title(input.domain, input.score.visibilityScore)}</h1>
+                <p style="margin:0 0 18px;color:${BRAND_COLORS.foreground};">${copy.intro(input.brandName)}</p>
+                ${renderScoreTable(input.score, copy.scoreRows)}
+                <p style="margin:18px 0;color:${BRAND_COLORS.foreground};">${copy.topCompetitor}: <strong>${escapeHtml(input.topCompetitor ?? copy.noData)}</strong></p>
+                <h2 style="margin:24px 0 10px;font-size:17px;color:${BRAND_COLORS.foreground};">${copy.losingPrompts}</h2>
+                <ol style="margin:0 0 18px;padding-left:22px;color:${BRAND_COLORS.foreground};">${losingPrompts || `<li>${copy.noData}</li>`}</ol>
+                <h2 style="margin:24px 0 10px;font-size:17px;color:${BRAND_COLORS.foreground};">${copy.recommendations}</h2>
+                <ol style="margin:0 0 24px;padding-left:22px;color:${BRAND_COLORS.foreground};">${recommendations || `<li>${copy.noRecommendations}</li>`}</ol>
+                <p style="margin:28px 0 0;"><a href="${escapeHtml(input.reportUrl)}" style="display:inline-block;background:${BRAND_COLORS.primary};color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;">${copy.cta}</a></p>
               </td>
             </tr>
           </table>
-          <p style="max-width:620px;margin:16px 0 0;color:${BRAND_COLORS.muted};font-size:12px;line-height:1.5;">To sporočilo ste prejeli, ker ste zahtevali brezplačen AI visibility audit.</p>
+          <p style="max-width:620px;margin:16px 0 0;color:${BRAND_COLORS.muted};font-size:12px;line-height:1.5;">${copy.footer}</p>
         </td>
       </tr>
     </table>
@@ -91,12 +139,15 @@ export function generateSalesBrief(input: AuditReportInput): string {
   ].join("\n");
 }
 
-function renderScoreTable(score: ScoreBreakdown) {
+function renderScoreTable(
+  score: ScoreBreakdown,
+  labels: (typeof REPORT_COPY)["sl"]["scoreRows"],
+) {
   const rows: Array<[string, string]> = [
-    ["Mention rate", `${score.mentionScore}/100`],
-    ["Average rank", `${score.rankScore}/100`],
-    ["Citation score", `${score.citationScore}/100`],
-    ["Accuracy score", `${score.accuracyScore}/100`],
+    [labels.mention, `${score.mentionScore}/100`],
+    [labels.rank, `${score.rankScore}/100`],
+    [labels.citation, `${score.citationScore}/100`],
+    [labels.accuracy, `${score.accuracyScore}/100`],
   ];
   const rowHtml = rows
     .map(

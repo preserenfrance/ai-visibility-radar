@@ -1,44 +1,52 @@
 import * as React from "react";
+import type { SupportedLocale } from "@ai-radar/shared";
 import { cn } from "@/lib/utils";
 
 const likelyLanguageOptions = [
-  { value: "sl", label: "Slovenščina" },
-  { value: "en", label: "Angleščina" },
-  { value: "de", label: "Nemščina" },
-  { value: "hr", label: "Hrvaščina" },
-  { value: "sr", label: "Srbščina" },
-  { value: "bs", label: "Bosanščina" },
-  { value: "it", label: "Italijanščina" },
-  { value: "hu", label: "Madžarščina" },
-  { value: "fr", label: "Francoščina" },
-  { value: "es", label: "Španščina" },
+  { value: "sl", sl: "Slovenščina", en: "Slovenian" },
+  { value: "en", sl: "Angleščina", en: "English" },
+  { value: "de", sl: "Nemščina", en: "German" },
+  { value: "hr", sl: "Hrvaščina", en: "Croatian" },
+  { value: "sr", sl: "Srbščina", en: "Serbian" },
+  { value: "bs", sl: "Bosanščina", en: "Bosnian" },
+  { value: "it", sl: "Italijanščina", en: "Italian" },
+  { value: "hu", sl: "Madžarščina", en: "Hungarian" },
+  { value: "fr", sl: "Francoščina", en: "French" },
+  { value: "es", sl: "Španščina", en: "Spanish" },
 ];
 
 const otherLanguageOptions = [
-  { value: "nl", label: "Nizozemščina" },
-  { value: "cs", label: "Češčina" },
-  { value: "sk", label: "Slovaščina" },
-  { value: "pl", label: "Poljščina" },
-  { value: "ro", label: "Romunščina" },
-  { value: "bg", label: "Bolgarščina" },
-  { value: "mk", label: "Makedonščina" },
-  { value: "sq", label: "Albanščina" },
-  { value: "uk", label: "Ukrajinščina" },
-  { value: "ru", label: "Ruščina" },
-  { value: "pt", label: "Portugalščina" },
-  { value: "da", label: "Danščina" },
-  { value: "sv", label: "Švedščina" },
-  { value: "no", label: "Norveščina" },
-  { value: "fi", label: "Finščina" },
-  { value: "el", label: "Grščina" },
-  { value: "tr", label: "Turščina" },
+  { value: "nl", sl: "Nizozemščina", en: "Dutch" },
+  { value: "cs", sl: "Češčina", en: "Czech" },
+  { value: "sk", sl: "Slovaščina", en: "Slovak" },
+  { value: "pl", sl: "Poljščina", en: "Polish" },
+  { value: "ro", sl: "Romunščina", en: "Romanian" },
+  { value: "bg", sl: "Bolgarščina", en: "Bulgarian" },
+  { value: "mk", sl: "Makedonščina", en: "Macedonian" },
+  { value: "sq", sl: "Albanščina", en: "Albanian" },
+  { value: "uk", sl: "Ukrajinščina", en: "Ukrainian" },
+  { value: "ru", sl: "Ruščina", en: "Russian" },
+  { value: "pt", sl: "Portugalščina", en: "Portuguese" },
+  { value: "da", sl: "Danščina", en: "Danish" },
+  { value: "sv", sl: "Švedščina", en: "Swedish" },
+  { value: "no", sl: "Norveščina", en: "Norwegian" },
+  { value: "fi", sl: "Finščina", en: "Finnish" },
+  { value: "el", sl: "Grščina", en: "Greek" },
+  { value: "tr", sl: "Turščina", en: "Turkish" },
 ];
 
 export function LanguageSelect({
   className,
   defaultValue = "sl",
+  uiLocale = "sl",
   ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: React.SelectHTMLAttributes<HTMLSelectElement> & {
+  uiLocale?: SupportedLocale;
+}) {
+  const likelyLabel =
+    uiLocale === "en" ? "Common languages" : "Najpogostejši jeziki";
+  const otherLabel = uiLocale === "en" ? "Other languages" : "Ostali jeziki";
+
   return (
     <select
       defaultValue={defaultValue}
@@ -48,17 +56,17 @@ export function LanguageSelect({
       )}
       {...props}
     >
-      <optgroup label="Najpogostejši jeziki">
+      <optgroup label={likelyLabel}>
         {likelyLanguageOptions.map((language) => (
           <option key={language.value} value={language.value}>
-            {language.label}
+            {language[uiLocale]}
           </option>
         ))}
       </optgroup>
-      <optgroup label="Ostali jeziki">
+      <optgroup label={otherLabel}>
         {otherLanguageOptions.map((language) => (
           <option key={language.value} value={language.value}>
-            {language.label}
+            {language[uiLocale]}
           </option>
         ))}
       </optgroup>

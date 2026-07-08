@@ -7,6 +7,46 @@ import {
 } from "@/lib/email-preferences";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getI18n } from "@/lib/i18n";
+
+const unsubscribeCopy = {
+  sl: {
+    title: "Nastavitve e-mail obvestil",
+    invalid: "Povezava za odjavo ni veljavna ali je potekla. Pišite nam na",
+    invalidSuffix: ", če želite ročno urediti obvestila.",
+    appliesTo: "Nastavitve veljajo za naslov",
+    scanTitle: "Obvestila o scanih",
+    scanText:
+      "Prejemanje e-mailov o zaključenih ročnih, scheduled in novih scan rezultatih.",
+    marketingTitle: "Marketinška obvestila",
+    marketingText:
+      "Novosti, nasveti in občasna vsebinska obvestila o izboljšanju AI vidnosti.",
+    save: "Shrani nastavitve",
+    status: {
+      saved: "Nastavitve so shranjene.",
+      scansOff: "Odjavljeni ste od e-mail obvestil o scanih.",
+      marketingOff: "Odjavljeni ste od marketinških e-mail obvestil.",
+    },
+  },
+  en: {
+    title: "Email notification settings",
+    invalid: "The unsubscribe link is invalid or has expired. Email us at",
+    invalidSuffix: " if you want to update notifications manually.",
+    appliesTo: "These settings apply to",
+    scanTitle: "Scan notifications",
+    scanText:
+      "Receive emails about completed manual, scheduled and new scan results.",
+    marketingTitle: "Marketing emails",
+    marketingText:
+      "Product news, tips and occasional content about improving AI visibility.",
+    save: "Save settings",
+    status: {
+      saved: "Settings saved.",
+      scansOff: "You are unsubscribed from scan notification emails.",
+      marketingOff: "You are unsubscribed from marketing emails.",
+    },
+  },
+} as const;
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +81,8 @@ export default async function UnsubscribePage({
   }>;
 }) {
   const params = await searchParams;
+  const { locale } = await getI18n();
+  const copy = unsubscribeCopy[locale];
   const token = params?.token ?? "";
   const requestedType = isPreferenceType(params?.type) ? params?.type : null;
   let preferences = token ? await getEmailPreferencesByToken(token) : null;
@@ -60,22 +102,22 @@ export default async function UnsubscribePage({
     <main className="mx-auto grid min-h-[65vh] max-w-2xl place-items-center px-5 py-12">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Nastavitve e-mail obvestil</CardTitle>
+          <CardTitle>{copy.title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {statusMessage(status)}
+          {statusMessage(status, copy.status)}
           {!preferences ? (
             <p className="text-sm text-muted-foreground">
-              Povezava za odjavo ni veljavna ali je potekla. Pišite nam na{" "}
+              {copy.invalid}{" "}
               <a className="text-primary" href="mailto:hey@llmvisio.com">
                 hey@llmvisio.com
               </a>
-              , če želite ročno urediti obvestila.
+              {copy.invalidSuffix}
             </p>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Nastavitve veljajo za naslov{" "}
+                {copy.appliesTo}{" "}
                 <span className="font-medium text-foreground">
                   {preferences.email}
                 </span>
@@ -91,11 +133,8 @@ export default async function UnsubscribePage({
                     className="mt-1 h-4 w-4"
                   />
                   <span>
-                    <span className="block font-medium">
-                      Obvestila o scanih
-                    </span>
-                    Prejemanje e-mailov o zaključenih ročnih, scheduled in novih
-                    scan rezultatih.
+                    <span className="block font-medium">{copy.scanTitle}</span>
+                    {copy.scanText}
                   </span>
                 </label>
                 <label className="flex gap-3 rounded-md border bg-secondary/40 p-4 text-sm">
@@ -107,13 +146,12 @@ export default async function UnsubscribePage({
                   />
                   <span>
                     <span className="block font-medium">
-                      Marketinška obvestila
+                      {copy.marketingTitle}
                     </span>
-                    Novosti, nasveti in občasna vsebinska obvestila o
-                    izboljšanju AI vidnosti.
+                    {copy.marketingText}
                   </span>
                 </label>
-                <Button type="submit">Shrani nastavitve</Button>
+                <Button type="submit">{copy.save}</Button>
               </form>
             </>
           )}
@@ -127,24 +165,31 @@ function isPreferenceType(value: unknown): value is EmailPreferenceType {
   return value === "marketing" || value === "scans";
 }
 
-function statusMessage(status: string) {
+function statusMessage(
+  status: string,
+  messages: {
+    saved: string;
+    scansOff: string;
+    marketingOff: string;
+  },
+) {
   switch (status) {
     case "saved":
       return (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          Nastavitve so shranjene.
+          {messages.saved}
         </div>
       );
     case "scans-off":
       return (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          Odjavljeni ste od e-mail obvestil o scanih.
+          {messages.scansOff}
         </div>
       );
     case "marketing-off":
       return (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          Odjavljeni ste od marketinških e-mail obvestil.
+          {messages.marketingOff}
         </div>
       );
     case "invalid":

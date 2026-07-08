@@ -1,7 +1,21 @@
 import Link from "next/link";
 import { Radar } from "lucide-react";
 
-export function SiteFooter() {
+export function SiteFooter({
+  messages,
+}: {
+  messages: {
+    common: {
+      freeAudit: string;
+      pricing: string;
+      faq: string;
+      contact: string;
+      privacy: string;
+      login: string;
+    };
+    footer: { rights: string };
+  };
+}) {
   return (
     <footer className="border-t bg-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-6 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
@@ -11,28 +25,25 @@ export function SiteFooter() {
         </div>
         <div className="flex flex-wrap gap-4">
           <Link href="/ai-visibility-checker" className="hover:text-foreground">
-            Brezplačen pregled
+            {messages.common.freeAudit}
           </Link>
           <Link href="/pricing" className="hover:text-foreground">
-            Cenik
+            {messages.common.pricing}
           </Link>
           <Link href="/faq" className="hover:text-foreground">
-            FAQ
+            {messages.common.faq}
           </Link>
           <Link href="/contact" className="hover:text-foreground">
-            Kontakt
+            {messages.common.contact}
           </Link>
           <Link href="/privacy" className="hover:text-foreground">
-            Zasebnost
+            {messages.common.privacy}
           </Link>
           <Link href="/login" className="hover:text-foreground">
-            Vstop
+            {messages.common.login}
           </Link>
         </div>
-        <div>
-          © 2026 AI Visibility Radar. Portal je v lasti SEOS group d.o.o. Vse
-          pravice pridržane.
-        </div>
+        <div>© 2026 AI Visibility Radar. {messages.footer.rights}</div>
       </div>
     </footer>
   );

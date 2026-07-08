@@ -22,12 +22,14 @@ import {
   MVP_LIMITS,
   domainFromUrl,
   normalizeDomain,
+  normalizeLocale,
   type AiEngineProvider,
   type CrawledPageSnapshot,
   type GeneratedPrompt,
   type ParsedAiResult,
   type Plan,
   type PromptCategory,
+  type SupportedLocale,
 } from "@ai-radar/shared";
 import { sendAuditReportEmail, sendScanCompletedEmail } from "@ai-radar/email";
 import {
@@ -1990,10 +1992,12 @@ async function notifyScanCompleted(scanRunId: string) {
       const subject = scanCompletedEmailSubject({
         brandName: scan.brand.name,
         visibilityScore: scoreSnapshot.visibilityScore,
+        locale: recipient.preferredLocale,
       });
       return sendAndRecordScanCompletedEmail({
         userId: recipient.id,
         to: recipient.email,
+        locale: recipient.preferredLocale,
         recipientName: recipient.name,
         brandName: scan.brand.name,
         brandDomain: scan.brand.domain,
@@ -2034,6 +2038,7 @@ async function scanCompletedNotificationRecipients(scan: {
           id: string;
           email: string;
           name: string | null;
+          preferredLocale: string;
           scanEmailConsent: boolean;
         };
       }>;
@@ -2055,6 +2060,7 @@ async function scanCompletedNotificationRecipients(scan: {
             id: true,
             email: true,
             name: true,
+            preferredLocale: true,
             scanEmailConsent: true,
             memberships: {
               where: { organizationId: scan.brand.organizationId },
@@ -2068,7 +2074,12 @@ async function scanCompletedNotificationRecipients(scan: {
     if (!user || user.memberships.length === 0) return [];
     if (!user.scanEmailConsent) return [];
     return uniqueNotificationRecipients([
-      { id: user.id, email: user.email, name: user.name },
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        preferredLocale: user.preferredLocale,
+      },
     ]);
   }
 
@@ -2092,6 +2103,7 @@ async function notifyFreeAuditScanCompleted(
 async function sendAndRecordScanCompletedEmail(input: {
   userId: string;
   to: string;
+  locale?: string | null;
   recipientName: string | null;
   brandName: string;
   brandDomain: string;
@@ -2112,7 +2124,7 @@ async function sendAndRecordScanCompletedEmail(input: {
       userId: input.userId,
       type: email.skipped ? "queued" : "sent",
       providerId: email.id,
-      subject: input.subject,
+      subject: email.subject,
     });
     return email;
   } catch (error) {
@@ -2152,7 +2164,11 @@ async function recordScanEmailEvent(input: {
 function scanCompletedEmailSubject(input: {
   brandName: string;
   visibilityScore: number;
+  locale?: string | null;
 }) {
+  if (normalizeLocale(input.locale) === "en") {
+    return `AI scan for ${input.brandName} is complete (${input.visibilityScore}/100)`;
+  }
   return `AI scan za ${input.brandName} je zaključen (${input.visibilityScore}/100)`;
 }
 
@@ -2162,12 +2178,14 @@ export async function createFreeAudit(input: {
   brandName: string;
   country: string;
   language: string;
+  locale?: string;
   prompts: string[];
   providers?: AiEngineProvider[];
   competitors?: string;
   utmSource?: string;
   utmCampaign?: string;
 }) {
+  const locale: SupportedLocale = normalizeLocale(input.locale);
   let auditStep = "organization";
   try {
     const organization = await prisma.organization.create({
@@ -2229,6 +2247,7 @@ export async function createFreeAudit(input: {
       data: {
         organizationId: organization.id,
         email: input.email,
+        locale,
         domain: brand.domain,
         brandName: input.brandName,
         source: "free_audit",
@@ -2326,6 +2345,7 @@ export async function sendLeadAuditEmail(leadId: string) {
     losingPrompts,
     recommendations: lead.auditScanRun.recommendations,
     reportUrl: `${getConfig().NEXT_PUBLIC_APP_URL}/audit/${lead.id}`,
+    locale: normalizeLocale(lead.locale),
   };
   const email = await sendAuditReportEmail(lead.email, report);
   await prisma.emailEvent.create({
@@ -2334,7 +2354,9 @@ export async function sendLeadAuditEmail(leadId: string) {
       type: email.skipped ? "queued" : "sent",
       provider: "resend",
       providerId: email.id,
-      subject: `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`,
+      subject:
+        email.subject ??
+        `Tvoj AI Visibility Score za ${lead.domain} je ${lead.auditScanRun.scoreSnapshot.visibilityScore}/100`,
     },
   });
   await prisma.lead.update({
@@ -2381,6 +2403,7 @@ export async function buildAdminLeadDetail(leadId: string) {
     losingPrompts,
     recommendations: lead.auditScanRun.recommendations,
     reportUrl: `${getConfig().NEXT_PUBLIC_APP_URL}/audit/${lead.id}`,
+    locale: normalizeLocale(lead.locale),
   });
   return { lead, salesBrief };
 }
@@ -2459,17 +2482,31 @@ function splitCompetitors(value?: string) {
 }
 
 function uniqueNotificationRecipients(
-  users: Array<{ id: string; email: string; name: string | null }>,
+  users: Array<{
+    id: string;
+    email: string;
+    name: string | null;
+    preferredLocale: string;
+  }>,
 ) {
   const seen = new Set<string>();
-  const recipients: Array<{ id: string; email: string; name: string | null }> =
-    [];
+  const recipients: Array<{
+    id: string;
+    email: string;
+    name: string | null;
+    preferredLocale: string;
+  }> = [];
 
   for (const user of users) {
     const email = user.email.trim().toLowerCase();
     if (!email || seen.has(email)) continue;
     seen.add(email);
-    recipients.push({ id: user.id, email, name: user.name });
+    recipients.push({
+      id: user.id,
+      email,
+      name: user.name,
+      preferredLocale: user.preferredLocale,
+    });
   }
 
   return recipients;

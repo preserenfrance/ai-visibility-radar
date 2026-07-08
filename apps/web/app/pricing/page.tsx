@@ -2,97 +2,41 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { TrackedAnchor } from "@/components/analytics-events";
 import { Button } from "@/components/ui/button";
+import { getI18n } from "@/lib/i18n";
 
 type PlanId = "free" | "starter" | "growth";
 type FeatureValue = boolean | string | number;
 
-const plans: Array<{
-  id: PlanId;
-  name: string;
-  price: string;
-  href: string;
-  cta: string;
-}> = [
-  {
-    id: "free",
-    name: "Brezplačno",
-    price: "0 €",
-    href: "/ai-visibility-checker",
-    cta: "Začni brezplačen pregled",
-  },
-  {
-    id: "starter",
-    name: "Starter",
-    price: "15,99 € / mesec",
-    href: "/app/settings",
-    cta: "Izberi Starter",
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    price: "39,99 € / mesec",
-    href: "/app/settings",
-    cta: "Izberi Growth",
-  },
-];
+export default async function PricingPage() {
+  const { dictionary } = await getI18n();
+  const pricing = dictionary.pricing;
+  const plans: Array<{
+    id: PlanId;
+    name: string;
+    price: string;
+    href: string;
+    cta: string;
+  }> = [
+    { id: "free", href: "/ai-visibility-checker", ...pricing.plans.free },
+    { id: "starter", href: "/app/settings", ...pricing.plans.starter },
+    { id: "growth", href: "/app/settings", ...pricing.plans.growth },
+  ];
+  const features = pricing.features.map(([label, values]) => ({
+    label,
+    values,
+  }));
 
-const features: Array<{
-  label: string;
-  values: Record<PlanId, FeatureValue>;
-}> = [
-  {
-    label: "Znamke",
-    values: { free: 1, starter: 1, growth: 3 },
-  },
-  {
-    label: "Aktivna vprašanja na znamko",
-    values: { free: 10, starter: 25, growth: 100 },
-  },
-  {
-    label: "Ročni pregledi na mesec",
-    values: { free: 0, starter: 4, growth: 15 },
-  },
-  {
-    label: "Ročni pregledi",
-    values: { free: false, starter: true, growth: true },
-  },
-  {
-    label: "Avtomatski tedenski pregledi",
-    values: { free: "tedensko", starter: "tedensko", growth: "tedensko" },
-  },
-  {
-    label: "Vsi zavihki in moduli",
-    values: { free: true, starter: true, growth: true },
-  },
-  {
-    label: "Konkurenti, citati in priporočila",
-    values: { free: true, starter: true, growth: true },
-  },
-  {
-    label: "Modeli in iskalni pogledi",
-    values: { free: true, starter: true, growth: true },
-  },
-  {
-    label: "ChatGPT pogled na znamko in ponudbo",
-    values: { free: true, starter: true, growth: true },
-  },
-];
-
-export default function PricingPage() {
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-5 py-12">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold">Cenik</h1>
+          <h1 className="text-3xl font-semibold">{pricing.title}</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Vsi deli aplikacije so dostopni v vseh paketih. Paketi se
-            razlikujejo po številu znamk, številu aktivnih vprašanj in številu
-            ročnih pregledov na mesec. Avtomatski tedenski pregledi, konkurenti,
-            citati in osnovni AI vpogledi so vključeni v vseh paketih.
+            {pricing.intro}
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/">Domov</Link>
+          <Link href="/">{pricing.home}</Link>
         </Button>
       </div>
 
@@ -102,7 +46,7 @@ export default function PricingPage() {
             <thead>
               <tr className="border-b bg-secondary/40">
                 <th className="w-[34%] px-4 py-4 text-left font-semibold">
-                  Funkcionalnost
+                  {pricing.feature}
                 </th>
                 {plans.map((plan) => (
                   <th key={plan.id} className="px-4 py-4 text-left align-top">
@@ -120,13 +64,16 @@ export default function PricingPage() {
                   <td className="px-4 py-3 font-medium">{feature.label}</td>
                   {plans.map((plan) => (
                     <td key={plan.id} className="px-4 py-3">
-                      <FeatureCell value={feature.values[plan.id]} />
+                      <FeatureCell
+                        value={feature.values[plan.id]}
+                        includedLabel={pricing.included}
+                      />
                     </td>
                   ))}
                 </tr>
               ))}
               <tr className="bg-secondary/20">
-                <td className="px-4 py-4 font-medium">Začni</td>
+                <td className="px-4 py-4 font-medium">{pricing.start}</td>
                 {plans.map((plan) => (
                   <td key={plan.id} className="px-4 py-4">
                     <Button
@@ -160,11 +107,17 @@ export default function PricingPage() {
   );
 }
 
-function FeatureCell({ value }: { value: FeatureValue }) {
+function FeatureCell({
+  value,
+  includedLabel,
+}: {
+  value: FeatureValue;
+  includedLabel: string;
+}) {
   if (value === true) {
     return (
       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-800">
-        <Check className="h-4 w-4" aria-label="Vključeno" />
+        <Check className="h-4 w-4" aria-label={includedLabel} />
       </span>
     );
   }

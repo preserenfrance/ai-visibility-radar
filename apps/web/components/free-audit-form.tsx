@@ -10,23 +10,50 @@ import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { SupportedLocale } from "@ai-radar/shared";
 
-const promptPlaceholders = [
-  "Npr. Katera spletna trgovina je najboljša izbira za nakup kakovostnih tekaških copat v Sloveniji?",
-  "Npr. Primerjaj spletne trgovine z otroško opremo glede na ceno, dostavo in vračila.",
-  "Npr. Kje lahko kupim zanesljiv robotski sesalnik z dobro garancijo in hitro dostavo?",
-  "Npr. Katere spletne trgovine priporočate za nakup naravne kozmetike v Sloveniji?",
-  "Npr. Katera spletna trgovina ima najboljšo ponudbo pohištva za manjša stanovanja?",
-];
 const MIN_PROMPT_COUNT = 3;
-const MAX_PROMPT_COUNT = promptPlaceholders.length;
+const MAX_PROMPT_COUNT = 5;
+
+type FreeAuditFormMessages = {
+  domain: string;
+  domainPlaceholder: string;
+  brandName: string;
+  brandNamePlaceholder: string;
+  emailPlaceholder: string;
+  language: string;
+  competitors: string;
+  competitorsPlaceholder: string;
+  competitorsHelp: string;
+  questionsLegend: string;
+  suggestionsHelp: string;
+  suggest: string;
+  suggesting: string;
+  missingDomain: string;
+  noSuggestions: string;
+  suggestionsError: string;
+  promptWarningTitle: string;
+  promptWarningText: string;
+  question: string;
+  modelsLegend: string;
+  availableInApp: string;
+  submit: string;
+  pending: string;
+  runningTitle: string;
+  runningText: string;
+  placeholders: readonly string[];
+};
 
 export function FreeAuditForm({
   action,
   errorMessage,
+  locale,
+  messages,
 }: {
   action: (formData: FormData) => Promise<void>;
   errorMessage: string | null;
+  locale: SupportedLocale;
+  messages: FreeAuditFormMessages;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const promptRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
@@ -43,7 +70,7 @@ export function FreeAuditForm({
     const brandName = formValue(formData, "brandName");
 
     if (!domain || !brandName) {
-      setSuggestError("Najprej vnesi domeno in ime znamke.");
+      setSuggestError(messages.missingDomain);
       return;
     }
 
@@ -58,8 +85,10 @@ export function FreeAuditForm({
         body: JSON.stringify({
           domain,
           brandName,
-          country: formValue(formData, "country") || "Slovenija",
-          language: formValue(formData, "language") || "sl",
+          country:
+            formValue(formData, "country") ||
+            (locale === "en" ? "United States" : "Slovenija"),
+          language: formValue(formData, "language") || locale,
           competitors: formValue(formData, "competitors"),
         }),
       });
@@ -68,9 +97,7 @@ export function FreeAuditForm({
         error?: string;
       };
       if (!response.ok)
-        throw new Error(
-          data.error ?? "Predlogov trenutno ni bilo mogoče pripraviti.",
-        );
+        throw new Error(data.error ?? messages.suggestionsError);
 
       const prompts = Array.isArray(data.prompts)
         ? data.prompts.filter(
@@ -78,7 +105,7 @@ export function FreeAuditForm({
           )
         : [];
       if (prompts.length === 0) {
-        throw new Error("ChatGPT ni vrnil predlogov.");
+        throw new Error(messages.noSuggestions);
       }
 
       prompts.forEach((prompt, index) => {
@@ -90,9 +117,7 @@ export function FreeAuditForm({
       setPromptCountWarning(false);
     } catch (error) {
       setSuggestError(
-        error instanceof Error
-          ? error.message
-          : "Predlogov trenutno ni bilo mogoče pripraviti. Poskusi ponovno ali jih vpiši ročno.",
+        error instanceof Error ? error.message : messages.suggestionsError,
       );
     } finally {
       setSuggestingPrompts(false);
@@ -133,25 +158,26 @@ export function FreeAuditForm({
         onSubmit={handleSubmit}
         className="grid gap-3"
       >
+        <input type="hidden" name="locale" value={locale} />
         <div className="grid gap-2">
           <label htmlFor="auditDomain" className="text-sm font-medium">
-            Spletna stran
+            {messages.domain}
           </label>
           <Input
             id="auditDomain"
             name="domain"
-            placeholder="domain.com"
+            placeholder={messages.domainPlaceholder}
             required
           />
         </div>
         <div className="grid gap-2">
           <label htmlFor="auditBrandName" className="text-sm font-medium">
-            Ime znamke
+            {messages.brandName}
           </label>
           <Input
             id="auditBrandName"
             name="brandName"
-            placeholder="Npr. Moja trgovina"
+            placeholder={messages.brandNamePlaceholder}
             required
           />
         </div>
@@ -163,38 +189,43 @@ export function FreeAuditForm({
             id="auditEmail"
             name="email"
             type="email"
-            placeholder="ime@podjetje.si"
+            placeholder={messages.emailPlaceholder}
             required
           />
         </div>
         <div className="grid gap-2">
           <label htmlFor="auditLanguage" className="text-sm font-medium">
-            Jezik odgovorov
+            {messages.language}
           </label>
-          <LanguageSelect id="auditLanguage" name="language" />
+          <LanguageSelect
+            id="auditLanguage"
+            name="language"
+            defaultValue={locale}
+            uiLocale={locale}
+          />
         </div>
         <div className="grid gap-2">
           <label htmlFor="auditCompetitors" className="text-sm font-medium">
-            Konkurenti
+            {messages.competitors}
           </label>
           <Input
             id="auditCompetitors"
             name="competitors"
-            placeholder="Npr. Mimovrste, Merkur, Bauhaus"
+            placeholder={messages.competitorsPlaceholder}
           />
           <p className="-mt-1 text-xs text-muted-foreground">
-            Vnesi imena konkurenčnih znamk, ki jih želiš primerjati s svojo
-            znamko. Če jih je več, jih loči z vejico.
+            {messages.competitorsHelp}
           </p>
         </div>
         <fieldset className="grid gap-3 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
-            Vnesi vsaj {MIN_PROMPT_COUNT} in največ {MAX_PROMPT_COUNT} vprašanj
-            za test
+            {messages.questionsLegend
+              .replace("{min}", String(MIN_PROMPT_COUNT))
+              .replace("{max}", String(MAX_PROMPT_COUNT))}
           </legend>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Predloge lahko po generiranju še spremeniš.
+              {messages.suggestionsHelp}
             </p>
             <Button
               type="button"
@@ -206,10 +237,10 @@ export function FreeAuditForm({
               {suggestingPrompts ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Pripravljam predloge
+                  {messages.suggesting}
                 </>
               ) : (
-                "Predlagaj vprašanja"
+                messages.suggest
               )}
             </Button>
           </div>
@@ -221,13 +252,8 @@ export function FreeAuditForm({
           {promptCountWarning && (
             <div className="grid gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               <div>
-                <div className="font-medium">
-                  Za pregled potrebuješ vsaj 3 vprašanja.
-                </div>
-                <p className="mt-1">
-                  Vpiši še eno vprašanje ali klikni spodnji gumb in ti
-                  pripravimo predloge, ki jih lahko pregledaš in popraviš.
-                </p>
+                <div className="font-medium">{messages.promptWarningTitle}</div>
+                <p className="mt-1">{messages.promptWarningText}</p>
               </div>
               <Button
                 type="button"
@@ -240,21 +266,21 @@ export function FreeAuditForm({
                 {suggestingPrompts ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Pripravljam predloge
+                    {messages.suggesting}
                   </>
                 ) : (
-                  "Predlagaj vprašanja"
+                  messages.suggest
                 )}
               </Button>
             </div>
           )}
-          {promptPlaceholders.map((placeholder, index) => (
+          {messages.placeholders.map((placeholder, index) => (
             <div key={index} className="grid gap-2">
               <label
                 htmlFor={`auditPrompt-${index}`}
                 className="text-sm font-medium"
               >
-                Vprašanje {index + 1}
+                {messages.question.replace("{number}", String(index + 1))}
               </label>
               <Textarea
                 id={`auditPrompt-${index}`}
@@ -271,7 +297,7 @@ export function FreeAuditForm({
         </fieldset>
         <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
-            Izberi AI modele za test
+            {messages.modelsLegend}
           </legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {AI_PROVIDER_OPTIONS.map((provider) => {
@@ -299,7 +325,7 @@ export function FreeAuditForm({
                       {provider.label}
                       {lockedForAudit && (
                         <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                          V aplikaciji
+                          {messages.availableInApp}
                         </span>
                       )}
                     </span>
@@ -312,7 +338,7 @@ export function FreeAuditForm({
             })}
           </div>
         </fieldset>
-        <SubmitArea />
+        <SubmitArea messages={messages} />
       </form>
     </CardContent>
   );
@@ -323,7 +349,7 @@ function formValue(formData: FormData, name: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function SubmitArea() {
+function SubmitArea({ messages }: { messages: FreeAuditFormMessages }) {
   const { pending } = useFormStatus();
 
   return (
@@ -332,11 +358,11 @@ function SubmitArea() {
         {pending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Pripravljamo prvo poročilo
+            {messages.pending}
           </>
         ) : (
           <>
-            Zaženi brezplačen pregled <ArrowRight className="h-4 w-4" />
+            {messages.submit} <ArrowRight className="h-4 w-4" />
           </>
         )}
       </Button>
@@ -344,12 +370,9 @@ function SubmitArea() {
         <div className="rounded-md border bg-white p-4 text-sm">
           <div className="flex items-center gap-2 font-medium">
             <Activity className="h-4 w-4 animate-pulse text-primary" />
-            Pregled teče v ozadju
+            {messages.runningTitle}
           </div>
-          <p className="mt-2 text-muted-foreground">
-            Pošiljamo tvoja vprašanja izbranemu AI modelu in pripravljamo
-            rezultat. To lahko traja nekaj trenutkov.
-          </p>
+          <p className="mt-2 text-muted-foreground">{messages.runningText}</p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-primary" />
           </div>

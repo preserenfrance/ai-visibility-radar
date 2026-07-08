@@ -4,6 +4,189 @@ import {
   type AuditReportInput,
 } from "@ai-radar/reports";
 
+type EmailLocale = "sl" | "en";
+
+const EMAIL_COPY: Record<
+  EmailLocale,
+  {
+    greeting: (name?: string | null) => string;
+    welcome: {
+      subject: string;
+      preheader: string;
+      title: string;
+      body: string[];
+      cta: string;
+      text: string[];
+      preferences: string;
+    };
+    passwordReset: {
+      subject: string;
+      preheader: string;
+      title: string;
+      body: (minutes: number) => string[];
+      cta: string;
+      text: (minutes: number, resetUrl: string) => string[];
+    };
+    scanCompleted: {
+      trigger: Record<"manual" | "scheduled", string>;
+      subject: (brandName: string, score: number) => string;
+      preheader: (trigger: string, brandName: string) => string;
+      title: string;
+      intro: (trigger: string, brandName: string, domain: string) => string;
+      metrics: {
+        score: string;
+        completed: string;
+        failed: string;
+        finished: string;
+      };
+      details: string;
+      cta: string;
+      text: {
+        score: string;
+        completed: string;
+        failed: string;
+        finished: string;
+        result: string;
+        unsubscribe: string;
+      };
+    };
+    layout: {
+      dashboard: string;
+      footer: string;
+      unsubscribe: string;
+    };
+  }
+> = {
+  sl: {
+    greeting: (name) =>
+      name ? `Pozdravljeni, ${escapeHtml(name)}!` : "Pozdravljeni!",
+    welcome: {
+      subject: "Dobrodošli v AI Visibility Radar",
+      preheader: "Račun je pripravljen. Lahko začnete z merjenjem AI vidnosti.",
+      title: "Dobrodošli v AI Visibility Radar",
+      body: [
+        "Vaš račun je pripravljen. V aplikaciji lahko dodate znamko, uredite prompte in zaženete prvi AI visibility scan.",
+        "E-mail obvestila lahko kadarkoli uredite prek povezave na dnu sporočila.",
+      ],
+      cta: "Odpri nadzorno ploščo",
+      text: ["Dobrodošli v AI Visibility Radar.", "Vaš račun je pripravljen."],
+      preferences: "Nastavitve e-mail obvestil",
+    },
+    passwordReset: {
+      subject: "Ponastavitev gesla za AI Visibility Radar",
+      preheader: "Prejeli smo zahtevo za ponastavitev gesla.",
+      title: "Ponastavitev gesla",
+      body: (minutes) => [
+        "Prejeli smo zahtevo za ponastavitev gesla za vaš AI Visibility Radar račun.",
+        `Povezava velja ${minutes} minut. Če zahteve niste oddali vi, lahko to sporočilo ignorirate.`,
+      ],
+      cta: "Nastavi novo geslo",
+      text: (minutes, resetUrl) => [
+        "Prejeli smo zahtevo za ponastavitev gesla.",
+        `Povezava velja ${minutes} minut.`,
+        `Nastavite novo geslo: ${resetUrl}`,
+        "Če zahteve niste oddali vi, lahko to sporočilo ignorirate.",
+      ],
+    },
+    scanCompleted: {
+      trigger: { manual: "ročni", scheduled: "samodejni" },
+      subject: (brandName, score) =>
+        `AI scan za ${brandName} je zaključen (${score}/100)`,
+      preheader: (trigger, brandName) =>
+        `Zaključen je ${trigger} scan za ${brandName}.`,
+      title: "Scan je zaključen",
+      intro: (trigger, brandName, domain) =>
+        `Zaključen je ${trigger} AI visibility scan za <strong>${escapeHtml(brandName)}</strong> (${escapeHtml(domain)}).`,
+      metrics: {
+        score: "Visibility score",
+        completed: "Uspešni prompti",
+        failed: "Neuspešni prompti",
+        finished: "Zaključeno",
+      },
+      details:
+        "Podrobnosti scana, odgovore modelov, citate in priporočila najdete v aplikaciji.",
+      cta: "Odpri rezultat scana",
+      text: {
+        score: "Visibility score",
+        completed: "Uspešni prompti",
+        failed: "Neuspešni prompti",
+        finished: "Zaključeno",
+        result: "Rezultat scana",
+        unsubscribe: "Odjava od scan obvestil",
+      },
+    },
+    layout: {
+      dashboard: "Nadzorna plošča",
+      footer: "To sporočilo ste prejeli, ker uporabljate AI Visibility Radar.",
+      unsubscribe: "Upravljanje e-mail obvestil in odjava",
+    },
+  },
+  en: {
+    greeting: (name) => (name ? `Hello, ${escapeHtml(name)}!` : "Hello!"),
+    welcome: {
+      subject: "Welcome to AI Visibility Radar",
+      preheader:
+        "Your account is ready. You can start measuring AI visibility.",
+      title: "Welcome to AI Visibility Radar",
+      body: [
+        "Your account is ready. In the app you can add a brand, edit prompts and run your first AI visibility scan.",
+        "You can change email notification settings at any time through the link at the bottom of this message.",
+      ],
+      cta: "Open dashboard",
+      text: ["Welcome to AI Visibility Radar.", "Your account is ready."],
+      preferences: "Email notification settings",
+    },
+    passwordReset: {
+      subject: "Reset your AI Visibility Radar password",
+      preheader: "We received a password reset request.",
+      title: "Password reset",
+      body: (minutes) => [
+        "We received a password reset request for your AI Visibility Radar account.",
+        `The link is valid for ${minutes} minutes. If you did not request this, you can ignore this message.`,
+      ],
+      cta: "Set a new password",
+      text: (minutes, resetUrl) => [
+        "We received a password reset request.",
+        `The link is valid for ${minutes} minutes.`,
+        `Set a new password: ${resetUrl}`,
+        "If you did not request this, you can ignore this message.",
+      ],
+    },
+    scanCompleted: {
+      trigger: { manual: "manual", scheduled: "scheduled" },
+      subject: (brandName, score) =>
+        `AI scan for ${brandName} is complete (${score}/100)`,
+      preheader: (trigger, brandName) =>
+        `The ${trigger} scan for ${brandName} is complete.`,
+      title: "Scan complete",
+      intro: (trigger, brandName, domain) =>
+        `The ${trigger} AI visibility scan for <strong>${escapeHtml(brandName)}</strong> (${escapeHtml(domain)}) is complete.`,
+      metrics: {
+        score: "Visibility score",
+        completed: "Completed prompts",
+        failed: "Failed prompts",
+        finished: "Completed at",
+      },
+      details:
+        "You can find scan details, model answers, citations and recommendations in the app.",
+      cta: "Open scan result",
+      text: {
+        score: "Visibility score",
+        completed: "Completed prompts",
+        failed: "Failed prompts",
+        finished: "Completed at",
+        result: "Scan result",
+        unsubscribe: "Unsubscribe from scan notifications",
+      },
+    },
+    layout: {
+      dashboard: "Dashboard",
+      footer: "You received this message because you use AI Visibility Radar.",
+      unsubscribe: "Manage email notifications and unsubscribe",
+    },
+  },
+};
+
 const BRAND_COLORS = {
   background: "#F9FAFB",
   foreground: "#0F1729",
@@ -26,6 +209,7 @@ export type SendEmailInput = {
 
 export type ScanCompletedEmailInput = {
   to: string;
+  locale?: string | null;
   recipientName?: string | null;
   brandName: string;
   brandDomain: string;
@@ -43,12 +227,13 @@ export type ScanCompletedEmailInput = {
 
 export async function sendEmail(
   input: SendEmailInput,
-): Promise<{ id?: string; skipped?: boolean }> {
+): Promise<{ id?: string; skipped?: boolean; subject: string }> {
   const config = getConfig();
   if (!config.RESEND_API_KEY) {
     return {
       id: `dev-${Date.now()}`,
       skipped: true,
+      subject: input.subject,
     };
   }
 
@@ -69,44 +254,43 @@ export async function sendEmail(
     throw new Error(response.error.message);
   }
 
-  return { id: response.data?.id };
+  return { id: response.data?.id, subject: input.subject };
 }
 
 export async function sendWelcomeEmail(input: {
   to: string;
+  locale?: string | null;
   name?: string | null;
   appUrl?: string;
   preferencesUrl?: string;
-}): Promise<{ id?: string; skipped?: boolean }> {
+}): Promise<{ id?: string; skipped?: boolean; subject: string }> {
+  const locale = normalizeEmailLocale(input.locale);
+  const copy = EMAIL_COPY[locale];
   const appUrl = input.appUrl ?? getConfig().NEXT_PUBLIC_APP_URL;
   const dashboardUrl = absoluteUrl(appUrl, "/app/dashboard");
-  const greeting = input.name
-    ? `Pozdravljeni, ${escapeHtml(input.name)}!`
-    : "Pozdravljeni!";
 
   return sendEmail({
     to: input.to,
-    subject: "Dobrodošli v AI Visibility Radar",
+    subject: copy.welcome.subject,
     html: renderEmailLayout({
-      preheader: "Račun je pripravljen. Lahko začnete z merjenjem AI vidnosti.",
-      title: "Dobrodošli v AI Visibility Radar",
+      locale,
+      preheader: copy.welcome.preheader,
+      title: copy.welcome.title,
       bodyHtml: [
-        `<p>${greeting}</p>`,
-        "<p>Vaš račun je pripravljen. V aplikaciji lahko dodate znamko, uredite prompte in zaženete prvi AI visibility scan.</p>",
-        "<p>E-mail obvestila lahko kadarkoli uredite prek povezave na dnu sporočila.</p>",
+        `<p>${copy.greeting(input.name)}</p>`,
+        ...copy.welcome.body.map((paragraph) => `<p>${paragraph}</p>`),
       ].join(""),
       cta: {
-        label: "Odpri nadzorno ploščo",
+        label: copy.welcome.cta,
         url: dashboardUrl,
       },
       unsubscribeUrl: input.preferencesUrl,
     }),
     text: [
-      "Dobrodošli v AI Visibility Radar.",
-      "Vaš račun je pripravljen.",
-      `Odprite nadzorno ploščo: ${dashboardUrl}`,
+      ...copy.welcome.text,
+      `${copy.welcome.cta}: ${dashboardUrl}`,
       input.preferencesUrl
-        ? `Nastavitve e-mail obvestil: ${input.preferencesUrl}`
+        ? `${copy.welcome.preferences}: ${input.preferencesUrl}`
         : "",
     ]
       .filter(Boolean)
@@ -116,89 +300,102 @@ export async function sendWelcomeEmail(input: {
 
 export async function sendPasswordResetEmail(input: {
   to: string;
+  locale?: string | null;
   resetUrl: string;
   expiresInMinutes?: number;
-}): Promise<{ id?: string; skipped?: boolean }> {
+}): Promise<{ id?: string; skipped?: boolean; subject: string }> {
+  const locale = normalizeEmailLocale(input.locale);
+  const copy = EMAIL_COPY[locale];
   const expiresInMinutes = input.expiresInMinutes ?? 60;
 
   return sendEmail({
     to: input.to,
-    subject: "Ponastavitev gesla za AI Visibility Radar",
+    subject: copy.passwordReset.subject,
     html: renderEmailLayout({
-      preheader: "Prejeli smo zahtevo za ponastavitev gesla.",
-      title: "Ponastavitev gesla",
+      locale,
+      preheader: copy.passwordReset.preheader,
+      title: copy.passwordReset.title,
       bodyHtml: [
-        "<p>Pozdravljeni,</p>",
-        "<p>Prejeli smo zahtevo za ponastavitev gesla za vaš AI Visibility Radar račun.</p>",
-        `<p>Povezava velja ${expiresInMinutes} minut. Če zahteve niste oddali vi, lahko to sporočilo ignorirate.</p>`,
+        `<p>${copy.greeting()}</p>`,
+        ...copy.passwordReset
+          .body(expiresInMinutes)
+          .map((paragraph) => `<p>${paragraph}</p>`),
       ].join(""),
       cta: {
-        label: "Nastavi novo geslo",
+        label: copy.passwordReset.cta,
         url: input.resetUrl,
       },
     }),
-    text: [
-      "Prejeli smo zahtevo za ponastavitev gesla.",
-      `Povezava velja ${expiresInMinutes} minut.`,
-      `Nastavite novo geslo: ${input.resetUrl}`,
-      "Če zahteve niste oddali vi, lahko to sporočilo ignorirate.",
-    ].join("\n"),
+    text: copy.passwordReset.text(expiresInMinutes, input.resetUrl).join("\n"),
   });
 }
 
 export async function sendScanCompletedEmail(
   input: ScanCompletedEmailInput,
-): Promise<{ id?: string; skipped?: boolean }> {
+): Promise<{ id?: string; skipped?: boolean; subject: string }> {
+  const locale = normalizeEmailLocale(input.locale);
+  const copy = EMAIL_COPY[locale];
   const appUrl = input.appUrl ?? getConfig().NEXT_PUBLIC_APP_URL;
   const scanUrl = absoluteUrl(
     appUrl,
     `/app/brands/${input.brandId}/scans/${input.scanRunId}`,
   );
   const dashboardUrl = absoluteUrl(appUrl, `/app/brands/${input.brandId}`);
-  const triggerLabel =
-    input.triggerType === "scheduled" ? "samodejni" : "ročni";
+  const triggerLabel = copy.scanCompleted.trigger[input.triggerType];
   const finishedAt = input.finishedAt
-    ? formatDateTime(input.finishedAt)
+    ? formatDateTime(input.finishedAt, locale)
     : undefined;
 
   return sendEmail({
     to: input.to,
-    subject: `AI scan za ${input.brandName} je zaključen (${input.visibilityScore}/100)`,
+    subject: copy.scanCompleted.subject(input.brandName, input.visibilityScore),
     html: renderEmailLayout({
-      preheader: `Zaključen je ${triggerLabel} scan za ${input.brandName}.`,
-      title: `Scan je zaključen`,
+      locale,
+      preheader: copy.scanCompleted.preheader(triggerLabel, input.brandName),
+      title: copy.scanCompleted.title,
       bodyHtml: [
-        `<p>${input.recipientName ? `Pozdravljeni, ${escapeHtml(input.recipientName)}!` : "Pozdravljeni!"}</p>`,
-        `<p>Zaključen je ${triggerLabel} AI visibility scan za <strong>${escapeHtml(input.brandName)}</strong> (${escapeHtml(input.brandDomain)}).</p>`,
+        `<p>${copy.greeting(input.recipientName)}</p>`,
+        `<p>${copy.scanCompleted.intro(triggerLabel, input.brandName, input.brandDomain)}</p>`,
         renderMetricTable([
-          ["Visibility score", `${input.visibilityScore}/100`],
+          [copy.scanCompleted.metrics.score, `${input.visibilityScore}/100`],
           [
-            "Uspešni prompti",
+            copy.scanCompleted.metrics.completed,
             `${input.completedPromptRuns}/${input.totalPromptRuns}`,
           ],
-          ["Neuspešni prompti", String(input.failedPromptRuns)],
+          [copy.scanCompleted.metrics.failed, String(input.failedPromptRuns)],
           ...(finishedAt
-            ? [["Zaključeno", finishedAt] as [string, string]]
+            ? [
+                [copy.scanCompleted.metrics.finished, finishedAt] as [
+                  string,
+                  string,
+                ],
+              ]
             : []),
         ]),
-        "<p>Podrobnosti scana, odgovore modelov, citate in priporočila najdete v aplikaciji.</p>",
+        `<p>${copy.scanCompleted.details}</p>`,
       ].join(""),
       cta: {
-        label: "Odpri rezultat scana",
+        label: copy.scanCompleted.cta,
         url: scanUrl,
       },
       secondaryUrl: dashboardUrl,
       unsubscribeUrl: input.unsubscribeUrl,
     }),
     text: [
-      `Zaključen je ${triggerLabel} AI visibility scan za ${input.brandName} (${input.brandDomain}).`,
-      `Visibility score: ${input.visibilityScore}/100`,
-      `Uspešni prompti: ${input.completedPromptRuns}/${input.totalPromptRuns}`,
-      `Neuspešni prompti: ${input.failedPromptRuns}`,
-      finishedAt ? `Zaključeno: ${finishedAt}` : "",
-      `Rezultat scana: ${scanUrl}`,
+      stripHtml(
+        copy.scanCompleted.intro(
+          triggerLabel,
+          input.brandName,
+          input.brandDomain,
+        ),
+      ),
+      `${copy.scanCompleted.text.score}: ${input.visibilityScore}/100`,
+      `${copy.scanCompleted.text.completed}: ${input.completedPromptRuns}/${input.totalPromptRuns}`,
+      `${copy.scanCompleted.text.failed}: ${input.failedPromptRuns}`,
+      finishedAt ? `${copy.scanCompleted.text.finished}: ${finishedAt}` : "",
+      `${copy.scanCompleted.text.result}: ${scanUrl}`,
       input.unsubscribeUrl
-        ? `Odjava od scan obvestil: ${input.unsubscribeUrl}`
+        ? `${copy.scanCompleted.text.unsubscribe}: ${input.unsubscribeUrl}`
         : "",
     ]
       .filter(Boolean)
@@ -209,10 +406,16 @@ export async function sendScanCompletedEmail(
 export async function sendAuditReportEmail(
   to: string,
   report: AuditReportInput,
-): Promise<{ id?: string; skipped?: boolean }> {
+): Promise<{ id?: string; skipped?: boolean; subject: string }> {
+  const locale = normalizeEmailLocale(report.locale);
+  const subject =
+    locale === "en"
+      ? `Your AI Visibility Score for ${report.domain} is ${report.score.visibilityScore}/100`
+      : `Tvoj AI Visibility Score za ${report.domain} je ${report.score.visibilityScore}/100`;
+
   return sendEmail({
     to,
-    subject: `Tvoj AI Visibility Score za ${report.domain} je ${report.score.visibilityScore}/100`,
+    subject,
     html: generateAuditReportHtml(report),
   });
 }
@@ -224,6 +427,7 @@ function absoluteUrl(baseUrl: string, path: string) {
 }
 
 function renderEmailLayout(input: {
+  locale: EmailLocale;
   preheader: string;
   title: string;
   bodyHtml: string;
@@ -234,19 +438,20 @@ function renderEmailLayout(input: {
   secondaryUrl?: string;
   unsubscribeUrl?: string;
 }) {
+  const copy = EMAIL_COPY[input.locale];
   const ctaHtml = input.cta
     ? `<p style="margin:28px 0 20px;"><a href="${escapeAttribute(input.cta.url)}" style="display:inline-block;background:${BRAND_COLORS.primary};color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;">${escapeHtml(input.cta.label)}</a></p>`
     : "";
   const secondaryHtml = input.secondaryUrl
-    ? `<p style="margin:0;color:${BRAND_COLORS.muted};font-size:13px;">Nadzorna plošča: <a href="${escapeAttribute(input.secondaryUrl)}" style="color:${BRAND_COLORS.primary};">${escapeHtml(input.secondaryUrl)}</a></p>`
+    ? `<p style="margin:0;color:${BRAND_COLORS.muted};font-size:13px;">${copy.layout.dashboard}: <a href="${escapeAttribute(input.secondaryUrl)}" style="color:${BRAND_COLORS.primary};">${escapeHtml(input.secondaryUrl)}</a></p>`
     : "";
   const unsubscribeHtml = input.unsubscribeUrl
-    ? ` <a href="${escapeAttribute(input.unsubscribeUrl)}" style="color:${BRAND_COLORS.primary};">Upravljanje e-mail obvestil in odjava</a>.`
+    ? ` <a href="${escapeAttribute(input.unsubscribeUrl)}" style="color:${BRAND_COLORS.primary};">${copy.layout.unsubscribe}</a>.`
     : "";
 
   return [
     "<!doctype html>",
-    '<html lang="sl">',
+    `<html lang="${input.locale}">`,
     "<head>",
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
@@ -275,7 +480,7 @@ function renderEmailLayout(input: {
     "</td>",
     "</tr>",
     "</table>",
-    `<p style="max-width:620px;margin:16px 0 0;color:${BRAND_COLORS.muted};font-size:12px;line-height:1.5;">To sporočilo ste prejeli, ker uporabljate AI Visibility Radar.${unsubscribeHtml}</p>`,
+    `<p style="max-width:620px;margin:16px 0 0;color:${BRAND_COLORS.muted};font-size:12px;line-height:1.5;">${copy.layout.footer}${unsubscribeHtml}</p>`,
     "</td>",
     "</tr>",
     "</table>",
@@ -295,13 +500,22 @@ function renderMetricTable(rows: Array<[string, string]>) {
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0;border:1px solid ${BRAND_COLORS.border};border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden;">${rowHtml}</table>`;
 }
 
-function formatDateTime(value: Date | string) {
+function normalizeEmailLocale(value: unknown): EmailLocale {
+  if (typeof value !== "string") return "sl";
+  return value.trim().toLowerCase().startsWith("en") ? "en" : "sl";
+}
+
+function formatDateTime(value: Date | string, locale: EmailLocale) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat("sl-SI", {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "sl-SI", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]+>/g, "");
 }
 
 function escapeHtml(value: string) {

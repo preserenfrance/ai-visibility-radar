@@ -2,26 +2,40 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { getI18n } from "@/lib/i18n";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "AI Visibility Radar",
-  description:
-    "Merjenje AI vidnosti znamke v ChatGPT, Gemini in Claude: omembe, konkurenti, citati, trendi in javni AI pogled na ponudbo.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { dictionary } = await getI18n();
+  return {
+    title: "AI Visibility Radar",
+    description: dictionary.metadata.description,
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { locale, dictionary } = await getI18n();
+
   return (
-    <html lang="sl">
+    <html lang={locale}>
       <body>
         <div className="flex min-h-screen flex-col">
-          <SiteHeader />
+          <SiteHeader
+            locale={locale}
+            messages={{
+              common: dictionary.common,
+              nav: dictionary.nav,
+              localeNames: dictionary.localeNames,
+            }}
+          />
           <div className="flex-1">{children}</div>
-          <SiteFooter />
+          <SiteFooter
+            messages={{ common: dictionary.common, footer: dictionary.footer }}
+          />
         </div>
         <Analytics />
       </body>

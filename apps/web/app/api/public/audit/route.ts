@@ -10,6 +10,7 @@ const schema = z.object({
   brandName: z.string().min(1),
   country: z.string().default("Slovenia"),
   language: z.string().default("sl"),
+  locale: z.string().default("sl"),
   prompts: z.array(z.string().min(3)).min(3).max(5),
   providers: z
     .array(z.enum(["openai", "google", "anthropic"]))

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getI18n } from "@/lib/i18n";
 
 const CONTACT_EMAIL = "hey@llmvisio.com";
 
@@ -72,17 +73,18 @@ export default async function ContactPage({
   searchParams?: Promise<{ status?: string }>;
 }) {
   const params = await searchParams;
+  const { dictionary } = await getI18n();
+  const contact = dictionary.contact;
 
   return (
     <main className="mx-auto grid max-w-5xl gap-8 px-5 py-12 lg:grid-cols-[0.8fr_1.2fr]">
       <section className="pt-2">
-        <p className="text-sm font-semibold text-primary">Kontakt</p>
+        <p className="text-sm font-semibold text-primary">{contact.eyebrow}</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-normal">
-          Pišite nam
+          {contact.title}
         </h1>
         <p className="mt-4 text-muted-foreground">
-          Za vprašanja o AI Visibility Radarju, paketih, poročilih ali podpori
-          smo dosegljivi na{" "}
+          {contact.intro}{" "}
           <a className="text-primary" href={`mailto:${CONTACT_EMAIL}`}>
             {CONTACT_EMAIL}
           </a>
@@ -92,10 +94,10 @@ export default async function ContactPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Kontaktni obrazec</CardTitle>
+          <CardTitle>{contact.formTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          {statusAlert(params?.status)}
+          {statusAlert(params?.status, contact.status)}
           <form action={sendContactMessage} className="mt-4 grid gap-4">
             <input
               type="text"
@@ -104,21 +106,25 @@ export default async function ContactPage({
               autoComplete="off"
               className="hidden"
             />
-            <Input name="name" placeholder="Ime in priimek" required />
+            <Input name="name" placeholder={contact.namePlaceholder} required />
             <Input
               name="email"
               type="email"
               placeholder="ime@podjetje.si"
               required
             />
-            <Input name="subject" placeholder="Zadeva" required />
+            <Input
+              name="subject"
+              placeholder={contact.subjectPlaceholder}
+              required
+            />
             <Textarea
               name="message"
-              placeholder="Kako vam lahko pomagamo?"
+              placeholder={contact.messagePlaceholder}
               rows={7}
               required
             />
-            <Button type="submit">Pošlji sporočilo</Button>
+            <Button type="submit">{contact.submit}</Button>
           </form>
         </CardContent>
       </Card>
@@ -147,25 +153,27 @@ async function recordContactEmailEvent(input: {
   }
 }
 
-function statusAlert(status?: string) {
+function statusAlert(
+  status: string | undefined,
+  messages: { sent: string; missing: string; failed: string },
+) {
   switch (status) {
     case "sent":
       return (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          Sporočilo je poslano. Odgovorimo čim prej.
+          {messages.sent}
         </div>
       );
     case "missing":
       return (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          Izpolnite vsa obvezna polja.
+          {messages.missing}
         </div>
       );
     case "failed":
       return (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          Sporočila trenutno ni bilo mogoče poslati. Lahko nam pišete neposredno
-          na hey@llmvisio.com.
+          {messages.failed}
         </div>
       );
     default:

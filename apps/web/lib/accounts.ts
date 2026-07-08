@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "@ai-radar/email";
+import { normalizeLocale, type SupportedLocale } from "@ai-radar/shared";
 import {
   emailConsentData,
   emailPreferencesUrl,
@@ -11,9 +12,19 @@ import { triggerUserRegisteredWebhook } from "@/lib/make-webhooks";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 60;
-const WELCOME_EMAIL_SUBJECT = "Dobrodošli v AI Visibility Radar";
-const PASSWORD_RESET_EMAIL_SUBJECT =
-  "Ponastavitev gesla za AI Visibility Radar";
+const ACCOUNT_EMAIL_SUBJECTS: Record<
+  SupportedLocale,
+  { welcome: string; passwordReset: string }
+> = {
+  sl: {
+    welcome: "Dobrodošli v AI Visibility Radar",
+    passwordReset: "Ponastavitev gesla za AI Visibility Radar",
+  },
+  en: {
+    welcome: "Welcome to AI Visibility Radar",
+    passwordReset: "Reset your AI Visibility Radar password",
+  },
+};
 
 export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -35,9 +46,11 @@ export async function createUserAccount(input: {
   organizationName?: string;
   marketingEmailConsent?: boolean;
   scanEmailConsent?: boolean;
+  locale?: string;
   source?: "signup" | "api_signup";
 }) {
   const email = normalizeEmail(input.email);
+  const locale = normalizeLocale(input.locale);
   const existing = await prisma.user.findUnique({
     where: { email },
     include: { memberships: true },
@@ -56,6 +69,7 @@ export async function createUserAccount(input: {
         data: {
           name: input.name,
           passwordHash,
+          preferredLocale: locale,
           ...emailConsentData(consent, existing),
         },
         include: { memberships: true },
@@ -65,6 +79,7 @@ export async function createUserAccount(input: {
           email,
           name: input.name,
           passwordHash,
+          preferredLocale: locale,
           ...emailConsentData(consent),
         },
         include: { memberships: true },
@@ -99,11 +114,12 @@ export async function createUserAccount(input: {
   await sendAccountNotification({
     userId: userWithMemberships.id,
     label: "welcome email",
-    subject: WELCOME_EMAIL_SUBJECT,
+    subject: ACCOUNT_EMAIL_SUBJECTS[locale].welcome,
     send: () =>
       sendWelcomeEmail({
         to: userWithMemberships.email,
         name: userWithMemberships.name,
+        locale,
         preferencesUrl: emailPreferencesUrl(preferencesToken),
       }),
   });
@@ -133,6 +149,7 @@ export async function requestPasswordReset(emailInput: string) {
   const email = normalizeEmail(emailInput);
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return { sent: true, skipped: false, resetUrl: undefined };
+  const locale = normalizeLocale(user.preferredLocale);
 
   const token = randomBytes(32).toString("base64url");
   const resetUrl = `${getConfig().NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
@@ -149,19 +166,20 @@ export async function requestPasswordReset(emailInput: string) {
     emailResult = await sendPasswordResetEmail({
       to: email,
       resetUrl,
+      locale,
       expiresInMinutes: RESET_TOKEN_TTL_MS / 1000 / 60,
     });
     await recordAccountEmailEvent({
       userId: user.id,
       type: emailResult.skipped ? "queued" : "sent",
       providerId: emailResult.id,
-      subject: PASSWORD_RESET_EMAIL_SUBJECT,
+      subject: ACCOUNT_EMAIL_SUBJECTS[locale].passwordReset,
     });
   } catch (error) {
     await recordAccountEmailEvent({
       userId: user.id,
       type: "failed",
-      subject: PASSWORD_RESET_EMAIL_SUBJECT,
+      subject: ACCOUNT_EMAIL_SUBJECTS[locale].passwordReset,
       error,
     });
     throw error;
