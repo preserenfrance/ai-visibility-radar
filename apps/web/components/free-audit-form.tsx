@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Activity, ArrowRight, Loader2 } from "lucide-react";
 import { LanguageSelect } from "@/components/language-select";
 import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
+import { trackAnalyticsEvent } from "@/components/analytics-events";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -103,8 +104,15 @@ export function FreeAuditForm({
       const value = element?.value.trim() ?? "";
       return value.length >= 3;
     }).length;
+    const hasEnoughPrompts = enteredPrompts >= MIN_PROMPT_COUNT;
 
-    if (enteredPrompts >= MIN_PROMPT_COUNT) return;
+    trackAnalyticsEvent("free_audit_cta_click", {
+      location: "free_audit_form",
+      prompt_count: enteredPrompts,
+      valid_prompt_count: hasEnoughPrompts,
+    });
+
+    if (hasEnoughPrompts) return;
 
     event.preventDefault();
     setSuggestError(null);

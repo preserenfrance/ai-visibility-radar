@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { LockKeyhole, Loader2, PlayCircle, Search } from "lucide-react";
 import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
+import { trackAnalyticsEvent } from "@/components/analytics-events";
 import { Button } from "@/components/ui/button";
 
 export function ProviderScanForm({
@@ -113,7 +114,15 @@ export function ProviderScanForm({
         <SubmitButton limitReached={manualScanLimitReached} />
       ) : (
         <Button asChild>
-          <Link href="/app/settings">
+          <Link
+            href="/app/settings"
+            onClick={() =>
+              trackAnalyticsEvent("upgrade_plan_click", {
+                location: "manual_scan_locked",
+                plan: "starter",
+              })
+            }
+          >
             <LockKeyhole className="h-4 w-4" />
             Nadgradi za ročni zagon
           </Link>

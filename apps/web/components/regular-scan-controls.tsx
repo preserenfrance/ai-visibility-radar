@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CalendarClock, CreditCard, Loader2 } from "lucide-react";
+import { trackAnalyticsEvent } from "@/components/analytics-events";
 import { Button } from "@/components/ui/button";
 
 type Plan = "free" | "starter" | "growth" | "disabled";
@@ -54,6 +55,12 @@ export function RegularScanControls({
   }
 
   async function startCheckout() {
+    trackAnalyticsEvent("upgrade_plan_click", {
+      location: "regular_scan_controls",
+      plan: "starter",
+      intent: "regular_scan",
+    });
+
     const response = await fetch("/api/billing/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

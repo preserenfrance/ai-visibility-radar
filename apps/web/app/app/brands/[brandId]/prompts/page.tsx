@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@ai-radar/db";
 import { Plus, Trash2 } from "lucide-react";
+import { TrackedAnchor } from "@/components/analytics-events";
 import { BrandMenu } from "@/components/brand-menu";
 import {
   CompetitorMentionCount,
@@ -264,7 +264,16 @@ Kje naj kupim visoke grede za domači vrt?`}
                   paket Starter ali Growth.
                 </p>
                 <Button asChild>
-                  <Link href="/app/settings">Nadgradi za ročni zagon</Link>
+                  <TrackedAnchor
+                    href="/app/settings"
+                    eventName="upgrade_plan_click"
+                    eventProperties={{
+                      location: "brand_prompts_manual_scan_warning",
+                      plan: "starter",
+                    }}
+                  >
+                    Nadgradi za ročni zagon
+                  </TrackedAnchor>
                 </Button>
               </div>
             </div>

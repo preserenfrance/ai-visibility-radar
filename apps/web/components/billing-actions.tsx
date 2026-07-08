@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CreditCard, Loader2 } from "lucide-react";
+import { trackAnalyticsEvent } from "@/components/analytics-events";
 import { Button } from "@/components/ui/button";
 
 type PaidPlan = "starter" | "growth";
@@ -34,6 +35,12 @@ export function BillingActions({
   }
 
   async function startCheckout(plan: PaidPlan) {
+    trackAnalyticsEvent("upgrade_plan_click", {
+      location: "settings_billing",
+      plan,
+      has_stripe_customer: hasStripeCustomer,
+    });
+
     const response = await fetch("/api/billing/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

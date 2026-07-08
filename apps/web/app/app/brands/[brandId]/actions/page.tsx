@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { ExternalLink } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
+import { TrackedAnchor } from "@/components/analytics-events";
 import { PromptContentReviewSubmit } from "@/components/prompt-content-review-submit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,16 @@ export default async function ActionsPage({
               Ročni pregled promptov je vključen v paket Starter ali Growth.
             </span>
             <Button asChild size="sm">
-              <Link href="/app/settings">Nadgradi za ročni zagon</Link>
+              <TrackedAnchor
+                href="/app/settings"
+                eventName="upgrade_plan_click"
+                eventProperties={{
+                  location: "brand_actions_manual_scan_warning",
+                  plan: "starter",
+                }}
+              >
+                Nadgradi za ročni zagon
+              </TrackedAnchor>
             </Button>
           </CardContent>
         </Card>

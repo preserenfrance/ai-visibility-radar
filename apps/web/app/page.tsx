@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { TrackedAnchor } from "@/components/analytics-events";
 import {
   Card,
   CardContent,
@@ -154,9 +155,13 @@ export default function HomePage() {
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild size="default">
-                  <Link href="/ai-visibility-checker">
+                  <TrackedAnchor
+                    href="/ai-visibility-checker"
+                    eventName="first_scan_cta_click"
+                    eventProperties={{ location: "home_hero" }}
+                  >
                     Zaženi prvi pregled <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  </TrackedAnchor>
                 </Button>
                 <Button
                   asChild
@@ -316,7 +321,13 @@ export default function HomePage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/ai-visibility-checker">Preveri svoja vprašanja</Link>
+              <TrackedAnchor
+                href="/ai-visibility-checker"
+                eventName="first_scan_cta_click"
+                eventProperties={{ location: "home_use_cases" }}
+              >
+                Preveri svoja vprašanja
+              </TrackedAnchor>
             </Button>
             <Button asChild variant="outline">
               <Link href="/pricing">Poglej cenik</Link>
@@ -352,7 +363,13 @@ export default function HomePage() {
               </p>
             </div>
             <Button asChild variant="outline">
-              <Link href="/ai-visibility-checker">Začni prvi pregled</Link>
+              <TrackedAnchor
+                href="/ai-visibility-checker"
+                eventName="first_scan_cta_click"
+                eventProperties={{ location: "home_reviews" }}
+              >
+                Začni prvi pregled
+              </TrackedAnchor>
             </Button>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -405,9 +422,13 @@ export default function HomePage() {
             size="default"
             className="bg-white text-slate-950 hover:bg-slate-200"
           >
-            <Link href="/ai-visibility-checker">
+            <TrackedAnchor
+              href="/ai-visibility-checker"
+              eventName="first_scan_cta_click"
+              eventProperties={{ location: "home_bottom_cta" }}
+            >
               Začni prvi pregled <ArrowRight className="h-4 w-4" />
-            </Link>
+            </TrackedAnchor>
           </Button>
         </div>
       </section>

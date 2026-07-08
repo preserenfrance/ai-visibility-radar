@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { TrackedAnchor } from "@/components/analytics-events";
 import { Button } from "@/components/ui/button";
 
 type PlanId = "free" | "starter" | "growth";
@@ -133,7 +134,20 @@ export default function PricingPage() {
                       className="w-full"
                       variant={plan.id === "free" ? "outline" : "default"}
                     >
-                      <Link href={plan.href}>{plan.cta}</Link>
+                      <TrackedAnchor
+                        href={plan.href}
+                        eventName={
+                          plan.id === "free"
+                            ? "free_audit_cta_click"
+                            : "upgrade_plan_click"
+                        }
+                        eventProperties={{
+                          location: "pricing",
+                          plan: plan.id,
+                        }}
+                      >
+                        {plan.cta}
+                      </TrackedAnchor>
                     </Button>
                   </td>
                 ))}
