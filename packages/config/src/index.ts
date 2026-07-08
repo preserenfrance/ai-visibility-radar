@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+const CANONICAL_APP_URL = "https://www.llmvisio.com";
+const LOCAL_APP_URL = "http://localhost:3000";
+
 const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
@@ -48,7 +51,7 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ...parsed,
     NEXT_PUBLIC_APP_URL:
       parsed.NEXT_PUBLIC_APP_URL ??
-      (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : "http://localhost:3000"),
+      (env.NODE_ENV === "development" ? LOCAL_APP_URL : CANONICAL_APP_URL),
   };
 }
 

@@ -42,6 +42,16 @@ const SEARCH_PROMPT_EXECUTION_TIMEOUT_MS = positiveNumber(
   90_000,
   30_000,
 );
+const PROMPT_EXECUTION_MAX_ATTEMPTS = positiveNumber(
+  process.env.PROMPT_EXECUTION_MAX_ATTEMPTS,
+  2,
+  1,
+);
+const PROMPT_EXECUTION_RETRY_DELAY_MS = positiveNumber(
+  process.env.PROMPT_EXECUTION_RETRY_DELAY_MS,
+  1_500,
+  0,
+);
 const PARSER_EXECUTION_TIMEOUT_MS = positiveNumber(
   process.env.PARSER_EXECUTION_TIMEOUT_MS,
   20_000,
@@ -459,21 +469,26 @@ async function processRunPrompt(promptRunId: string) {
         : promptRun.engine.model,
       searchEnabled: promptRun.engine.searchEnabled,
     });
-    const output = await withTimeout(
-      adapter.runPrompt({
-        prompt: promptRun.prompt.text,
-        language: promptRun.scanRun.brand.language,
-        country: promptRun.scanRun.brand.country,
-        brandName: promptRun.scanRun.brand.name,
-        brandDomain: promptRun.scanRun.brand.domain,
-        competitors: promptRun.scanRun.brand.competitors.map((competitor) => ({
-          name: competitor.name,
-          domain: competitor.domain ?? undefined,
-        })),
-        searchEnabled: promptRun.engine.searchEnabled,
-      }),
-      promptExecutionTimeoutMs(promptRun.engine.searchEnabled),
-      `AI prompt run ${promptRunId}`,
+    const output = await runPromptWithRetry(
+      () =>
+        adapter.runPrompt({
+          prompt: promptRun.prompt.text,
+          language: promptRun.scanRun.brand.language,
+          country: promptRun.scanRun.brand.country,
+          brandName: promptRun.scanRun.brand.name,
+          brandDomain: promptRun.scanRun.brand.domain,
+          competitors: promptRun.scanRun.brand.competitors.map(
+            (competitor) => ({
+              name: competitor.name,
+              domain: competitor.domain ?? undefined,
+            }),
+          ),
+          searchEnabled: promptRun.engine.searchEnabled,
+        }),
+      {
+        promptRunId,
+        timeoutMs: promptExecutionTimeoutMs(promptRun.engine.searchEnabled),
+      },
     );
     if (await isScanCanceled(promptRun.scanRunId)) {
       await skipPromptRunIfPending(promptRunId, "Scan je bil preklican.");
@@ -1173,6 +1188,86 @@ function promptExecutionTimeoutMs(searchEnabled: boolean) {
   return searchEnabled
     ? SEARCH_PROMPT_EXECUTION_TIMEOUT_MS
     : PROMPT_EXECUTION_TIMEOUT_MS;
+}
+
+async function runPromptWithRetry<T>(
+  run: () => Promise<T>,
+  input: { promptRunId: string; timeoutMs: number },
+) {
+  const maxAttempts = Math.max(1, PROMPT_EXECUTION_MAX_ATTEMPTS);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await withTimeout(
+        run(),
+        input.timeoutMs,
+        `AI prompt run ${input.promptRunId} attempt ${attempt}/${maxAttempts}`,
+      );
+    } catch (error) {
+      if (attempt >= maxAttempts || !isRetryablePromptError(error)) {
+        if (attempt > 1) {
+          throw new Error(
+            `AI prompt run ${input.promptRunId} failed after ${attempt} attempts: ${errorMessage(error)}`,
+          );
+        }
+        throw error;
+      }
+
+      console.warn("AI prompt run failed; retrying", {
+        promptRunId: input.promptRunId,
+        attempt,
+        maxAttempts,
+        error: errorMessage(error),
+      });
+
+      if (PROMPT_EXECUTION_RETRY_DELAY_MS > 0) {
+        await sleep(PROMPT_EXECUTION_RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  throw new Error(`AI prompt run ${input.promptRunId} failed unexpectedly`);
+}
+
+function isRetryablePromptError(error: unknown) {
+  const message = errorMessage(error).toLowerCase();
+
+  if (
+    message.includes("api_key") ||
+    message.includes("invalid api key") ||
+    message.includes("invalid_api_key") ||
+    message.includes("authentication") ||
+    message.includes("permission") ||
+    message.includes("insufficient_quota") ||
+    message.includes("billing")
+  ) {
+    return false;
+  }
+
+  return [
+    "timed out",
+    "timeout",
+    "rate limit",
+    "429",
+    "500",
+    "502",
+    "503",
+    "504",
+    "temporarily unavailable",
+    "service unavailable",
+    "unavailable",
+    "overloaded",
+    "internal server",
+    "bad gateway",
+    "gateway timeout",
+    "fetch failed",
+    "network",
+    "socket hang up",
+    "econnreset",
+    "etimedout",
+    "resource_exhausted",
+    "deadline_exceeded",
+  ].some((pattern) => message.includes(pattern));
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {

@@ -21,7 +21,7 @@ Set these in Vercel for Production:
 
 ```bash
 DATABASE_URL=
-NEXT_PUBLIC_APP_URL=https://your-production-domain.com
+NEXT_PUBLIC_APP_URL=https://www.llmvisio.com
 
 OPENAI_API_KEY=
 OPENAI_MODEL=
@@ -48,7 +48,7 @@ SENTRY_DSN=
 POSTHOG_KEY=
 ```
 
-For Preview deploys, `NEXT_PUBLIC_APP_URL` can be omitted because the app falls back to Vercel's `VERCEL_URL`. Set it explicitly for Production and custom domains.
+Set `NEXT_PUBLIC_APP_URL=https://www.llmvisio.com` in Production and Preview environments so emails, billing redirects, password reset links, and audit report links always use the public domain.
 
 Optional for the web deploy:
 

@@ -129,10 +129,10 @@ Za Production nastavi:
 
 ```bash
 DATABASE_URL=
-NEXT_PUBLIC_APP_URL=https://your-production-domain.com
+NEXT_PUBLIC_APP_URL=https://www.llmvisio.com
 ```
 
-Za Preview lahko `NEXT_PUBLIC_APP_URL` izpustis, ker aplikacija uporabi Vercel `VERCEL_URL`.
+Nastavi tudi za Preview, da emaili, reset povezave, billing redirecti in audit reporti vedno uporabljajo javno domeno `www.llmvisio.com`.
 
 ## 7. Prvi deploy
 

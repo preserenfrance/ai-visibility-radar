@@ -4,6 +4,18 @@ import {
   type AuditReportInput,
 } from "@ai-radar/reports";
 
+const BRAND_COLORS = {
+  background: "#F9FAFB",
+  foreground: "#0F1729",
+  primary: "#158479",
+  primaryDark: "#0F5F58",
+  secondary: "#E3EAF2",
+  muted: "#566376",
+  accent: "#F6A728",
+  border: "#C5D0DD",
+  card: "#FFFFFF",
+};
+
 export type SendEmailInput = {
   to: string;
   subject: string;
@@ -44,7 +56,8 @@ export async function sendEmail(
   const resend = new Resend(config.RESEND_API_KEY);
   const response = await resend.emails.send({
     from:
-      config.RESEND_FROM_EMAIL ?? "AI Visibility Radar <onboarding@resend.dev>",
+      config.RESEND_FROM_EMAIL ??
+      "AI Visibility Radar <notifications@llmvisio.com>",
     to: input.to,
     subject: input.subject,
     html: input.html,
@@ -222,13 +235,13 @@ function renderEmailLayout(input: {
   unsubscribeUrl?: string;
 }) {
   const ctaHtml = input.cta
-    ? `<p style="margin:28px 0 20px;"><a href="${escapeAttribute(input.cta.url)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;">${escapeHtml(input.cta.label)}</a></p>`
+    ? `<p style="margin:28px 0 20px;"><a href="${escapeAttribute(input.cta.url)}" style="display:inline-block;background:${BRAND_COLORS.primary};color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;">${escapeHtml(input.cta.label)}</a></p>`
     : "";
   const secondaryHtml = input.secondaryUrl
-    ? `<p style="margin:0;color:#6b7280;font-size:13px;">Nadzorna plošča: <a href="${escapeAttribute(input.secondaryUrl)}" style="color:#2563eb;">${escapeHtml(input.secondaryUrl)}</a></p>`
+    ? `<p style="margin:0;color:${BRAND_COLORS.muted};font-size:13px;">Nadzorna plošča: <a href="${escapeAttribute(input.secondaryUrl)}" style="color:${BRAND_COLORS.primary};">${escapeHtml(input.secondaryUrl)}</a></p>`
     : "";
   const unsubscribeHtml = input.unsubscribeUrl
-    ? ` <a href="${escapeAttribute(input.unsubscribeUrl)}" style="color:#2563eb;">Upravljanje e-mail obvestil in odjava</a>.`
+    ? ` <a href="${escapeAttribute(input.unsubscribeUrl)}" style="color:${BRAND_COLORS.primary};">Upravljanje e-mail obvestil in odjava</a>.`
     : "";
 
   return [
@@ -239,23 +252,30 @@ function renderEmailLayout(input: {
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
     `<title>${escapeHtml(input.title)}</title>`,
     "</head>",
-    '<body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">',
+    `<body style="margin:0;background:${BRAND_COLORS.background};font-family:Cabin,Arial,Helvetica,sans-serif;color:${BRAND_COLORS.foreground};">`,
     `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(input.preheader)}</div>`,
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:28px 12px;">',
+    `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BRAND_COLORS.background};padding:28px 12px;">`,
     "<tr>",
     '<td align="center">',
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">',
+    `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:${BRAND_COLORS.card};border:1px solid ${BRAND_COLORS.border};border-radius:10px;overflow:hidden;">`,
+    "<tr>",
+    `<td style="padding:20px 28px;background:${BRAND_COLORS.primary};color:#ffffff;">`,
+    '<p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0;text-transform:uppercase;">LLM Visio</p>',
+    '<p style="margin:0;font-size:18px;line-height:1.3;font-weight:700;">AI Visibility Radar</p>',
+    `<div style="width:44px;height:3px;margin-top:14px;background:${BRAND_COLORS.accent};border-radius:999px;"></div>`,
+    "</td>",
+    "</tr>",
     "<tr>",
     '<td style="padding:28px 28px 24px;">',
-    '<p style="margin:0 0 12px;color:#6b7280;font-size:13px;font-weight:700;letter-spacing:0;text-transform:uppercase;">AI Visibility Radar</p>',
-    `<h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#111827;">${escapeHtml(input.title)}</h1>`,
-    `<div style="font-size:15px;line-height:1.65;color:#374151;">${input.bodyHtml}</div>`,
+    `<p style="margin:0 0 12px;color:${BRAND_COLORS.primary};font-size:13px;font-weight:700;letter-spacing:0;text-transform:uppercase;">AI Visibility Radar</p>`,
+    `<h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:${BRAND_COLORS.foreground};">${escapeHtml(input.title)}</h1>`,
+    `<div style="font-size:15px;line-height:1.65;color:${BRAND_COLORS.foreground};">${input.bodyHtml}</div>`,
     ctaHtml,
     secondaryHtml,
     "</td>",
     "</tr>",
     "</table>",
-    `<p style="max-width:620px;margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">To sporočilo ste prejeli, ker uporabljate AI Visibility Radar.${unsubscribeHtml}</p>`,
+    `<p style="max-width:620px;margin:16px 0 0;color:${BRAND_COLORS.muted};font-size:12px;line-height:1.5;">To sporočilo ste prejeli, ker uporabljate AI Visibility Radar.${unsubscribeHtml}</p>`,
     "</td>",
     "</tr>",
     "</table>",
@@ -268,11 +288,11 @@ function renderMetricTable(rows: Array<[string, string]>) {
   const rowHtml = rows
     .map(
       ([label, value]) =>
-        `<tr><td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${escapeHtml(label)}</td><td align="right" style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#111827;">${escapeHtml(value)}</td></tr>`,
+        `<tr><td style="padding:10px 12px;border-bottom:1px solid ${BRAND_COLORS.border};color:${BRAND_COLORS.muted};">${escapeHtml(label)}</td><td align="right" style="padding:10px 12px;border-bottom:1px solid ${BRAND_COLORS.border};font-weight:700;color:${BRAND_COLORS.foreground};">${escapeHtml(value)}</td></tr>`,
     )
     .join("");
 
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0;border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden;">${rowHtml}</table>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0;border:1px solid ${BRAND_COLORS.border};border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden;">${rowHtml}</table>`;
 }
 
 function formatDateTime(value: Date | string) {
