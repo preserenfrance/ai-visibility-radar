@@ -9,7 +9,7 @@ export default async function AdminScanMonitorPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/scan-monitor");
   if (!isAdminUser(user))
-    return <main className="p-8">Nimate dostopa do admin strani.</main>;
+    return <main className="p-8">You do not have access to the admin area.</main>;
 
   const snapshot = await buildAdminScanMonitorSnapshot();
   return <AdminScanMonitor initialData={snapshot} />;

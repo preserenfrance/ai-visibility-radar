@@ -29,9 +29,9 @@ async function addPrompt(formData: FormData) {
   const promptTexts = promptLinesFromText(text);
 
   if (promptTexts.length === 0)
-    throw new Error("Vnesi vsaj en prompt z vsaj 3 znaki");
+    throw new Error("Enter at least one prompt with at least 3 characters");
   if (promptTexts.some((prompt) => prompt.length < 3))
-    throw new Error("Vsak prompt mora imeti vsaj 3 znake");
+    throw new Error("Each prompt must have at least 3 characters");
 
   const { brand } = await requireBrandAccess(brandId);
   const promptLimit = promptLimitForOrganization(brand.organization);
@@ -44,7 +44,7 @@ async function addPrompt(formData: FormData) {
     promptSet = await prisma.promptSet.create({
       data: {
         brandId,
-        name: `${brand.name} ročni prompti`,
+        name: `${brand.name} manual prompts`,
         language: brand.language,
         country: brand.country,
         status: "active",
@@ -61,12 +61,12 @@ async function addPrompt(formData: FormData) {
   const availablePromptSlots = promptLimit - activePromptCount;
   if (availablePromptSlots <= 0) {
     throw new Error(
-      `Bad Request: ta paket omogoča največ ${promptLimit} aktivnih promptov na znamko`,
+      `Bad Request: this plan allows up to ${promptLimit} active prompts per brand`,
     );
   }
   if (promptTexts.length > availablePromptSlots) {
     throw new Error(
-      `Bad Request: dodaš lahko še največ ${availablePromptSlots} aktivnih promptov`,
+      `Bad Request: you can add up to ${availablePromptSlots} active prompts`,
     );
   }
 
@@ -111,7 +111,7 @@ async function updatePrompt(formData: FormData) {
     where: { id: promptId },
     include: { promptSet: true },
   });
-  if (!prompt) throw new Error("Prompt ni najden");
+  if (!prompt) throw new Error("Prompt not found");
   await requireBrandAccess(prompt.promptSet.brandId);
   await prisma.prompt.update({
     where: { id: promptId },
@@ -132,7 +132,7 @@ async function deletePrompt(formData: FormData) {
       _count: { select: { promptRuns: true } },
     },
   });
-  if (!prompt) throw new Error("Prompt ni najden");
+  if (!prompt) throw new Error("Prompt not found");
   await requireBrandAccess(prompt.promptSet.brandId);
 
   if (prompt._count.promptRuns > 0) {
@@ -203,28 +203,28 @@ export default async function PromptsPage({
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Rezultati promptov</h1>
+        <h1 className="text-3xl font-semibold">Prompt results</h1>
         <p className="text-muted-foreground">
-          {brand?.name} · {activePromptCount}/{promptLimit} aktivnih promptov
+          {brand?.name} · {activePromptCount}/{promptLimit} active prompts
         </p>
       </div>
       <BrandMenu brandId={brandId} active="prompts" />
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Dodaj nove prompte</CardTitle>
+          <CardTitle>Add new prompts</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={addPrompt} className="grid gap-3">
             <input type="hidden" name="brandId" value={brandId} />
             <p className="text-sm text-muted-foreground">
-              Vsak prompt vpiši v svojo vrstico. Lahko prilepiš več promptov
-              naenkrat in nato enkrat klikneš dodaj.
+              Enter each prompt on its own line. You can paste multiple prompts
+              at once and then click add once.
             </p>
             <Textarea
               name="text"
-              placeholder={`Kje lahko kupim kakovostno vrtno pohištvo z dostavo v Sloveniji?
-Katera spletna trgovina ima dobro ponudbo kosilnic za manjši vrt?
-Kje naj kupim visoke grede za domači vrt?`}
+              placeholder={`Where can I buy quality garden furniture with delivery?
+Which online store has a good selection of lawn mowers for a small garden?
+Where should I buy raised garden beds for home use?`}
               required
               disabled={promptLimitReached}
               className="min-h-32"
@@ -232,12 +232,12 @@ Kje naj kupim visoke grede za domači vrt?`}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
                 {promptLimitReached
-                  ? `Dosežen je limit ${promptLimit} aktivnih promptov za trenutni paket.`
-                  : `Dodaš lahko še ${promptLimit - activePromptCount} aktivnih promptov.`}
+                  ? `Limit reached: ${promptLimit} active prompts for the current plan.`
+                  : `You can add ${promptLimit - activePromptCount} more active prompts.`}
               </p>
               <Button type="submit" disabled={promptLimitReached}>
                 <Plus className="h-4 w-4" />
-                Dodaj prompte
+                Add prompts
               </Button>
             </div>
           </form>
@@ -249,10 +249,10 @@ Kje naj kupim visoke grede za domači vrt?`}
               <input type="hidden" name="brandId" value={brandId} />
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Novi prompti so dodani. Lahko takoj zaženeš pregled v ChatGPT
-                  za aktivne prompte te znamke.
+                  New prompts were added. You can immediately run a ChatGPT
+                  review for the active prompts of this brand.
                 </p>
-                <Button type="submit">Zaženi pregled s temi prompti</Button>
+                <Button type="submit">Run a scan with these prompts</Button>
               </div>
             </form>
           )}
@@ -260,8 +260,8 @@ Kje naj kupim visoke grede za domači vrt?`}
             <div className="mt-4 rounded-md border bg-secondary/30 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Novi prompti so dodani. Ročni zagon pregleda je vključen v
-                  paket Starter ali Growth.
+                  New prompts were added. Manual scan runs are included in
+                  the Starter or Growth plan.
                 </p>
                 <Button asChild>
                   <TrackedAnchor
@@ -272,7 +272,7 @@ Kje naj kupim visoke grede za domači vrt?`}
                       plan: "starter",
                     }}
                   >
-                    Nadgradi za ročni zagon
+                    Upgrade for manual runs
                   </TrackedAnchor>
                 </Button>
               </div>
@@ -282,7 +282,7 @@ Kje naj kupim visoke grede za domači vrt?`}
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Tabela promptov</CardTitle>
+          <CardTitle>Prompt table</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -290,11 +290,11 @@ Kje naj kupim visoke grede za domači vrt?`}
               <TR>
                 <TH>Prompt</TH>
                 <TH>Modeli</TH>
-                <TH>Konkurenti</TH>
-                <TH>Najboljši rang</TH>
-                <TH>Zadnja izvedba</TH>
-                <TH>Aktiven</TH>
-                <TH>Upravljanje</TH>
+                <TH>Competitors</TH>
+                <TH>Best rank</TH>
+                <TH>Last run</TH>
+                <TH>Active</TH>
+                <TH>Manage</TH>
               </TR>
             </THead>
             <TBody>
@@ -318,7 +318,7 @@ Kje naj kupim visoke grede za domači vrt?`}
                             />
                             <Textarea name="text" defaultValue={prompt.text} />
                             <Button size="sm" type="submit">
-                              Shrani prompt
+                              Save prompt
                             </Button>
                           </form>
                           {prompt.promptRuns.slice(0, 3).map((run) => {
@@ -340,25 +340,25 @@ Kje naj kupim visoke grede za domači vrt?`}
                                   </Badge>
                                 </div>
                                 <div className="text-sm font-medium">
-                                  Izvorni odgovor
+                                  Raw answer
                                 </div>
                                 <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
                                   {run.aiResponse?.rawText ??
                                     run.errorMessage ??
-                                    "Ni odgovora"}
+                                    "No answer"}
                                 </pre>
                                 <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
-                                  <div>Rang: {parsed?.brandRank ?? "-"}</div>
+                                  <div>Rank: {parsed?.brandRank ?? "-"}</div>
                                   <div>
-                                    Znamka omenjena:{" "}
-                                    {parsed?.brandMentioned ? "da" : "ne"}
+                                    Brand mentioned:{" "}
+                                    {parsed?.brandMentioned ? "yes" : "no"}
                                   </div>
                                   <div>
-                                    Točnost: {parsed?.accuracyScore ?? "-"}
+                                    Accuracy: {parsed?.accuracyScore ?? "-"}
                                   </div>
                                 </div>
                                 <div className="mt-2 text-xs text-muted-foreground">
-                                  Citati:{" "}
+                                  Citations:{" "}
                                   {run.aiResponse?.citations
                                     .map((citation) => citation.domain)
                                     .join(", ") || "-"}
@@ -380,7 +380,7 @@ Kje naj kupim visoke grede za domači vrt?`}
                     <TD>{bestBrandRank(latestRuns) ?? "-"}</TD>
                     <TD>
                       {prompt.promptRuns[0]?.createdAt.toLocaleString(
-                        "sl-SI",
+                        "en-US",
                       ) ?? "-"}
                     </TD>
                     <TD>
@@ -398,7 +398,7 @@ Kje naj kupim visoke grede za domači vrt?`}
                         />
                         <Button size="sm" variant="destructive" type="submit">
                           <Trash2 className="h-4 w-4" />
-                          Izbriši
+                          Delete
                         </Button>
                       </form>
                     </TD>
@@ -471,13 +471,13 @@ function statusLabel(status: string) {
   switch (status) {
     case "queued":
     case "running":
-      return "v delu";
+      return "in progress";
     case "completed":
-      return "končano";
+      return "completed";
     case "failed":
-      return "napaka";
+      return "error";
     case "canceled":
-      return "preklicano";
+      return "canceled";
     default:
       return status;
   }

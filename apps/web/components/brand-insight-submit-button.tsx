@@ -20,7 +20,7 @@ export function BrandInsightSubmitButton({ hasValue }: { hasValue: boolean }) {
       ) : (
         <RefreshCw className="h-3.5 w-3.5" />
       )}
-      {pending ? "Pripravljam..." : hasValue ? "Osveži" : "Pripravi"}
+      {pending ? "Preparing..." : hasValue ? "Refresh" : "Prepare"}
     </Button>
   );
 }

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminLeadsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/leads");
-  if (!isAdminUser(user)) return <main className="p-8">Nimate dostopa do admin strani.</main>;
+  if (!isAdminUser(user)) return <main className="p-8">You do not have access to the admin area.</main>;
   const leads = await prisma.lead.findMany({
     orderBy: { createdAt: "desc" },
     include: {
@@ -35,24 +35,24 @@ export default async function AdminLeadsPage() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Admin leadi</h1>
-        <p className="text-muted-foreground">Zajeti leadi, audit rezultat, glavni konkurent in status.</p>
+        <h1 className="text-3xl font-semibold">Admin leads</h1>
+        <p className="text-muted-foreground">Captured leads, audit result, top competitor and status.</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Tabela leadov</CardTitle>
+          <CardTitle>Lead table</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Email</TH>
-                <TH>Domena</TH>
-                <TH>Znamka</TH>
+                <TH>Domain</TH>
+                <TH>Brand</TH>
                 <TH>AI Visibility Score</TH>
-                <TH>Glavni konkurent</TH>
+                <TH>Top competitor</TH>
                 <TH>Lead score</TH>
-                <TH>Ustvarjeno</TH>
+                <TH>Created</TH>
                 <TH>Status</TH>
               </TR>
             </THead>
@@ -65,7 +65,7 @@ export default async function AdminLeadsPage() {
                   <TD>{lead.auditScanRun?.scoreSnapshot?.visibilityScore ?? "-"}</TD>
                   <TD>{topCompetitors[lead.id] ?? "-"}</TD>
                   <TD>{lead.leadScore}</TD>
-                  <TD>{lead.createdAt.toLocaleString("sl-SI")}</TD>
+                  <TD>{lead.createdAt.toLocaleString("en-US")}</TD>
                   <TD><Badge variant="secondary">{lead.status}</Badge></TD>
                 </TR>
               ))}

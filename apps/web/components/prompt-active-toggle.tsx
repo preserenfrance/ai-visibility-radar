@@ -31,7 +31,7 @@ export function PromptActiveToggle({
           });
         }}
       />
-      <span>{pending ? "Shranjujem" : isActive ? "Aktiven" : "Neaktiven"}</span>
+      <span>{pending ? "Saving" : isActive ? "Active" : "Inactive"}</span>
     </label>
   );
 }

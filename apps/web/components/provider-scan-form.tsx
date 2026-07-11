@@ -37,28 +37,28 @@ export function ProviderScanForm({
     >
       <input type="hidden" name="brandId" value={brandId} />
       <div>
-        <div className="text-sm font-semibold">Zaženi AI scan</div>
+        <div className="text-sm font-semibold">Run AI scan</div>
         {!compact && (
           <p className="mt-1 text-sm text-muted-foreground">
-            Izberi navadne modele za hiter pregled ali modele s searchom, kadar
-            želiš vire in citate.
+            Choose standard models for a quick scan or search-enabled models
+            when you need sources and citations.
           </p>
         )}
         {!manualScanAccess && (
           <p className="mt-2 rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
-            Ročni zagon promptov je vključen v paket Starter ali Growth.
+            Manual prompt runs are included in the Starter or Growth plan.
           </p>
         )}
         {manualScanUsage && (
           <div className="mt-2 grid gap-1 rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground sm:grid-cols-3">
             <span>
-              Porabljeno:{" "}
+              Used:{" "}
               <strong className="text-foreground">
                 {manualScanUsage.used}/{manualScanUsage.limit}
               </strong>
             </span>
             <span>
-              Na voljo:{" "}
+              Available:{" "}
               <strong className="text-foreground">
                 {manualScanUsage.remaining}
               </strong>
@@ -71,7 +71,7 @@ export function ProviderScanForm({
       <div className={compact ? "grid gap-2 md:grid-cols-2" : "grid gap-3"}>
         <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
           <legend className="px-1 text-sm font-medium">
-            Modeli brez searcha
+            Models without search
           </legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {AI_PROVIDER_OPTIONS.map((provider) => (
@@ -92,7 +92,7 @@ export function ProviderScanForm({
         <fieldset className="grid gap-2 rounded-md border bg-secondary/30 p-3">
           <legend className="flex items-center gap-1 px-1 text-sm font-medium">
             <Search className="h-4 w-4" />
-            Modeli s searchom in citati
+            Models with search and citations
           </legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {AI_PROVIDER_OPTIONS.map((provider) => (
@@ -101,7 +101,7 @@ export function ProviderScanForm({
                 name="providersWithSearch"
                 value={provider.id}
                 label={`${provider.label} + search`}
-                description="Počasneje, vendar zbira vire za tabelo citatov."
+                description="Slower, but collects sources for the citation table."
                 locked={!manualScanAccess}
                 compact={compact}
               />
@@ -124,7 +124,7 @@ export function ProviderScanForm({
             }
           >
             <LockKeyhole className="h-4 w-4" />
-            Nadgradi za ročni zagon
+            Upgrade for manual runs
           </Link>
         </Button>
       )}
@@ -188,14 +188,14 @@ function SubmitButton({ limitReached }: { limitReached: boolean }) {
       {pending ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
-          Dodajam scan v vrsto
+          Adding scan to queue
         </>
       ) : limitReached ? (
-        "Mesečni limit dosežen"
+        "Monthly limit reached"
       ) : (
         <>
           <PlayCircle className="h-4 w-4" />
-          Ponovno preglej ali me ima AI rada
+          Run a new AI visibility scan
         </>
       )}
     </Button>

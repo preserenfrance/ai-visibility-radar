@@ -23,7 +23,7 @@ export function RegularScanControls({
   if (organizationPlan === "disabled") {
     return (
       <span className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-medium text-destructive">
-        Paket deaktiviran
+        Plan disabled
       </span>
     );
   }
@@ -37,7 +37,7 @@ export function RegularScanControls({
       ? "Growth"
       : organizationPlan === "starter"
         ? "Starter"
-        : "Brezplačni";
+        : "Free";
 
   function run(action: () => Promise<void>) {
     setError(null);
@@ -48,7 +48,7 @@ export function RegularScanControls({
         setError(
           caught instanceof Error
             ? caught.message
-            : "Dejanja trenutno ni bilo mogoče izvesti.",
+            : "The action could not be completed right now.",
         );
       }
     });
@@ -74,7 +74,7 @@ export function RegularScanControls({
     if (!response.ok) throw new Error(await responseError(response));
     const data = (await response.json()) as { url?: string };
     if (!data.url)
-      throw new Error("Stripe checkout ni vrnil povezave za plačilo.");
+      throw new Error("Stripe checkout did not return a payment link.");
     window.location.href = data.url;
   }
 
@@ -86,7 +86,7 @@ export function RegularScanControls({
     });
     if (!response.ok) throw new Error(await responseError(response));
     const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error("Stripe portal ni vrnil povezave.");
+    if (!data.url) throw new Error("Stripe portal did not return a link.");
     window.location.href = data.url;
   }
 
@@ -106,11 +106,11 @@ export function RegularScanControls({
             ) : (
               <CreditCard className="h-4 w-4" />
             )}
-            Plačilo
+            Billing
           </Button>
         ) : (
           <span className="rounded-md border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground">
-            {planLabel} aktiven
+            {planLabel} active
           </span>
         )
       ) : (
@@ -125,7 +125,7 @@ export function RegularScanControls({
           ) : (
             <CalendarClock className="h-4 w-4" />
           )}
-          Odpri nastavitve
+          Open settings
         </Button>
       )}
       {error && (
@@ -139,5 +139,5 @@ async function responseError(response: Response) {
   const data = (await response.json().catch(() => null)) as {
     error?: string;
   } | null;
-  return data?.error ?? "Prišlo je do napake.";
+  return data?.error ?? "Something went wrong.";
 }

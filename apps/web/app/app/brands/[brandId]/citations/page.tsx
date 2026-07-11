@@ -12,20 +12,20 @@ export const dynamic = "force-dynamic";
 
 const CITATION_TOOLTIPS = {
   owned:
-    "Da pomeni, da citat vodi na domeno tvoje znamke. Ne pomeni samo omembe, ampak vir, na katerega se model sklicuje.",
+    "Yes means the citation points to your brand domain. It is not just a mention, but a source the model refers to.",
   competitor:
-    "Da pomeni, da citat vodi na domeno, ki jo imamo zabeleženo kot konkurenta.",
+    "Yes means the citation points to a domain recorded as a competitor.",
   supportsBrand:
-    "Da pomeni, da vsebina citata podpira priporočilo ali trditev v korist tvoje znamke.",
+    "Yes means the citation supports a recommendation or claim in favor of your brand.",
   supportsCompetitor:
-    "Da pomeni, da vsebina citata podpira priporočilo ali trditev v korist konkurenta.",
+    "Yes means the citation supports a recommendation or claim in favor of a competitor.",
 } as const;
 
 async function addCitationDomainAsCompetitor(formData: FormData) {
   "use server";
   const brandId = String(formData.get("brandId"));
   const domain = normalizeDomain(String(formData.get("domain") ?? ""));
-  if (!domain) throw new Error("Domena ni najdena");
+  if (!domain) throw new Error("Domain not found");
 
   await requireBrandAccess(brandId);
 
@@ -82,34 +82,34 @@ export default async function CitationsPage({
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Tabela citatov</h1>
+        <h1 className="text-3xl font-semibold">Citation table</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <BrandMenu brandId={brandId} active="citations" />
       <Card>
         <CardHeader>
-          <CardTitle>Viri, ki jih citirajo AI modeli</CardTitle>
+          <CardTitle>Sources cited by AI models</CardTitle>
         </CardHeader>
         <CardContent>
           {citations.length === 0 && (
             <div className="mb-4 rounded-md border bg-secondary/30 p-4 text-sm text-muted-foreground">
-              Citatov še ni. Zaženi nov scan z izbiro modela s searchom, na
-              primer ChatGPT + search.
+              No citations yet. Run a new scan with a search-enabled model, for
+              example ChatGPT + search.
             </div>
           )}
           <Table>
             <THead className="sticky top-0 z-10 bg-white shadow-sm">
               <TR>
                 <TH>URL</TH>
-                <TH>Domena</TH>
-                <TH>Naslov</TH>
+                <TH>Domain</TH>
+                <TH>Title</TH>
                 <TH>Model</TH>
                 <TH>Prompt</TH>
-                <TH title={CITATION_TOOLTIPS.owned}>Lastna domena</TH>
-                <TH title={CITATION_TOOLTIPS.competitor}>Konkurent</TH>
-                <TH title={CITATION_TOOLTIPS.supportsBrand}>Podpira znamko</TH>
+                <TH title={CITATION_TOOLTIPS.owned}>Owned domain</TH>
+                <TH title={CITATION_TOOLTIPS.competitor}>Competitor</TH>
+                <TH title={CITATION_TOOLTIPS.supportsBrand}>Supports brand</TH>
                 <TH title={CITATION_TOOLTIPS.supportsCompetitor}>
-                  Podpira konkurenta
+                  Supports competitor
                 </TH>
               </TR>
             </THead>
@@ -137,7 +137,7 @@ export default async function CitationsPage({
                           value={citation.domain}
                         />
                         <Button size="sm" variant="outline" type="submit">
-                          Dodaj med moje konkurente
+                          Add to my competitors
                         </Button>
                       </form>
                     </div>

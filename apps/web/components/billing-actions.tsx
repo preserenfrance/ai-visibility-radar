@@ -28,7 +28,7 @@ export function BillingActions({
         setError(
           caught instanceof Error
             ? caught.message
-            : "Plačila trenutno ni bilo mogoče odpreti.",
+            : "Billing could not be opened right now.",
         );
       }
     });
@@ -49,7 +49,7 @@ export function BillingActions({
     if (!response.ok) throw new Error(await responseError(response));
     const data = (await response.json()) as { url?: string };
     if (!data.url)
-      throw new Error("Stripe checkout ni vrnil povezave za plačilo.");
+      throw new Error("Stripe checkout did not return a payment link.");
     window.location.href = data.url;
   }
 
@@ -61,7 +61,7 @@ export function BillingActions({
     });
     if (!response.ok) throw new Error(await responseError(response));
     const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error("Stripe portal ni vrnil povezave.");
+    if (!data.url) throw new Error("Stripe portal did not return a link.");
     window.location.href = data.url;
   }
 
@@ -69,7 +69,7 @@ export function BillingActions({
     <div className="flex flex-wrap items-center gap-2">
       {disabled ? (
         <span className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-medium text-destructive">
-          Account je deaktiviran
+          Account is disabled
         </span>
       ) : (
         <>
@@ -129,5 +129,5 @@ async function responseError(response: Response) {
   const data = (await response.json().catch(() => null)) as {
     error?: string;
   } | null;
-  return data?.error ?? "Prišlo je do napake.";
+  return data?.error ?? "Something went wrong.";
 }

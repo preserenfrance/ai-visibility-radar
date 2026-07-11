@@ -2,7 +2,7 @@ export type AiEngineProvider = "openai" | "google" | "anthropic" | "mock";
 
 export type Plan = "free" | "starter" | "growth" | "disabled";
 
-export const DEFAULT_LOCALE = "sl";
+export const DEFAULT_LOCALE = "en";
 export const SUPPORTED_LOCALES = ["sl", "en"] as const;
 export const LOCALE_COOKIE_NAME = "llmvisio_locale";
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];

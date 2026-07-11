@@ -61,14 +61,14 @@ export function CompetitorMentionCount({ names }: { names: string[] }) {
   const uniqueNames = Array.from(new Set(names.filter(Boolean)));
   const label =
     uniqueNames.length === 1
-      ? "1 konkurent"
+      ? "1 competitor"
       : `${uniqueNames.length} konkurentov`;
 
   return (
     <Badge
       variant={uniqueNames.length ? "secondary" : "secondary"}
       title={
-        uniqueNames.length ? uniqueNames.join(", ") : "Ni omenjenih konkurentov"
+        uniqueNames.length ? uniqueNames.join(", ") : "No competitors mentioned"
       }
     >
       {label}
@@ -166,15 +166,15 @@ function mentionTitle(runs: ModelMentionSummary[]) {
   const mentioned = readyRuns.filter((run) => run.brandMentioned);
   if (mentioned.length > 0) {
     const bestRank = bestRankForRuns(mentioned);
-    return bestRank ? `Omenjena, najboljši rang #${bestRank}` : "Omenjena";
+    return bestRank ? `Mentioned, best rank #${bestRank}` : "Mentioned";
   }
-  if (readyRuns.length > 0) return "Ni omenjena";
-  if (runs.some((run) => run.status === "failed")) return "Napaka pri izvedbi";
+  if (readyRuns.length > 0) return "Not mentioned";
+  if (runs.some((run) => run.status === "failed")) return "Run error";
   if (runs.some((run) => run.status === "canceled"))
-    return "Izvedba preklicana";
+    return "Run canceled";
   if (runs.some((run) => run.status === "queued" || run.status === "running"))
-    return "V delu";
-  return "Ni rezultata";
+    return "In progress";
+  return "No result";
 }
 
 function bestRankForRuns(runs: ModelMentionSummary[]) {

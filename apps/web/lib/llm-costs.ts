@@ -320,7 +320,7 @@ function unavailableReport(
     provider,
     label: LLM_COST_PROVIDER_LABELS[provider],
     status: "unavailable",
-    sourceLabel: "Ni provider API endpointa",
+    sourceLabel: "No provider API endpoint",
     totalUsd: null,
     currency: "usd",
     message,
@@ -341,7 +341,7 @@ function errorReport(
     sourceLabel: "Provider API",
     totalUsd: null,
     currency: "usd",
-    message: error instanceof Error ? error.message : "Provider API napaka.",
+    message: error instanceof Error ? error.message : "Provider API error.",
     daily: days.map((day) => ({ ...day, value: 0 })),
     fetchedAt: new Date().toISOString(),
   };
@@ -389,8 +389,8 @@ function providerApiError(status: number, data: unknown) {
       ? record.error.message
       : typeof record.message === "string"
         ? record.message
-        : "neznana napaka";
-  return `Provider API napaka ${status}: ${message}`;
+        : "unknown error";
+  return `Provider API error ${status}: ${message}`;
 }
 
 function rateForModel(provider: LlmCostProvider, model: string): Rate {

@@ -43,27 +43,27 @@ export default async function SettingsPage() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Nastavitve</h1>
+        <h1 className="text-3xl font-semibold">Settings</h1>
         <p className="text-muted-foreground">
-          Organizacije, omejitve paketov in status plačil.
+          Organizations, plan limits and billing status.
         </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Organizacije</CardTitle>
+          <CardTitle>Organizations</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Ime</TH>
+                <TH>Name</TH>
                 <TH>Plan</TH>
-                <TH>Znamke</TH>
-                <TH>Limit promptov</TH>
-                <TH>Ročni scani</TH>
-                <TH>Zagon promptov</TH>
-                <TH>Plačila</TH>
-                <TH>Upravljanje</TH>
+                <TH>Brands</TH>
+                <TH>Prompt limit</TH>
+                <TH>Manual scans</TH>
+                <TH>Prompt runs</TH>
+                <TH>Payments</TH>
+                <TH>Manage</TH>
               </TR>
             </THead>
             <TBody>
@@ -83,15 +83,15 @@ export default async function SettingsPage() {
                     <TD>
                       {organization.brands.length}/{limits.brandCount}
                     </TD>
-                    <TD>{limits.promptsPerBrand} na znamko</TD>
+                    <TD>{limits.promptsPerBrand} per brand</TD>
                     <TD>
                       {manualScanUsage
-                        ? `${manualScanUsage.used}/${manualScanUsage.limit} - reset ${manualScanUsage.resetAt.toLocaleDateString("sl-SI")}`
+                        ? `${manualScanUsage.used}/${manualScanUsage.limit} - reset ${manualScanUsage.resetAt.toLocaleDateString("en-US")}`
                         : "-"}
                     </TD>
                     <TD>{cadenceLabel(limits.scanCadence)}</TD>
                     <TD>
-                      {organization.billingSubscription?.status ?? "ni aktivno"}
+                      {organization.billingSubscription?.status ?? "inactive"}
                     </TD>
                     <TD>
                       <BillingActions
@@ -114,7 +114,7 @@ export default async function SettingsPage() {
 }
 
 function cadenceLabel(value: "none" | "manual" | "weekly") {
-  if (value === "weekly") return "avtomatsko tedensko";
-  if (value === "manual") return "ročno";
-  return "brez zagona";
+  if (value === "weekly") return "automatic weekly";
+  if (value === "manual") return "manual";
+  return "disabled";
 }
