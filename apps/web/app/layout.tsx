@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { MetaPixel } from "@/components/meta-pixel";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getI18n } from "@/lib/i18n";
@@ -38,6 +39,7 @@ export default async function RootLayout({
           />
         </div>
         <Analytics />
+        <MetaPixel />
       </body>
     </html>
   );

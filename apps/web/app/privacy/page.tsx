@@ -5,7 +5,7 @@ const privacyCopy = {
   sl: {
     eyebrow: "Politika zasebnosti",
     title: "Zasebnost in piškotki",
-    updatedAt: "7. julij 2026",
+    updatedAt: "11. julij 2026",
     updatedLabel: "Zadnja posodobitev",
     sections: [
       {
@@ -41,7 +41,7 @@ const privacyCopy = {
       {
         title: "5. Obdelovalci in zunanji ponudniki",
         body: [
-          "Za delovanje storitve uporabljamo ponudnike gostovanja, baze podatkov, e-mail pošiljanja, plačil, analitike, avtomatizacij in AI modelov. To lahko vključuje Vercel, Supabase oziroma PostgreSQL infrastrukturo, Resend, Stripe, Make.com, OpenAI, Google Gemini in Anthropic Claude.",
+          "Za delovanje storitve uporabljamo ponudnike gostovanja, baze podatkov, e-mail pošiljanja, plačil, analitike, oglaševalskega merjenja, avtomatizacij in AI modelov. To lahko vključuje Vercel, Supabase oziroma PostgreSQL infrastrukturo, Resend, Stripe, Meta oziroma Facebook Pixel, Make.com, OpenAI, Google Gemini in Anthropic Claude.",
           "Pri AI ponudnikih obdelujemo predvsem prompte, podatke o znamki, domeni, konkurentih in javno dostopne vsebine, potrebne za izvedbo scana. Obseg poslanih podatkov omejujemo na tisto, kar je potrebno za rezultat.",
           "Z obdelovalci uporabljamo pogodbene in tehnične ukrepe, ki so namenjeni varovanju osebnih podatkov.",
         ],
@@ -64,7 +64,7 @@ const privacyCopy = {
         title: "8. Cookie policy",
         body: [
           "Uporabljamo nujne piškotke in podobne tehnologije, ki so potrebne za prijavo, varnost, delovanje seje in shranjevanje osnovnih nastavitev, vključno z izbranim jezikom. Teh piškotkov ni mogoče izklopiti brez vpliva na delovanje aplikacije.",
-          "Za razumevanje uporabe spletnega mesta lahko uporabljamo zasebnosti prijazno agregirano analitiko. Če bi v prihodnje uvedli neobvezne analitične, oglaševalske ali sledilne piškotke, jih bomo uporabljali na podlagi vaše privolitve, kjer je ta zahtevana.",
+          "Za razumevanje uporabe spletnega mesta in merjenje učinkovitosti oglaševanja lahko uporabljamo analitiko ter oglaševalske oziroma sledilne tehnologije, kot je Meta Pixel, na podlagi vaše privolitve, kjer je ta zahtevana.",
           "Piškotke lahko upravljate tudi v nastavitvah brskalnika. Blokiranje nujnih piškotkov lahko povzroči, da prijava ali aplikacija ne delujeta pravilno.",
         ],
       },
@@ -79,7 +79,7 @@ const privacyCopy = {
   en: {
     eyebrow: "Privacy policy",
     title: "Privacy and cookies",
-    updatedAt: "July 7, 2026",
+    updatedAt: "July 11, 2026",
     updatedLabel: "Last updated",
     sections: [
       {
@@ -115,7 +115,7 @@ const privacyCopy = {
       {
         title: "5. Processors and external providers",
         body: [
-          "We use providers for hosting, databases, email delivery, payments, analytics, automation and AI models. This may include Vercel, Supabase or PostgreSQL infrastructure, Resend, Stripe, Make.com, OpenAI, Google Gemini and Anthropic Claude.",
+          "We use providers for hosting, databases, email delivery, payments, analytics, advertising measurement, automation and AI models. This may include Vercel, Supabase or PostgreSQL infrastructure, Resend, Stripe, Meta or Facebook Pixel, Make.com, OpenAI, Google Gemini and Anthropic Claude.",
           "For AI providers we primarily process prompts, brand data, domains, competitors and publicly available content needed to run the scan. We limit the data sent to what is necessary for the result.",
           "We use contractual and technical measures with processors to protect personal data.",
         ],
@@ -138,7 +138,7 @@ const privacyCopy = {
         title: "8. Cookie policy",
         body: [
           "We use essential cookies and similar technologies required for login, security, session operation and storing basic preferences, including selected language. These cookies cannot be disabled without affecting the app.",
-          "We may use privacy-friendly aggregated analytics to understand website usage. If we introduce optional analytics, advertising or tracking cookies in the future, we will use them based on consent where required.",
+          "We may use analytics and advertising or tracking technologies, such as Meta Pixel, to understand website usage and measure advertising performance, based on consent where required.",
           "You can also manage cookies in browser settings. Blocking essential cookies may cause login or the app to stop working correctly.",
         ],
       },
