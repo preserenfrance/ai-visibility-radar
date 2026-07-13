@@ -49,9 +49,7 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.parse(env);
   return {
     ...parsed,
-    NEXT_PUBLIC_APP_URL:
-      parsed.NEXT_PUBLIC_APP_URL ??
-      (env.NODE_ENV === "development" ? LOCAL_APP_URL : CANONICAL_APP_URL),
+    NEXT_PUBLIC_APP_URL: publicAppUrl(parsed.NEXT_PUBLIC_APP_URL, env.NODE_ENV),
   };
 }
 
@@ -61,4 +59,40 @@ export function requireEnv(name: keyof AppConfig): string {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return String(value);
+}
+
+function publicAppUrl(
+  configuredUrl: string | undefined,
+  nodeEnv: string | undefined,
+) {
+  const fallback =
+    nodeEnv === "development" ? LOCAL_APP_URL : CANONICAL_APP_URL;
+  const normalized = normalizeAppUrl(configuredUrl) ?? fallback;
+
+  if (nodeEnv !== "development" && isVercelDeploymentUrl(normalized)) {
+    return CANONICAL_APP_URL;
+  }
+
+  return normalized;
+}
+
+function normalizeAppUrl(value: string | undefined) {
+  const trimmed = value?.trim().replace(/\/+$/, "");
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  const protocol =
+    trimmed.startsWith("localhost") || trimmed.startsWith("127.")
+      ? "http"
+      : "https";
+  return `${protocol}://${trimmed}`;
+}
+
+function isVercelDeploymentUrl(value: string) {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "vercel.app" || hostname.endsWith(".vercel.app");
+  } catch {
+    return value.toLowerCase().includes(".vercel.app");
+  }
 }
