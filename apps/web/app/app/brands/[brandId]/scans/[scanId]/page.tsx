@@ -1,7 +1,8 @@
 import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
-import { Activity, X } from "lucide-react";
+import { domainFromUrl } from "@ai-radar/shared";
+import { Activity, Search, X } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import {
@@ -43,6 +44,7 @@ export default async function ScanPage({
               parsedResult: true,
               citations: true,
               mentions: true,
+              searchCalls: true,
             },
           },
         },
@@ -200,6 +202,12 @@ export default async function ScanPage({
                                     )
                                     .join(", ") || "-"}
                                 </div>
+                                <SearchTrace
+                                  engineSearchEnabled={run.engine.searchEnabled}
+                                  searchCalls={
+                                    run.aiResponse?.searchCalls ?? []
+                                  }
+                                />
                               </div>
                             ))}
                           </div>
@@ -306,6 +314,105 @@ function LegendError({ label }: { label: string }) {
       {label}
     </span>
   );
+}
+
+function SearchTrace({
+  engineSearchEnabled,
+  searchCalls,
+}: {
+  engineSearchEnabled: boolean;
+  searchCalls: Array<any>;
+}) {
+  if (searchCalls.length === 0) {
+    if (!engineSearchEnabled) return null;
+    return (
+      <div className="mt-3 rounded-md border border-dashed bg-secondary/20 p-3 text-xs text-muted-foreground">
+        No provider search trace was captured for this run.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-md border bg-secondary/20 p-3">
+      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+        <Search className="h-3.5 w-3.5" />
+        AI search trace
+      </div>
+      <div className="space-y-2">
+        {searchCalls.map((call, index) => {
+          const sources = searchCallSources(call.sourcesJson);
+          return (
+            <div
+              key={call.id ?? `${call.query}-${index}`}
+              className="rounded border bg-background p-2"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={call.exact ? "default" : "secondary"}>
+                  {call.exact ? "exact provider query" : "estimated query"}
+                </Badge>
+                <Badge variant="secondary">
+                  {actionLabel(call.actionType)}
+                </Badge>
+              </div>
+              <div className="mt-2 break-words font-mono text-xs">
+                {call.query}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                {sources.length === 0
+                  ? "No source list returned"
+                  : sources.map((source) => (
+                      <a
+                        key={`${source.url}-${source.domain}`}
+                        className="rounded border bg-secondary/30 px-2 py-1 text-primary"
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={source.title ?? source.url}
+                      >
+                        {source.domain}
+                      </a>
+                    ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function actionLabel(actionType: string) {
+  switch (actionType) {
+    case "open_page":
+      return "open page";
+    case "find_in_page":
+      return "find in page";
+    case "search":
+      return "search";
+    default:
+      return "search action";
+  }
+}
+
+function searchCallSources(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const sources: Array<{ url: string; title?: string; domain: string }> = [];
+  for (const source of value) {
+    if (!source || typeof source !== "object" || !("url" in source)) {
+      continue;
+    }
+    const url = String((source as { url: unknown }).url);
+    sources.push({
+      url,
+      title:
+        "title" in source && source.title ? String(source.title) : undefined,
+      domain:
+        "domain" in source && source.domain
+          ? String(source.domain)
+          : (domainFromUrl(url) ?? url),
+    });
+  }
+  return sources.slice(0, 10);
 }
 
 function competitorNamesForRuns(runs: Array<any>) {

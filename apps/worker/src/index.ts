@@ -127,7 +127,7 @@ function startBullMqWorker() {
       }
     },
     {
-      connection,
+      connection: connection as any,
       concurrency: scanConcurrencyLimit(),
     },
   );
@@ -506,6 +506,15 @@ async function processRunPrompt(promptRunId: string) {
         inputTokens: output.inputTokens,
         outputTokens: output.outputTokens,
         cost: output.cost,
+        searchCalls: {
+          create: output.searchCalls.map((call) => ({
+            provider: call.provider,
+            actionType: call.actionType,
+            query: call.query,
+            sourcesJson: JSON.parse(JSON.stringify(call.sources)),
+            exact: call.exact,
+          })),
+        },
       },
     });
     await processParseResponse(aiResponse.id);
@@ -1100,25 +1109,25 @@ function scanCompletedEmailSubject(input: {
   return `AI scan za ${input.brandName} je zaključen (${input.visibilityScore}/100)`;
 }
 
-function parsedResultsForScan(promptRuns: Array<any>) {
-  return promptRuns
-    .map((run) => {
-      const parsed = run.aiResponse?.parsedResult?.parsedJson as
-        | ParsedAiResult
-        | undefined;
-      if (!parsed) return null;
-      return {
-        ...parsed,
-        prompt: run.prompt.text,
-        engine: run.engine.engineName,
-      };
-    })
-    .filter(
-      (
-        result,
-      ): result is ScoreInputResult & { prompt: string; engine: string } =>
-        Boolean(result),
-    );
+function parsedResultsForScan(
+  promptRuns: Array<any>,
+): Array<ScoreInputResult & { prompt: string; engine: string }> {
+  const results: Array<ScoreInputResult & { prompt: string; engine: string }> =
+    [];
+
+  for (const run of promptRuns) {
+    const parsed = run.aiResponse?.parsedResult?.parsedJson as
+      | ParsedAiResult
+      | undefined;
+    if (!parsed) continue;
+    results.push({
+      ...parsed,
+      prompt: run.prompt.text,
+      engine: run.engine.engineName,
+    });
+  }
+
+  return results;
 }
 
 function toStringArray(value: unknown): string[] {

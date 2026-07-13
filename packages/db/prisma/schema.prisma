@@ -373,9 +373,25 @@ model AiResponse {
   promptRun     PromptRun      @relation(fields: [promptRunId], references: [id], onDelete: Cascade)
   parsedResult  ParsedResult?
   citations     Citation[]
+  searchCalls   AiSearchCall[]
   mentions      Mention[]
   createdAt     DateTime       @default(now())
 
+  @@index([provider, createdAt])
+}
+
+model AiSearchCall {
+  id           String         @id @default(cuid())
+  aiResponseId String
+  provider     EngineProvider
+  actionType   String
+  query        String         @db.Text
+  sourcesJson  Json           @default("[]")
+  exact        Boolean        @default(true)
+  aiResponse   AiResponse     @relation(fields: [aiResponseId], references: [id], onDelete: Cascade)
+  createdAt    DateTime       @default(now())
+
+  @@index([aiResponseId])
   @@index([provider, createdAt])
 }
 

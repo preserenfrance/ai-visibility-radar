@@ -54,12 +54,27 @@ export type AiCitation = {
   domain?: string;
 };
 
+export type AiSearchActionType =
+  | "search"
+  | "open_page"
+  | "find_in_page"
+  | "other";
+
+export type AiSearchCall = {
+  provider: AiEngineProvider;
+  actionType: AiSearchActionType;
+  query: string;
+  sources: AiCitation[];
+  exact: boolean;
+};
+
 export type RunPromptOutput = {
   provider: AiEngineProvider;
   model: string;
   rawText: string;
   rawJson: unknown;
   citations: AiCitation[];
+  searchCalls: AiSearchCall[];
   inputTokens?: number;
   outputTokens?: number;
   cost?: number;

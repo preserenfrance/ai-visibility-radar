@@ -1679,6 +1679,15 @@ export async function runPromptRun(promptRunId: string) {
         inputTokens: output.inputTokens,
         outputTokens: output.outputTokens,
         cost: output.cost,
+        searchCalls: {
+          create: output.searchCalls.map((call) => ({
+            provider: call.provider,
+            actionType: call.actionType,
+            query: call.query,
+            sourcesJson: JSON.parse(JSON.stringify(call.sources)),
+            exact: call.exact,
+          })),
+        },
         citations: {
           create: output.citations.map((citation) => ({
             url: citation.url,

@@ -4,6 +4,8 @@ import {
   type AiCitation,
   type AiEngineAdapter,
   type AiEngineProvider,
+  type AiSearchActionType,
+  type AiSearchCall,
   type RunPromptInput,
   type RunPromptOutput,
 } from "@ai-radar/shared";
@@ -126,12 +128,14 @@ class OpenAiResponsesAdapter implements AiEngineAdapter {
       );
     }
 
+    const citations = extractOpenAiCitations(rawJson);
     return {
       provider: "openai",
       model,
       rawText: extractOpenAiText(rawJson),
       rawJson,
-      citations: extractOpenAiCitations(rawJson),
+      citations,
+      searchCalls: extractAiSearchCalls("openai", rawJson, citations),
       inputTokens: rawJson?.usage?.input_tokens,
       outputTokens: rawJson?.usage?.output_tokens,
     };
@@ -167,12 +171,14 @@ class GeminiGroundingAdapter implements AiEngineAdapter {
     });
 
     const rawJson = JSON.parse(JSON.stringify(response));
+    const citations = extractGeminiCitations(rawJson);
     return {
       provider: "google",
       model,
       rawText: response.text ?? extractGeminiText(rawJson),
       rawJson,
-      citations: extractGeminiCitations(rawJson),
+      citations,
+      searchCalls: extractAiSearchCalls("google", rawJson, citations),
       inputTokens: rawJson?.usageMetadata?.promptTokenCount,
       outputTokens: rawJson?.usageMetadata?.candidatesTokenCount,
     };
@@ -214,12 +220,14 @@ class ClaudeMessagesAdapter implements AiEngineAdapter {
     });
 
     const rawJson = JSON.parse(JSON.stringify(message));
+    const citations = extractAnthropicCitations(rawJson);
     return {
       provider: "anthropic",
       model,
       rawText: extractAnthropicText(rawJson),
       rawJson,
-      citations: extractAnthropicCitations(rawJson),
+      citations,
+      searchCalls: extractAiSearchCalls("anthropic", rawJson, citations),
       inputTokens: rawJson?.usage?.input_tokens,
       outputTokens: rawJson?.usage?.output_tokens,
     };
@@ -235,6 +243,7 @@ export class MockAiAdapter implements AiEngineAdapter {
     const competitorName = competitor?.name ?? "Competitor A";
     const provider = "mock" as const;
     const model = this.options.modelOverride ?? "mock-ai-visibility-model";
+    const searchEnabled = this.options.searchEnabled ?? input.searchEnabled;
 
     const brandNotMentioned =
       lower.includes("brand not mentioned") || lower.includes("not mentioned");
@@ -304,9 +313,37 @@ export class MockAiAdapter implements AiEngineAdapter {
         rawText,
       },
       citations,
+      searchCalls: searchEnabled
+        ? [
+            {
+              provider,
+              actionType: "search",
+              query: input.prompt,
+              sources: citations,
+              exact: false,
+            },
+          ]
+        : [],
       inputTokens: input.prompt.length,
       outputTokens: rawText.length,
     };
+  }
+}
+
+export function extractAiSearchCalls(
+  provider: AiEngineProvider,
+  rawJson: unknown,
+  fallbackSources: AiCitation[] = [],
+): AiSearchCall[] {
+  switch (provider) {
+    case "openai":
+      return extractOpenAiSearchCalls(rawJson, fallbackSources);
+    case "google":
+      return extractGeminiSearchCalls(rawJson, fallbackSources);
+    case "anthropic":
+      return extractAnthropicSearchCalls(rawJson, fallbackSources);
+    case "mock":
+      return [];
   }
 }
 
@@ -392,12 +429,170 @@ function extractAnthropicCitations(rawJson: any): AiCitation[] {
   return dedupeCitations(citations);
 }
 
+function extractOpenAiSearchCalls(
+  rawJson: unknown,
+  fallbackSources: AiCitation[],
+): AiSearchCall[] {
+  const calls: AiSearchCall[] = [];
+  walk(rawJson, (value) => {
+    if (value?.type !== "web_search_call" || !value.action) return;
+    const action = value.action;
+    const actionType = searchActionType(action.type);
+    const query = queryForAction(action);
+    if (!query) return;
+    calls.push({
+      provider: "openai",
+      actionType,
+      query,
+      sources: sourcesForAction(action, fallbackSources),
+      exact: true,
+    });
+  });
+  return dedupeSearchCalls(calls);
+}
+
+function extractGeminiSearchCalls(
+  rawJson: unknown,
+  fallbackSources: AiCitation[],
+): AiSearchCall[] {
+  const calls: AiSearchCall[] = [];
+  walk(rawJson, (value) => {
+    if (value?.type === "google_search_call") {
+      const queries = toStringArray(value.arguments?.queries);
+      for (const query of queries) {
+        calls.push({
+          provider: "google",
+          actionType: "search",
+          query,
+          sources: fallbackSources,
+          exact: true,
+        });
+      }
+    }
+
+    for (const query of toStringArray(value?.webSearchQueries)) {
+      calls.push({
+        provider: "google",
+        actionType: "search",
+        query,
+        sources: fallbackSources,
+        exact: true,
+      });
+    }
+
+    const renderedQuery = value?.searchEntryPoint?.renderedContent;
+    if (
+      typeof renderedQuery === "string" &&
+      renderedQuery.trim() &&
+      calls.length === 0
+    ) {
+      calls.push({
+        provider: "google",
+        actionType: "search",
+        query: "Google Search grounding",
+        sources: fallbackSources,
+        exact: false,
+      });
+    }
+  });
+  return dedupeSearchCalls(calls);
+}
+
+function extractAnthropicSearchCalls(
+  rawJson: unknown,
+  fallbackSources: AiCitation[],
+): AiSearchCall[] {
+  const resultSourcesByToolUseId = new Map<string, AiCitation[]>();
+  walk(rawJson, (value) => {
+    if (value?.type !== "web_search_tool_result" || !value.tool_use_id) return;
+    resultSourcesByToolUseId.set(
+      String(value.tool_use_id),
+      webSearchResultSources(value.content),
+    );
+  });
+
+  const calls: AiSearchCall[] = [];
+  walk(rawJson, (value) => {
+    if (value?.type !== "server_tool_use" || value.name !== "web_search")
+      return;
+    const query =
+      typeof value.input?.query === "string" ? value.input.query.trim() : "";
+    if (!query) return;
+    const sources =
+      resultSourcesByToolUseId.get(String(value.id)) ?? fallbackSources;
+    calls.push({
+      provider: "anthropic",
+      actionType: "search",
+      query,
+      sources,
+      exact: true,
+    });
+  });
+  return dedupeSearchCalls(calls);
+}
+
 function extractTextBlocks(rawJson: any): string[] {
   const blocks: string[] = [];
   walk(rawJson, (value) => {
     if (typeof value?.text === "string") blocks.push(value.text);
   });
   return blocks;
+}
+
+function searchActionType(value: unknown): AiSearchActionType {
+  if (value === "search" || value === "open_page" || value === "find_in_page") {
+    return value;
+  }
+  return "other";
+}
+
+function queryForAction(action: any): string | undefined {
+  const candidates = [action.query, action.url, action.pattern]
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return candidates[0];
+}
+
+function sourcesForAction(
+  action: any,
+  fallbackSources: AiCitation[],
+): AiCitation[] {
+  const sources = Array.isArray(action.sources)
+    ? action.sources
+        .filter((source: any) => source?.url)
+        .map((source: any) => ({
+          url: String(source.url),
+          title: source.title ? String(source.title) : undefined,
+          domain: domainFromUrl(String(source.url)),
+        }))
+    : [];
+  return dedupeCitations(sources.length ? sources : fallbackSources).slice(
+    0,
+    10,
+  );
+}
+
+function webSearchResultSources(value: unknown): AiCitation[] {
+  if (!Array.isArray(value)) return [];
+  return dedupeCitations(
+    value
+      .filter((item: any) => item?.type === "web_search_result" && item.url)
+      .map((item: any) => ({
+        url: String(item.url),
+        title: item.title ? String(item.title) : undefined,
+        domain: domainFromUrl(String(item.url)),
+      })),
+  ).slice(0, 10);
+}
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
 }
 
 function walk(value: unknown, visitor: (value: any) => void) {
@@ -417,4 +612,26 @@ function dedupeCitations(citations: AiCitation[]): AiCitation[] {
     seen.add(citation.url);
     return true;
   });
+}
+
+function dedupeSearchCalls(calls: AiSearchCall[]): AiSearchCall[] {
+  const seen = new Set<string>();
+  return calls
+    .map((call) => ({
+      ...call,
+      query: call.query.trim(),
+      sources: dedupeCitations(call.sources).slice(0, 10),
+    }))
+    .filter((call) => {
+      if (!call.query) return false;
+      const key = [
+        call.provider,
+        call.actionType,
+        call.query.toLowerCase(),
+        call.exact,
+      ].join(":");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
