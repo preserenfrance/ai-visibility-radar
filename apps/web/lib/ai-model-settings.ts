@@ -42,15 +42,15 @@ export const AI_MODEL_PROVIDER_LABELS: Record<AiModelProvider, string> = {
 };
 
 export const AI_MODEL_MODE_LABELS: Record<AiModelMode, string> = {
-  classic: "Klasični modeli",
-  search: "Search modeli",
+  classic: "Classic models",
+  search: "Search models",
 };
 
 export const AI_MODEL_MODE_DESCRIPTIONS: Record<AiModelMode, string> = {
   classic:
-    "Uporabljajo se za navadne preglede brez spletnega iskanja in za klasične modele v aplikaciji.",
+    "Used for standard scans without web search and for classic models in the app.",
   search:
-    "Uporabljajo se za preglede z vključenim searchom, kjer modeli lahko vračajo vire in citate.",
+    "Used for scans with search enabled, where models can return sources and citations.",
 };
 
 const FALLBACK_PROVIDER_MODELS: AiProviderModelSettings = {
@@ -84,18 +84,18 @@ export async function saveAiModelSettings(
   return prisma.systemPrompt.upsert({
     where: { key: AI_MODEL_SETTINGS_KEY },
     update: {
-      title: "Globalni AI modeli",
+      title: "Global AI models",
       description:
-        "Globalna izbira modelov, ki jih aplikacija uporablja pri novih scanih.",
+        "Global model selection used by the app for new scans.",
       content,
       defaultContent: JSON.stringify(current, null, 2),
       updatedByEmail,
     },
     create: {
       key: AI_MODEL_SETTINGS_KEY,
-      title: "Globalni AI modeli",
+      title: "Global AI models",
       description:
-        "Globalna izbira modelov, ki jih aplikacija uporablja pri novih scanih.",
+        "Global model selection used by the app for new scans.",
       content,
       defaultContent: JSON.stringify(current, null, 2),
       updatedByEmail,
@@ -214,7 +214,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function fetchOpenAiModels() {
   const config = getConfig();
   if (!config.OPENAI_API_KEY) {
-    return { models: [], error: "OPENAI_API_KEY ni nastavljen." };
+    return { models: [], error: "OPENAI_API_KEY is not configured." };
   }
 
   try {
@@ -229,7 +229,7 @@ async function fetchOpenAiModels() {
     if (!response.ok) {
       return {
         models: [],
-        error: `OpenAI API napaka ${response.status}.`,
+        error: `OpenAI API error ${response.status}.`,
       };
     }
     const models = Array.isArray(data.data)
@@ -248,7 +248,7 @@ async function fetchOpenAiModels() {
 async function fetchGeminiModels() {
   const config = getConfig();
   if (!config.GEMINI_API_KEY) {
-    return { models: [], error: "GEMINI_API_KEY ni nastavljen." };
+    return { models: [], error: "GEMINI_API_KEY is not configured." };
   }
 
   try {
@@ -260,7 +260,7 @@ async function fetchGeminiModels() {
     if (!response.ok) {
       return {
         models: [],
-        error: `Gemini API napaka ${response.status}.`,
+        error: `Gemini API error ${response.status}.`,
       };
     }
     const models = Array.isArray(data.models)
@@ -286,7 +286,7 @@ async function fetchGeminiModels() {
 async function fetchClaudeModels() {
   const config = getConfig();
   if (!config.ANTHROPIC_API_KEY) {
-    return { models: [], error: "ANTHROPIC_API_KEY ni nastavljen." };
+    return { models: [], error: "ANTHROPIC_API_KEY is not configured." };
   }
 
   try {
@@ -304,7 +304,7 @@ async function fetchClaudeModels() {
     if (!response.ok) {
       return {
         models: [],
-        error: `Anthropic API napaka ${response.status}.`,
+        error: `Anthropic API error ${response.status}.`,
       };
     }
     const models = Array.isArray(data.data)
@@ -349,5 +349,5 @@ async function fetchWithTimeout(
 function errorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
-    : "Modelov trenutno ni bilo mogoče prebrati.";
+    : "Models could not be read right now.";
 }

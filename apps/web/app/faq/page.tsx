@@ -8,9 +8,9 @@ import { cachedFaqSections } from "@/lib/faqs";
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Pogosta vprašanja | AI Visibility Radar",
+  title: "FAQ | AI Visibility Radar",
   description:
-    "Odgovori na najpogostejša vprašanja o AI Visibility Radarju, modelih, cenah, metrikah in rednih pregledih.",
+    "Answers to common questions about AI Visibility Radar, models, pricing, metrics and recurring scans.",
 };
 
 export default async function FaqPage() {
@@ -22,24 +22,24 @@ export default async function FaqPage() {
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
             <HelpCircle className="h-4 w-4" />
-            Pogosta vprašanja
+            FAQ
           </div>
           <h1 className="max-w-3xl text-4xl font-semibold leading-tight">
-            Kako deluje AI Visibility Radar?
+            How does AI Visibility Radar work?
           </h1>
           <p className="mt-4 max-w-3xl text-muted-foreground">
-            Kratki odgovori za podjetja, ki razmišljajo o uporabi, in za
-            uporabnike, ki želijo bolje razumeti rezultate, modele, cene in
-            redne preglede.
+            Short answers for companies considering the tool and for users who
+            want to better understand results, models, pricing and recurring
+            scans.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/pricing">Poglej cenik</Link>
+            <Link href="/pricing">See pricing</Link>
           </Button>
           <Button asChild>
             <Link href="/ai-visibility-checker">
-              Začni pregled <ArrowRight className="h-4 w-4" />
+              Start audit <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </div>

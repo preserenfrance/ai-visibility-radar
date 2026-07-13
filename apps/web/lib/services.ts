@@ -77,18 +77,18 @@ export async function crawlBrand(
   maxPages: number = MVP_LIMITS.maxPages,
   crawlOptions: { timeoutMs?: number; rateLimitMs?: number } = {},
 ) {
-  throw new Error("Bad Request: analiza spletne strani je izklopljena");
+  throw new Error("Bad Request: website analysis is disabled");
 }
 
 export async function generatePromptsForBrand(
   brandId: string,
   count: number = MVP_LIMITS.promptCount,
 ) {
-  throw new Error("Bad Request: samodejno generiranje promptov je izklopljeno");
+  throw new Error("Bad Request: automatic prompt generation is disabled");
 }
 
 async function generateFastPromptsForBrand(brandId: string, count: number) {
-  throw new Error("Bad Request: samodejno generiranje promptov je izklopljeno");
+  throw new Error("Bad Request: automatic prompt generation is disabled");
 }
 
 type PromptControlSettings = {
@@ -113,7 +113,7 @@ function normalizeUserPrompts(prompts: string[]) {
     normalized.length > USER_PROMPT_MAX_COUNT
   ) {
     throw new Error(
-      `Bad Request: vnesite vsaj ${USER_PROMPT_MIN_COUNT} in največ ${USER_PROMPT_MAX_COUNT} promptov`,
+      `Bad Request: enter at least ${USER_PROMPT_MIN_COUNT} and at most ${USER_PROMPT_MAX_COUNT} prompts`,
     );
   }
 
@@ -145,7 +145,7 @@ async function createUserPromptSet(
   return prisma.promptSet.create({
     data: {
       brandId: brand.id,
-      name: `${brand.name} uporabniški prompti`,
+      name: `${brand.name} user prompts`,
       language: brand.language,
       country: brand.country,
       status: "active",
@@ -241,8 +241,8 @@ function renderQuestionTemplate(
     .map((competitor) => competitor.name)
     .filter(Boolean);
   const firstCompetitor =
-    competitors[0] ?? "najpogosteje omenjenega konkurenta";
-  const industry = input.industry || "ustrezen produkt ali rešitev";
+    competitors[0] ?? "the most frequently mentioned competitor";
+  const industry = input.industry || "a relevant product or solution";
   return template
     .replaceAll("{brandName}", input.brandName)
     .replaceAll("{industry}", industry)
@@ -337,7 +337,7 @@ function localMarketLabelForPrompt(country: string) {
 }
 
 function promptLanguageName(language: string) {
-  return isSlovenianLanguage(language) ? "lepa, naravna slovenščina" : language;
+  return isSlovenianLanguage(language) ? "natural Slovenian" : language;
 }
 
 function isSlovenianLanguage(language: string) {
@@ -533,7 +533,7 @@ function buildPromptGenerationPrompt(
     "Prioritize product choice, features, price, support, implementation, proof, local fit, limitations, and alternatives.",
     "Most prompts should be discovery/comparison/problem prompts and should not mention the measured brand by name. Include at most two branded prompts.",
     isSlovenianLanguage(input.language)
-      ? "All prompt text values must be in natural Slovenian with correct č, š and ž. Do not return English questions."
+      ? "All prompt text values must be in natural Slovenian with correct Slovenian diacritics. Do not return English questions."
       : "",
     "Every text value must be a question a buyer could actually ask. Avoid SEO keyword fragments and internal company slogans.",
     `Generate exactly ${input.count} prompts.`,
@@ -800,7 +800,7 @@ function buildBrandChatGptInsightPrompt(
     insight.focus,
     "Write exactly three short sentences. No bullets, no headline, no markdown.",
     isSlovenianLanguage(input.language)
-      ? "Write in natural Slovenian with correct č, š and ž."
+      ? "Write in natural Slovenian with correct Slovenian diacritics."
       : `Write in ${input.language}.`,
     "",
     `Brand name: ${input.name}`,
@@ -901,7 +901,7 @@ export async function createScanForBrand(
   if (triggerType === "manual") {
     if (!canRunManualScans(brand.organization)) {
       throw new Error(
-        "Bad Request: ročni zagon scanov je vključen v paket Starter ali Growth.",
+        "Bad Request: manual scan runs are included in the Starter or Growth plan.",
       );
     }
     const usage = await manualScanUsageForOrganization(
@@ -910,14 +910,14 @@ export async function createScanForBrand(
     );
     if (usage.used >= usage.limit) {
       throw new Error(
-        `Bad Request: ta paket omogoča največ ${usage.limit} ročnih scanov na mesec.`,
+        `Bad Request: this plan allows up to ${usage.limit} manual scans per month.`,
       );
     }
   }
 
   const promptSet = brand.promptSets[0];
   if (!promptSet || promptSet.prompts.length === 0) {
-    throw new Error("Bad Request: za scan najprej vnesite uporabniške prompte");
+    throw new Error("Bad Request: enter user prompts before running a scan");
   }
   const promptLimit = Math.min(
     options.promptLimit ?? MVP_LIMITS.promptCount,
@@ -1223,13 +1223,13 @@ function normalizePromptContentReviewOutput(
     summary:
       optionalText(record.summary) ??
       (foundOwnedResult
-        ? "Stran je bila najdena, vendar model ni vrnil povzetka."
-        : "Za ta prompt na domeni ni bil najden primeren rezultat."),
+        ? "The page was found, but the model did not return a summary."
+        : "No suitable result was found on the domain for this prompt."),
     rankingReadiness:
       optionalText(record.rankingReadiness) ??
       (score >= 8
-        ? "Vsebina je primerna za AI odgovore."
-        : "Vsebina potrebuje izboljšave pred zanesljivim rangiranjem."),
+        ? "The content is suitable for AI answers."
+        : "The content needs improvements before it can rank reliably."),
     issues,
     recommendations,
     rawText,
@@ -1240,15 +1240,15 @@ function normalizePromptContentReviewOutput(
 function defaultPromptContentRecommendations(foundOwnedResult: boolean) {
   if (!foundOwnedResult) {
     return [
-      "Dodaj namensko stran ali razdelek, ki neposredno odgovori na ta prompt.",
-      "Vključi konkretne produkte ali storitve, primere uporabe, cene oziroma pogoje in dokazila.",
-      "Poskrbi, da je stran indeksabilna in jasno povezana iz navigacije ali relevantnih kategorij.",
+      "Add a dedicated page or section that directly answers this prompt.",
+      "Include concrete products or services, use cases, prices or terms, and proof points.",
+      "Make sure the page is indexable and clearly linked from navigation or relevant categories.",
     ];
   }
   return [
-    "Dopolni najdeno stran z neposrednim odgovorom na prompt že v uvodnem delu.",
-    "Dodaj primerjave, konkretne podatke, FAQ in dokazila, ki jih lahko AI model povzame ali citira.",
-    "Jasno poveži vsebino z znamko, ponudbo, lokacijo in nakupnim naslednjim korakom.",
+    "Update the found page with a direct answer to the prompt in the opening section.",
+    "Add comparisons, concrete data, FAQ content and proof points an AI model can summarize or cite.",
+    "Clearly connect the content with the brand, offer, location and next purchase step.",
   ];
 }
 
@@ -1525,7 +1525,7 @@ export async function runNextScanStep(scanRunId: string) {
       status: "queued",
       startedAt: null,
       finishedAt: null,
-      errorMessage: "Ponovni poskus po preteku časa izvajanja.",
+      errorMessage: "Retry after stale execution timeout.",
     },
   });
 
@@ -2166,10 +2166,7 @@ function scanCompletedEmailSubject(input: {
   visibilityScore: number;
   locale?: string | null;
 }) {
-  if (normalizeLocale(input.locale) === "en") {
-    return `AI scan for ${input.brandName} is complete (${input.visibilityScore}/100)`;
-  }
-  return `AI scan za ${input.brandName} je zaključen (${input.visibilityScore}/100)`;
+  return `AI scan for ${input.brandName} is complete (${input.visibilityScore}/100)`;
 }
 
 export async function createFreeAudit(input: {

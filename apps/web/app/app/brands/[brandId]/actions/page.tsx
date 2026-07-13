@@ -25,7 +25,7 @@ async function runPromptContentReview(formData: FormData) {
     where: { id: promptId },
     include: { promptSet: true },
   });
-  if (!prompt) throw new Error("Prompt ni najden");
+  if (!prompt) throw new Error("Prompt not found");
 
   const { brand } = await requireBrandAccess(prompt.promptSet.brandId);
   if (!canRunManualScans(brand.organization)) {
@@ -91,7 +91,7 @@ export default async function ActionsPage({
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Ideje za izboljšanje</h1>
+        <h1 className="text-3xl font-semibold">Improvement ideas</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <BrandMenu brandId={brandId} active="actions" />
@@ -99,8 +99,8 @@ export default async function ActionsPage({
       {showReviewStorageWarning && (
         <Card className="mb-6 border-amber-300 bg-amber-50">
           <CardContent className="pt-5 text-sm text-amber-900">
-            Pregledi vsebine čakajo na posodobitev baze. Po migraciji bo ročni
-            pregled promptov na voljo tukaj.
+            Content reviews are waiting for a database update. After the migration,
+            manual prompt review will be available here.
           </CardContent>
         </Card>
       )}
@@ -109,7 +109,7 @@ export default async function ActionsPage({
         <Card className="mb-6 border-primary/30 bg-secondary/30">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5 text-sm">
             <span className="text-muted-foreground">
-              Ročni pregled promptov je vključen v paket Starter ali Growth.
+              Manual prompt review is included in the Starter or Growth plan.
             </span>
             <Button asChild size="sm">
               <TrackedAnchor
@@ -120,7 +120,7 @@ export default async function ActionsPage({
                   plan: "starter",
                 }}
               >
-                Nadgradi za ročni zagon
+                Upgrade for manual runs
               </TrackedAnchor>
             </Button>
           </CardContent>
@@ -129,19 +129,19 @@ export default async function ActionsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Pregled vsebine po promptih</CardTitle>
+          <CardTitle>Content review by prompt</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Prompt</TH>
-                <TH>Ocena</TH>
-                <TH>Prvi rezultat</TH>
-                <TH>Povzetek</TH>
-                <TH>Nasveti</TH>
-                <TH>Zadnji pregled</TH>
-                <TH>Akcija</TH>
+                <TH>Score</TH>
+                <TH>First result</TH>
+                <TH>Summary</TH>
+                <TH>Tips</TH>
+                <TH>Last review</TH>
+                <TH>Action</TH>
               </TR>
             </THead>
             <TBody>
@@ -155,7 +155,7 @@ export default async function ActionsPage({
                       {review ? (
                         <Badge variant={reviewBadgeVariant(review)}>
                           {review.status === "failed"
-                            ? "napaka"
+                            ? "error"
                             : `${review.score ?? 1}/10`}
                         </Badge>
                       ) : (
@@ -179,9 +179,9 @@ export default async function ActionsPage({
                         <span className="text-muted-foreground">
                           {review
                             ? review.status === "failed"
-                              ? "ni uspelo"
-                              : "ni najdeno"
-                            : "Zaženi pregled"}
+                              ? "failed"
+                              : "not found"
+                            : "Run review"}
                         </span>
                       )}
                     </TD>
@@ -222,7 +222,7 @@ export default async function ActionsPage({
               {!promptSet?.prompts.length && (
                 <TR>
                   <TD colSpan={7} className="text-muted-foreground">
-                    Najprej dodaj prompt.
+                    Add a prompt first.
                   </TD>
                 </TR>
               )}

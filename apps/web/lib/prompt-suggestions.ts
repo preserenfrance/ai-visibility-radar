@@ -23,8 +23,8 @@ export async function suggestAuditPrompts(input: PromptSuggestionInput) {
   const language = input.language.trim() || "sl";
   const competitors = splitCompetitors(input.competitors);
 
-  if (!domain) throw new Error("Bad Request: vnesite domeno spletne strani.");
-  if (!brandName) throw new Error("Bad Request: vnesite ime znamke.");
+  if (!domain) throw new Error("Bad Request: enter the website domain.");
+  if (!brandName) throw new Error("Bad Request: enter the brand name.");
 
   const [instructions, models] = await Promise.all([
     systemPromptContent("prompt_suggestion"),
@@ -98,7 +98,7 @@ function normalizeSuggestedPrompts(parsed: unknown) {
 
   if (prompts.length !== 5) {
     throw new Error(
-      "Bad Request: ChatGPT ni vrnil petih uporabnih predlogov promptov.",
+      "Bad Request: ChatGPT did not return five useful prompt suggestions.",
     );
   }
 
@@ -109,7 +109,7 @@ function parseSuggestedJson(value: string) {
   try {
     return parseJsonObject(value);
   } catch {
-    throw new Error("Bad Request: ChatGPT ni vrnil veljavnih predlogov.");
+    throw new Error("Bad Request: ChatGPT did not return valid suggestions.");
   }
 }
 

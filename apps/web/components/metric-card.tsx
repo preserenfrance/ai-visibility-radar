@@ -2,24 +2,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const METRIC_DEFINITIONS = {
   visibility: {
-    label: "Vidnost",
+    label: "Visibility",
     description:
-      "Skupna ocena AI prisotnosti znamke skozi omembe, rang, citate, delež glasu in točnost.",
+      "Overall AI presence score across mentions, rank, citations, share of voice and accuracy.",
   },
   mentions: {
-    label: "Omembe",
+    label: "Mentions",
     description:
-      "Kako pogosto AI modeli v odgovorih sploh omenijo tvojo znamko.",
+      "How often AI models mention your brand in answers.",
   },
   shareOfVoice: {
-    label: "Delež glasu",
+    label: "Share of voice",
     description:
-      "Kolikšen delež vseh zaznanih omemb pripada tvoji znamki v primerjavi s konkurenti.",
+      "The share of detected mentions that belongs to your brand compared with competitors.",
   },
   accuracy: {
-    label: "Točnost",
+    label: "Accuracy",
     description:
-      "Kako pravilne in zanesljive so navedbe o tvoji znamki, ko jo AI model omeni.",
+      "How correct and reliable statements about your brand are when an AI model mentions it.",
   },
 } as const;
 
@@ -65,8 +65,8 @@ export function MetricCard({
 }
 
 function scoreBandLabel(value: number) {
-  if (value >= 80) return "močno";
-  if (value >= 50) return "srednje";
-  if (value > 0) return "šibko";
-  return "brez podatka";
+  if (value >= 80) return "strong";
+  if (value >= 50) return "medium";
+  if (value > 0) return "weak";
+  return "no data";
 }

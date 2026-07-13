@@ -37,7 +37,7 @@ export function PromptSuggestionTester() {
       };
       if (!response.ok) {
         throw new Error(
-          data.error ?? "Testnega generiranja ni bilo mogoče izvesti.",
+          data.error ?? "The test generation could not be run.",
         );
       }
 
@@ -51,7 +51,7 @@ export function PromptSuggestionTester() {
       setError(
         testError instanceof Error
           ? testError.message
-          : "Testnega generiranja ni bilo mogoče izvesti.",
+          : "The test generation could not be run.",
       );
     } finally {
       setIsPending(false);
@@ -63,7 +63,7 @@ export function PromptSuggestionTester() {
       <form onSubmit={testPromptSuggestions} className="grid gap-3">
         <div className="grid gap-3 md:grid-cols-2">
           <Input name="domain" placeholder="vrtna-trgovina.si" required />
-          <Input name="brandName" placeholder="Ime trgovine" required />
+          <Input name="brandName" placeholder="Name trgovine" required />
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <Input name="country" defaultValue="Slovenija" />
@@ -71,7 +71,7 @@ export function PromptSuggestionTester() {
         </div>
         <Textarea
           name="competitors"
-          placeholder="Neobvezno: konkurenti, ločeni z vejico"
+          placeholder="Optional: competitors, separated by commas"
           className="min-h-20"
         />
         <Button type="submit" className="w-fit" disabled={isPending}>
@@ -83,7 +83,7 @@ export function PromptSuggestionTester() {
           ) : (
             <>
               <WandSparkles className="h-4 w-4" />
-              Testiraj predlaganje promptov
+              Test prompt suggestions
             </>
           )}
         </Button>
@@ -97,7 +97,7 @@ export function PromptSuggestionTester() {
 
       {prompts.length > 0 && (
         <div className="rounded-md border bg-secondary/30 p-4">
-          <div className="mb-3 text-sm font-semibold">Predlagani prompti</div>
+          <div className="mb-3 text-sm font-semibold">Suggested prompts</div>
           <ol className="grid gap-2 text-sm">
             {prompts.map((prompt, index) => (
               <li

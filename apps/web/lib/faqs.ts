@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@ai-radar/db";
 
-const FAQ_SETTINGS_KEY = "faq_content";
+const FAQ_SETTINGS_KEY = "faq_content_en";
 export const FAQ_CACHE_TAG = "public-faq";
 
 export type FaqItem = {
@@ -16,143 +16,142 @@ export type FaqSection = {
 
 export const DEFAULT_FAQ_SECTIONS: FaqSection[] = [
   {
-    title: "Osnove",
+    title: "Basics",
     items: [
       {
-        question: "Čemu je namenjen AI Visibility Radar?",
+        question: "What is AI Visibility Radar for?",
         answer:
-          "Namenjen je podjetjem, ki želijo vedeti, ali jih AI pomočniki, kot so ChatGPT, Gemini in Claude, omenijo oziroma priporočijo pri vprašanjih, ki jih potencialni kupci dejansko postavljajo. Namesto da merimo samo pozicije v Googlu, merimo vidnost znamke v AI odgovorih.",
+          "It is built for companies that want to know whether AI assistants such as ChatGPT, Gemini and Claude mention or recommend them for the questions potential buyers actually ask. Instead of measuring only Google rankings, it measures brand visibility inside AI answers.",
       },
       {
-        question: "Kako orodje deluje?",
+        question: "How does the tool work?",
         answer:
-          "Uporabnik vnese znamko, spletno stran, konkurente in vprašanja kupcev. Radar nato ta vprašanja pošlje izbranim AI modelom, shrani odgovore, preveri omembe znamke in konkurentov, izračuna metrike ter prikaže, kje je znamka dobro vidna in kje izgublja priložnosti.",
+          "You enter a brand, website, competitors and buyer questions. Radar sends those questions to selected AI models, stores the answers, checks brand and competitor mentions, calculates metrics and shows where the brand is visible and where it is losing opportunities.",
       },
       {
-        question: "Kaj je vprašanje oziroma prompt?",
+        question: "What is a question or prompt?",
         answer:
-          "Prompt je vprašanje, ki ga kupec postavi AI pomočniku. Dobro vprašanje je konkretno in nakupno usmerjeno, na primer: Kje lahko kupim kakovostno vrtno pohištvo z dostavo v Sloveniji?",
+          "A prompt is the question a buyer asks an AI assistant. A good question is concrete and purchase-oriented, for example: Where can I buy quality garden furniture with delivery?",
       },
       {
-        question: "Ali moram vnašati vseh 5 vprašanj v prvem pregledu?",
+        question: "Do I have to enter all 5 questions in the first audit?",
         answer:
-          "Ne. Za prvi brezplačni pregled moraš vnesti vsaj 3 vprašanja, lahko pa jih vneseš do 5. Ko si v aplikaciji ustvariš znamko, lahko v brezplačnem paketu uporabljaš do 10 aktivnih vprašanj oziroma promptov na znamko, plačljivi paketi pa imajo višje limite.",
+          "No. The first free audit needs at least 3 questions and supports up to 5. After you create a brand in the app, the free plan supports up to 10 active questions or prompts per brand, while paid plans have higher limits.",
       },
     ],
   },
   {
-    title: "Modeli in pregledi",
+    title: "Models and scans",
     items: [
       {
-        question: "Katere AI modele uporabljate?",
+        question: "Which AI models do you use?",
         answer:
-          "Orodje podpira ChatGPT, Gemini, Claude ter modele z iskanjem, kjer se zbirajo tudi viri oziroma citati. Vsi pogledi so dostopni v vseh paketih; paketi se razlikujejo po številu aktivnih vprašanj in ročnih pregledih.",
+          "The tool supports ChatGPT, Gemini, Claude and search-enabled models that can also collect sources and citations. All views are available on every plan; plans differ by the number of active questions and manual scans.",
       },
       {
-        question:
-          "Kakšna je razlika med navadnimi modeli in modeli z iskanjem?",
+        question: "What is the difference between standard models and search models?",
         answer:
-          "Navadni modeli odgovorijo iz svojega modelskega znanja. Modeli z iskanjem ob odgovoru iščejo po spletu in pogosto vrnejo vire, zato lahko vidiš, katere domene AI uporablja kot dokaz ali priporočilo.",
+          "Standard models answer from model knowledge. Search-enabled models browse the web while answering and often return sources, so you can see which domains AI uses as evidence or recommendations.",
       },
       {
-        question: "Kaj pomeni reden pregled?",
+        question: "What does a recurring scan mean?",
         answer:
-          "Reden pregled samodejno ponavlja meritev za tvojo znamko. Avtomatski tedenski pregled je vključen v vseh paketih, tudi v brezplačnem.",
+          "A recurring scan automatically repeats the measurement for your brand. Automatic weekly scans are included in every plan, including the free plan.",
       },
       {
-        question: "Zakaj rezultati med modeli niso enaki?",
+        question: "Why are results different between models?",
         answer:
-          "Vsak model ima drugačen način odgovarjanja, drugačen dostop do svežih informacij in drugačno razumevanje trga. Zato je pomembno spremljati več modelov, če želiš razumeti realno AI vidnost znamke.",
+          "Each model answers differently, has different access to fresh information and understands markets differently. Tracking multiple models helps you understand real AI visibility more accurately.",
       },
     ],
   },
   {
-    title: "Metrike in rezultati",
+    title: "Metrics and results",
     items: [
       {
-        question: "Kaj pomeni vidnost?",
+        question: "What does visibility mean?",
         answer:
-          "Vidnost je skupna ocena AI prisotnosti znamke. Združuje omembe, rang, citate, delež glasu in točnost. Višja ocena pomeni, da se znamka pogosteje in bolje pojavlja v AI odgovorih.",
+          "Visibility is the overall score for a brand's AI presence. It combines mentions, rank, citations, share of voice and accuracy. A higher score means the brand appears more often and more strongly in AI answers.",
       },
       {
-        question: "Kaj pomenijo omembe?",
+        question: "What do mentions mean?",
         answer:
-          "Omembe povedo, kako pogosto AI modeli v odgovorih sploh omenijo tvojo znamko. Če znamka ni omenjena, kupec prek AI odgovora verjetno ne pride do tebe.",
+          "Mentions show how often AI models mention your brand in their answers. If the brand is not mentioned, a buyer probably will not reach you through that AI answer.",
       },
       {
-        question: "Kaj je delež glasu?",
+        question: "What is share of voice?",
         answer:
-          "Delež glasu primerja omembe tvoje znamke z omembami konkurentov. Pomaga razumeti, ali AI modeli pogosteje priporočajo tebe ali druge ponudnike.",
+          "Share of voice compares your brand mentions with competitor mentions. It helps you understand whether AI models recommend you or other providers more often.",
       },
       {
-        question: "Kaj pomeni točnost?",
+        question: "What does accuracy mean?",
         answer:
-          "Točnost meri, ali so navedbe o tvoji znamki pravilne in zanesljive. Ni dovolj, da si omenjen, pomembno je tudi, da AI o tebi ne navaja napačnih ali zastarelih informacij.",
+          "Accuracy measures whether statements about your brand are correct and reliable. Being mentioned is not enough; AI should also avoid outdated or incorrect claims about you.",
       },
       {
-        question: "Kaj so citati?",
+        question: "What are citations?",
         answer:
-          "Citati so viri, ki jih modeli z iskanjem uporabijo pri odgovoru. V tabeli citatov vidiš, katere domene podpirajo tvojo znamko, katere podpirajo konkurente in katere vire bi bilo smiselno okrepiti.",
+          "Citations are sources used by search-enabled models in an answer. The citations table shows which domains support your brand, which support competitors and which sources may be worth strengthening.",
       },
       {
-        question: "Kaj pomeni ChatGPT pogled na znamko?",
+        question: "What is the ChatGPT brand view?",
         answer:
-          "To je kratek AI povzetek javne slike znamke. Prikaže, kako ChatGPT razume znamko, kateri produkti ali storitve so najbolj izpostavljeni in katere javne pripombe ali zadržki se lahko ponavljajo pri nezadovoljnih strankah.",
+          "It is a short AI summary of the public picture of your brand. It shows how ChatGPT understands the brand, which products or services stand out and which public objections may repeat among dissatisfied customers.",
       },
     ],
   },
   {
-    title: "Paketi in cene",
+    title: "Plans and pricing",
     items: [
       {
-        question: "Koliko stane orodje?",
+        question: "How much does the tool cost?",
         answer:
-          "Brezplačni paket omogoča eno znamko, do 10 aktivnih vprašanj in tedenski avtomatski pregled. Starter paket stane 15,99 EUR na mesec in vključuje več vprašanj ter 4 ročne preglede na mesec. Growth paket stane 39,99 EUR na mesec in vključuje dodatne znamke, več vprašanj ter 15 ročnih pregledov na mesec.",
+          "The free plan includes one brand, up to 10 active questions and a weekly automatic scan. Starter costs EUR 15.99 per month and includes more questions plus 4 manual scans per month. Growth costs EUR 39.99 per month and includes additional brands, more questions and 15 manual scans per month.",
       },
       {
-        question: "Kaj dobim v brezplačnem paketu?",
+        question: "What do I get in the free plan?",
         answer:
-          "Brezplačni paket vključuje eno znamko, do 10 aktivnih vprašanj, tedenski avtomatski pregled ter dostop do vseh zavihkov in prikazov. Ročni pregledi so del plačljivih paketov.",
+          "The free plan includes one brand, up to 10 active questions, a weekly automatic scan and access to all tabs and views. Manual scans are part of the paid plans.",
       },
       {
-        question: "Kdaj potrebujem plačljiv paket?",
+        question: "When do I need a paid plan?",
         answer:
-          "Plačljiv paket potrebuješ, ko želiš več aktivnih vprašanj ali ročno zaganjanje meritev. Starter je za eno znamko, Growth pa za več znamk in višje limite.",
+          "You need a paid plan when you want more active questions or manual scan runs. Starter is for one brand, while Growth supports more brands and higher limits.",
       },
       {
-        question: "Ali lahko paket kasneje spremenim?",
+        question: "Can I change the plan later?",
         answer:
-          "Da. V nastavitvah lahko odpreš plačilni portal in upravljaš naročnino. Če naročnina ni aktivna, se organizacija vrne na brezplačne limite; ročni pregledi plačljivih paketov takrat niso na voljo.",
+          "Yes. In settings you can open the billing portal and manage the subscription. If the subscription is not active, the organization returns to free limits and manual scans from paid plans are no longer available.",
       },
     ],
   },
   {
-    title: "Praktična uporaba",
+    title: "Practical use",
     items: [
       {
-        question: "Kakšna vprašanja naj vnesem?",
+        question: "What questions should I enter?",
         answer:
-          "Najboljša so konkretna vprašanja kupcev: kaj kupiti, kje kupiti, kateri ponudnik je dobra izbira, katera trgovina ima določen produkt, kateri izdelek je primeren za določen problem. Manj uporabna so vprašanja, ki že vsebujejo tvojo znamko, ker takrat meritev ni realna.",
+          "The best prompts are concrete buyer questions: what to buy, where to buy, which provider is a good choice, which store has a specific product, or which product fits a specific problem. Questions that already include your brand are less useful because they make the measurement less realistic.",
       },
       {
-        question: "Kaj naredim, če me AI ne omeni?",
+        question: "What should I do if AI does not mention me?",
         answer:
-          "Najprej poglej, kateri konkurenti so omenjeni in kateri viri so citirani. Nato izboljšaj vsebine na strani, dodaj jasne produktne informacije, primerjalne strani, kategorijske vodiče, dokazila, ocene, FAQ vsebine in vire, ki jih AI lahko razume ter citira.",
+          "First look at which competitors are mentioned and which sources are cited. Then improve website content, add clear product information, comparison pages, category guides, proof, reviews, FAQ content and sources AI can understand and cite.",
       },
       {
-        question: "Ali orodje samo popravi mojo spletno stran?",
+        question: "Does the tool fix my website automatically?",
         answer:
-          "Ne. Orodje pokaže, kje izgubljaš vidnost in kaj je smiselno izboljšati. Izvedba sprememb na spletni strani, vsebinah, kategorijah in zunanjih virih ostane pri tebi oziroma tvoji ekipi.",
+          "No. The tool shows where you are losing visibility and what is worth improving. Website, content, category and external source changes remain with you or your team.",
       },
       {
-        question: "Komu je orodje najbolj koristno?",
+        question: "Who benefits most from the tool?",
         answer:
-          "Najbolj koristno je spletnim trgovinam, B2B podjetjem, lokalnim ponudnikom, SaaS podjetjem in vsem, kjer se kupci pred nakupom informirajo prek AI pomočnikov.",
+          "It is most useful for online stores, B2B companies, local providers, SaaS companies and any business where buyers research through AI assistants before purchase.",
       },
       {
-        question: "Ali so rezultati zagotovilo, da me bo AI vedno priporočil?",
+        question: "Do results guarantee that AI will always recommend me?",
         answer:
-          "Ne. AI odgovori se spreminjajo glede na model, čas, vprašanje in dostopne vire. Radar zato meri ponovljive vzorce in trende, ne absolutne garancije. Prava vrednost je v rednem spremljanju in izboljševanju signalov, ki jih modeli uporabljajo.",
+          "No. AI answers change by model, time, question and available sources. Radar measures repeatable patterns and trends, not absolute guarantees. The value is in ongoing monitoring and improving the signals models use.",
       },
     ],
   },
@@ -185,16 +184,16 @@ export async function saveFaqSections(
   return prisma.systemPrompt.upsert({
     where: { key: FAQ_SETTINGS_KEY },
     update: {
-      title: "FAQ vsebina",
-      description: "Urejljiva vsebina javne FAQ strani.",
+      title: "FAQ content",
+      description: "Editable content for the public FAQ page.",
       content,
       defaultContent: JSON.stringify(DEFAULT_FAQ_SECTIONS, null, 2),
       updatedByEmail,
     },
     create: {
       key: FAQ_SETTINGS_KEY,
-      title: "FAQ vsebina",
-      description: "Urejljiva vsebina javne FAQ strani.",
+      title: "FAQ content",
+      description: "Editable content for the public FAQ page.",
       content,
       defaultContent: JSON.stringify(DEFAULT_FAQ_SECTIONS, null, 2),
       updatedByEmail,

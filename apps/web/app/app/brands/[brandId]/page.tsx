@@ -74,7 +74,7 @@ async function refreshBrandChatGptInsight(formData: FormData) {
   const brandId = String(formData.get("brandId"));
   const insight = String(formData.get("insight") ?? "");
   if (!isBrandInsightType(insight)) {
-    throw new Error("Bad Request: neveljaven vpogled znamke");
+    throw new Error("Bad Request: invalid brand insight");
   }
   const { brand } = await requireBrandAccess(brandId);
   const input = {
@@ -254,32 +254,32 @@ export default async function BrandPage({
 
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
             <CompactBrandFact
-              label="Konkurenti"
+              label="Competitors"
               value={brand.competitors.length}
             />
             <CompactBrandFact
-              label="Prompti"
+              label="Prompts"
               value={promptSet?.prompts.length ?? 0}
             />
             <CompactBrandFact
-              label="Reden scan"
+              label="Recurring scan"
               value={
                 recurringScanScheduled
                   ? cadenceLabel(brand.recurringScanCadence ?? "weekly")
-                  : "ni aktiven"
+                  : "inactive"
               }
               detail={
                 recurringScanScheduled && brand.recurringScanNextRunAt
-                  ? brand.recurringScanNextRunAt.toLocaleString("sl-SI")
+                  ? brand.recurringScanNextRunAt.toLocaleString("en-US")
                   : recurringScanActive
-                    ? "termin se nastavlja"
+                    ? "run is being scheduled"
                     : undefined
               }
             />
             <CompactBrandFact
-              label="Ročni scani"
+              label="Manual scans"
               value={`${manualScanUsage.remaining}/${manualScanUsage.limit}`}
-              detail={`reset ${manualScanUsage.resetAt.toLocaleDateString("sl-SI")}`}
+              detail={`reset ${manualScanUsage.resetAt.toLocaleDateString("en-US")}`}
             />
           </div>
         </div>
@@ -289,33 +289,33 @@ export default async function BrandPage({
             brandId={brand.id}
             insight="summary"
             icon="summary"
-            title="ChatGPT pogled na znamko"
+            title="ChatGPT brand view"
             value={brand.chatGptBrandSummary}
             updatedAt={brand.chatGptBrandSummaryUpdatedAt}
-            emptyText="Pogled še ni pripravljen."
+            emptyText="This view is not ready yet."
           />
           <BrandInsightPanel
             brandId={brand.id}
             insight="customerConcerns"
             icon="concerns"
-            title="Kaj moti nezadovoljne stranke"
+            title="What dissatisfied customers dislike"
             value={brand.chatGptCustomerConcernsSummary}
             updatedAt={brand.chatGptCustomerConcernsSummaryUpdatedAt}
-            emptyText="Javne pripombe še niso pripravljene."
+            emptyText="Public complaints are not ready yet."
           />
           <BrandInsightPanel
             brandId={brand.id}
             insight="products"
             icon="products"
-            title="Ključni produkti in ponudba"
+            title="Key products and offer"
             value={brand.chatGptProductSummary}
             updatedAt={brand.chatGptProductSummaryUpdatedAt}
-            emptyText="Povzetek ponudbe še ni pripravljen."
+            emptyText="The offer summary is not ready yet."
           />
         </div>
         {brandInsightError && (
           <p className="mt-3 text-xs text-destructive">
-            ChatGPT vpogleda trenutno ni bilo mogoče pripraviti. Preveri OpenAI
+            The ChatGPT insight could not be prepared right now. Check OpenAI
             nastavitev ali poskusi ponovno.
           </p>
         )}
@@ -335,37 +335,37 @@ export default async function BrandPage({
       </div>
 
       <MentionsTrendChart
-        title="Naše omembe skozi čas"
-        description="Zadnjih 30 dni po modelih; oznake na grafu prikazujejo dodane prompte."
+        title="Our mentions over time"
+        description="Last 30 days by model; markers on the chart show added prompts."
         series={MENTION_TREND_SERIES}
         points={brandMentionTrendPoints}
         promptMarkers={promptAdditionMarkers}
-        emptyMessage="V zadnjih 30 dneh še ni zabeleženih naših omemb."
+        emptyMessage="No own-brand mentions have been recorded in the last 30 days."
       />
 
       <MentionsTrendChart
-        title="Omembe konkurence skozi čas"
-        description="Top 10 najpogosteje omenjenih zunanjih domen v citatih AI odgovorov."
+        title="Competitor mentions over time"
+        description="Top 10 most frequently mentioned external domains in AI answer citations."
         series={[]}
         domainSeries={mentionedDomainSeries}
         points={competitorMentionTrendPoints}
         promptMarkers={promptAdditionMarkers}
-        domainSeriesLabel="Najpogosteje omenjene konkurenčne domene"
-        emptyMessage="V zadnjih 30 dneh še ni zabeleženih konkurenčnih domen."
+        domainSeriesLabel="Most mentioned competitor domains"
+        emptyMessage="No competitor domains have been recorded in the last 30 days."
       />
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Pregled po modelih</CardTitle>
+          <CardTitle>Breakdown by model</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Model</TH>
-                <TH>Izvedbe</TH>
-                <TH>Omembe</TH>
-                <TH>Napake</TH>
+                <TH>Runs</TH>
+                <TH>Mentions</TH>
+                <TH>Errors</TH>
               </TR>
             </THead>
             <TBody>
@@ -386,16 +386,16 @@ export default async function BrandPage({
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Zadnji scani</CardTitle>
+          <CardTitle>Latest scans</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Začetek</TH>
+                <TH>Started</TH>
                 <TH>Status</TH>
-                <TH>Vidnost</TH>
-                <TH>Izvedbe</TH>
+                <TH>Visibility</TH>
+                <TH>Runs</TH>
               </TR>
             </THead>
             <TBody>
@@ -406,7 +406,7 @@ export default async function BrandPage({
                       className="text-primary"
                       href={`/app/brands/${brand.id}/scans/${scan.id}`}
                     >
-                      {scan.createdAt.toLocaleString("sl-SI")}
+                      {scan.createdAt.toLocaleString("en-US")}
                     </a>
                   </TD>
                   <TD>
@@ -433,7 +433,7 @@ export default async function BrandPage({
           used: manualScanUsage.used,
           limit: manualScanUsage.limit,
           remaining: manualScanUsage.remaining,
-          resetLabel: manualScanUsage.resetAt.toLocaleDateString("sl-SI"),
+          resetLabel: manualScanUsage.resetAt.toLocaleDateString("en-US"),
         }}
         compact
       />
@@ -504,7 +504,7 @@ function BrandInsightPanel({
       </p>
       {updatedAt && (
         <div className="mt-2 text-xs text-muted-foreground">
-          {updatedAt.toLocaleString("sl-SI")}
+          {updatedAt.toLocaleString("en-US")}
         </div>
       )}
     </section>
@@ -552,7 +552,7 @@ function mentionTrendDays(): TrendDay[] {
     return {
       date,
       key: dateKey(date),
-      label: date.toLocaleDateString("sl-SI", {
+      label: date.toLocaleDateString("en-US", {
         day: "2-digit",
         month: "2-digit",
       }),
@@ -748,22 +748,22 @@ function engineBreakdown(promptRuns: Array<any>) {
 }
 
 function cadenceLabel(value: "weekly" | "daily" | null) {
-  if (value === "daily") return "dnevno";
-  if (value === "weekly") return "tedensko";
-  return "po urniku";
+  if (value === "daily") return "daily";
+  if (value === "weekly") return "weekly";
+  return "scheduled";
 }
 
 function statusLabel(status: string) {
   switch (status) {
     case "queued":
     case "running":
-      return "v delu";
+      return "in progress";
     case "completed":
-      return "končano";
+      return "completed";
     case "failed":
-      return "napaka";
+      return "error";
     case "canceled":
-      return "preklicano";
+      return "canceled";
     default:
       return status;
   }

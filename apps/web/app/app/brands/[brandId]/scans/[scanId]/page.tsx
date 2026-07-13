@@ -60,7 +60,7 @@ export default async function ScanPage({
       {scanPending && <ScanRunner scanId={scan.id} />}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold">Izvedba scana</h1>
+          <h1 className="text-3xl font-semibold">Scan run</h1>
           <p className="text-muted-foreground">{scan.brand.name}</p>
         </div>
         <Badge variant={statusBadgeVariant(scan.status)}>
@@ -73,12 +73,12 @@ export default async function ScanPage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 animate-pulse text-primary" />
-              Scan se izvaja
+              Scan is running
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             AI modeli odgovarjajo na prompte in rezultat se bo prikazal takoj,
-            ko bo obdelava končana. Stran se samodejno osvežuje.
+            processing is complete. The page refreshes automatically.
           </CardContent>
         </Card>
       )}
@@ -102,7 +102,7 @@ export default async function ScanPage({
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Izvedbe promptov</CardTitle>
+          <CardTitle>Prompt runs</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -121,8 +121,8 @@ export default async function ScanPage({
                     </span>
                   </TH>
                 ))}
-                <TH className="whitespace-nowrap">Konkurenti</TH>
-                <TH className="whitespace-nowrap">Najboljši rang</TH>
+                <TH className="whitespace-nowrap">Competitors</TH>
+                <TH className="whitespace-nowrap">Best rank</TH>
                 <TH>Status</TH>
               </TR>
             </THead>
@@ -165,7 +165,7 @@ export default async function ScanPage({
                       >
                         <details className="bg-secondary/10">
                           <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-primary">
-                            Odgovori modelov in citati
+                            Model answers and citations
                           </summary>
                           <div className="space-y-3 border-t bg-secondary/20 p-3">
                             {group.runs.map((run) => (
@@ -184,15 +184,15 @@ export default async function ScanPage({
                                   </Badge>
                                 </div>
                                 <div className="text-sm font-semibold">
-                                  Izvorni odgovor
+                                  Raw answer
                                 </div>
                                 <pre className="mt-1 max-h-72 w-full overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-white">
                                   {run.aiResponse?.rawText ??
                                     run.errorMessage ??
-                                    "Ni odgovora"}
+                                    "No answer"}
                                 </pre>
                                 <div className="mt-2 text-xs text-muted-foreground">
-                                  Citati:{" "}
+                                  Citations:{" "}
                                   {run.aiResponse?.citations
                                     .map(
                                       (citation: { domain: string | null }) =>
@@ -214,16 +214,16 @@ export default async function ScanPage({
           <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
             <LegendDot
               className="border-emerald-700 bg-emerald-500"
-              label="znamka omenjena"
+              label="brand mentioned"
             />
             <LegendDot
               className="border-rose-700 bg-rose-500"
-              label="znamka ni omenjena"
+              label="brand not mentioned"
             />
-            <LegendError label="napaka pri izvedbi" />
+            <LegendError label="execution error" />
             <LegendDot
               className="border-amber-700 bg-amber-400"
-              label="čaka na rezultat"
+              label="queued for result"
             />
           </div>
         </CardContent>
@@ -338,13 +338,13 @@ function statusLabel(status: string) {
   switch (status) {
     case "queued":
     case "running":
-      return "v delu";
+      return "in progress";
     case "completed":
-      return "končano";
+      return "completed";
     case "failed":
-      return "napaka";
+      return "error";
     case "canceled":
-      return "preklicano";
+      return "canceled";
     default:
       return status;
   }

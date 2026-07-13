@@ -39,10 +39,10 @@ export function MentionsTrendChart({
   domainSeries = [],
   points,
   promptMarkers,
-  title = "Omembe skozi čas",
-  description = "Zadnjih 30 dni po modelih in najpogosteje omenjenih domenah.",
-  domainSeriesLabel = "Najpogosteje omenjene domene",
-  emptyMessage = "V zadnjih 30 dneh še ni zabeleženih omemb.",
+  title = "Mentions over time",
+  description = "Last 30 days by model and most mentioned domains.",
+  domainSeriesLabel = "Most mentioned domains",
+  emptyMessage = "No mentions have been recorded in the last 30 days.",
 }: {
   series: MentionTrendSeries[];
   domainSeries?: MentionTrendSeries[];
@@ -170,7 +170,7 @@ export function MentionsTrendChart({
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <MousePointer2 className="h-4 w-4" />
-            Premakni miško čez graf
+            Move the mouse over the chart
           </div>
         </div>
       </CardHeader>
@@ -379,7 +379,7 @@ export function MentionsTrendChart({
               </div>
               {hoverMarker && (
                 <div className="mt-2 rounded bg-secondary px-2 py-1 text-muted-foreground">
-                  Dodani prompti: {hoverMarker.count}
+                  Added prompts: {hoverMarker.count}
                 </div>
               )}
             </div>

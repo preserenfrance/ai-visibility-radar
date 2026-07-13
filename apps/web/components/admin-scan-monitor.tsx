@@ -60,14 +60,14 @@ export function AdminScanMonitor({
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        throw new Error(body?.error ?? "Osveževanje ni uspelo.");
+        throw new Error(body?.error ?? "Refresh failed.");
       }
       setSnapshot((await response.json()) as AdminScanMonitorSnapshot);
     } catch (refreshError) {
       setError(
         refreshError instanceof Error
           ? refreshError.message
-          : "Osveževanje ni uspelo.",
+          : "Refresh failed.",
       );
     } finally {
       setIsRefreshing(false);
@@ -89,7 +89,7 @@ export function AdminScanMonitor({
         });
         const body = await response.json().catch(() => null);
         if (!response.ok) {
-          throw new Error(body?.error ?? "Akcija ni uspela.");
+          throw new Error(body?.error ?? "Action failed.");
         }
 
         const data = body as ScanMonitorActionResponse;
@@ -99,7 +99,7 @@ export function AdminScanMonitor({
         setActionError(
           actionFailure instanceof Error
             ? actionFailure.message
-            : "Akcija ni uspela.",
+            : "Action failed.",
         );
       } finally {
         setMutatingAction(null);
@@ -132,11 +132,10 @@ export function AdminScanMonitor({
             <Activity className="h-5 w-5" />
             Admin monitor
           </div>
-          <h1 className="text-3xl font-semibold">Nadzor scanov v živo</h1>
+          <h1 className="text-3xl font-semibold">Live scan monitor</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Pregled queue-ja, izvajanja promptov, providerjev, zadnjih napak in
-            zaključenih rezultatov. Podatki se osvežujejo brez ponovnega
-            nalaganja strani.
+            Overview of the queue, prompt execution, providers, latest errors and
+            completed results. Data refreshes without reloading the page.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-white px-4 py-3">
@@ -165,7 +164,7 @@ export function AdminScanMonitor({
             disabled={Boolean(mutatingAction)}
           >
             <CheckCircle2 className="h-4 w-4" />
-            Zaključi prestare
+            Settle stale
           </Button>
           <Button
             type="button"
@@ -178,7 +177,7 @@ export function AdminScanMonitor({
                 .filter(Boolean)
                 .join(" ")}
             />
-            Osveži
+            Refresh
           </Button>
         </div>
       </div>
@@ -206,10 +205,10 @@ export function AdminScanMonitor({
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <div className="font-medium">Monitor zaznava opozorila.</div>
+              <div className="font-medium">The monitor detected warnings.</div>
               <div className="mt-1">
-                Napake ali zastareli running zapisi so prikazani spodaj po
-                scanih in providerjih.
+                Errors or stale running records are shown below by scan and
+                provider.
               </div>
             </div>
           </div>
@@ -217,31 +216,31 @@ export function AdminScanMonitor({
       )}
 
       <div className="mb-6 rounded-md border bg-white px-4 py-3 text-sm text-muted-foreground">
-        Aktivni scan se samodejno zaključi po{" "}
+        An active scan is automatically settled after{" "}
         <span className="font-medium text-foreground">
           {formatDuration(snapshot.queuePolicy.maxActiveMs)}
         </span>
-        , če do takrat še vedno stoji v queueju ali izvajanju.
+        , if it is still queued or running by then.
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
-          label="V vrsti"
+          label="Queued"
           value={snapshot.health.queuedScans}
           hint={formatDuration(snapshot.health.oldestQueuedAgeMs)}
         />
         <MetricCard
-          label="V izvajanju"
+          label="Running"
           value={snapshot.health.runningScans}
           hint={formatDuration(snapshot.health.oldestRunningAgeMs)}
         />
         <MetricCard
-          label="Zaključeni 24h"
+          label="Completed 24h"
           value={snapshot.health.completedScans24h}
           icon={<CheckCircle2 className="h-4 w-4" />}
         />
         <MetricCard
-          label="Napake 24h"
+          label="Errors 24h"
           value={
             snapshot.health.failedScans24h + snapshot.health.emailFailures24h
           }
@@ -256,23 +255,23 @@ export function AdminScanMonitor({
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
-          label="Stari running scani"
+          label="Stale running scans"
           value={snapshot.health.staleRunningScans}
           tone={snapshot.health.staleRunningScans > 0 ? "warning" : "default"}
         />
         <MetricCard
-          label="Stari running prompti"
+          label="Stale running prompts"
           value={snapshot.health.staleRunningPromptRuns}
           tone={
             snapshot.health.staleRunningPromptRuns > 0 ? "warning" : "default"
           }
         />
         <MetricCard
-          label="Preklicani 24h"
+          label="Canceled 24h"
           value={snapshot.health.canceledScans24h}
         />
         <MetricCard
-          label="Povp. scan 24h"
+          label="Avg. scan 24h"
           value={formatDuration(
             snapshot.health.averageCompletedScanDurationMs24h,
           )}
@@ -287,16 +286,16 @@ export function AdminScanMonitor({
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Scani v delu</CardTitle>
+          <CardTitle>Scans in progress</CardTitle>
           <CardDescription>
-            Vsi queued in running scani, z napredkom po promptih in zadnjo
-            aktivnostjo.
+            All queued and running scans, with progress by prompt and latest
+            activity.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <ScanTable
             scans={snapshot.activeScans}
-            empty="Trenutno ni scanov v delu."
+            empty="There are no scans in progress right now."
             mutatingAction={mutatingAction}
             onCancel={(scanRunId) => runAction("cancel-scan", scanRunId)}
             onSettle={(scanRunId) => runAction("settle-scan", scanRunId)}
@@ -306,36 +305,36 @@ export function AdminScanMonitor({
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Zadnji rezultati</CardTitle>
+          <CardTitle>Latest results</CardTitle>
           <CardDescription>
-            Zaključeni, neuspešni ali preklicani scani v zadnjih 24 urah.
+            Completed, failed or canceled scans in the last 24 hours.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <ScanTable
             scans={snapshot.recentScans}
-            empty="Ni zaključenih scanov v zadnjih 24 urah."
+            empty="No completed scans in the last 24 hours."
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Zadnje napake promptov</CardTitle>
+          <CardTitle>Latest prompt errors</CardTitle>
           <CardDescription>
-            Koristno za provider težave, kot so API funding, rate limit ali
-            timeouti.
+            Useful for provider issues such as API funding, rate limits or
+            timeouts.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Čas</TH>
-                <TH>Znamka</TH>
+                <TH>Time</TH>
+                <TH>Brand</TH>
                 <TH>Provider</TH>
                 <TH>Prompt</TH>
-                <TH>Napaka</TH>
+                <TH>Error</TH>
               </TR>
             </THead>
             <TBody>
@@ -371,7 +370,7 @@ export function AdminScanMonitor({
               {snapshot.recentErrors.length === 0 && (
                 <TR>
                   <TD colSpan={5} className="text-muted-foreground">
-                    Ni prompt napak v zadnjih 24 urah.
+                    No prompt errors in the last 24 hours.
                   </TD>
                 </TR>
               )}
@@ -414,11 +413,11 @@ function MetricCard({
             .filter(Boolean)
             .join(" ")}
         >
-          {typeof value === "number" ? value.toLocaleString("sl-SI") : value}
+          {typeof value === "number" ? value.toLocaleString("en-US") : value}
         </div>
         {hint && (
           <div className="mt-1 text-xs text-muted-foreground">
-            najstarejši {hint}
+            oldest {hint}
           </div>
         )}
       </CardContent>
@@ -432,7 +431,7 @@ function ProviderPanel({ providers }: { providers: AdminProviderSummary[] }) {
       <CardHeader>
         <CardTitle>Providerji zadnjih 24h</CardTitle>
         <CardDescription>
-          Uspešnost in trajanje promptov po LLM providerju.
+          Prompt success rate and duration by LLM provider.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -441,7 +440,7 @@ function ProviderPanel({ providers }: { providers: AdminProviderSummary[] }) {
             <TR>
               <TH>Provider</TH>
               <TH>OK</TH>
-              <TH>Napake</TH>
+              <TH>Errors</TH>
               <TH>Running</TH>
               <TH>Povp.</TH>
             </TR>
@@ -493,10 +492,10 @@ function TriggerPanel({ snapshot }: { snapshot: AdminScanMonitorSnapshot }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Queue po tipu</CardTitle>
+        <CardTitle>Queue by type</CardTitle>
         <CardDescription>
-          Razlika med ročnimi, scheduled in free-audit scani, ki trenutno čakajo
-          ali tečejo.
+          Breakdown of manual, scheduled and free-audit scans that are currently
+          queued or running.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -546,15 +545,15 @@ function ScanTable({
     <Table>
       <THead>
         <TR>
-          <TH>Znamka</TH>
+          <TH>Brand</TH>
           <TH>Status</TH>
           <TH>Napredek</TH>
           <TH>Providerji</TH>
           <TH>Rezultat</TH>
           <TH>Trajanje</TH>
           <TH>Zadnja aktivnost</TH>
-          <TH>Napaka</TH>
-          <TH>Akcija</TH>
+          <TH>Error</TH>
+          <TH>Action</TH>
         </TR>
       </THead>
       <TBody>
@@ -583,8 +582,8 @@ function ScanTable({
                 <ProgressBar value={scan.progressPercent} />
                 <div className="mt-1 text-xs text-muted-foreground">
                   {scan.promptCounts.completed} OK, {scan.promptCounts.failed}{" "}
-                  napak, {scan.promptCounts.running} teče,{" "}
-                  {scan.promptCounts.queued} čaka
+                  failed, {scan.promptCounts.running} running,{" "}
+                  {scan.promptCounts.queued} queued
                 </div>
               </div>
             </TD>
@@ -614,7 +613,7 @@ function ScanTable({
                 <div className="font-medium">{scan.score}/100</div>
               )}
               <div className="text-xs text-muted-foreground">
-                {scan.brandMentions} omemb
+                {scan.brandMentions} mentions
               </div>
             </TD>
             <TD>{formatDuration(scan.durationMs ?? scan.ageMs)}</TD>
@@ -660,7 +659,7 @@ function ScanTable({
                         .filter(Boolean)
                         .join(" ")}
                     />
-                    Zaključi
+                    Settle
                   </Button>
                   <Button
                     type="button"
@@ -679,7 +678,7 @@ function ScanTable({
                         .filter(Boolean)
                         .join(" ")}
                     />
-                    Prekliči
+                    Cancel
                   </Button>
                 </div>
               ) : (
@@ -706,14 +705,14 @@ function actionSuccessMessage(action: ScanMonitorAction, result: unknown) {
       typeof result === "object" && result !== null && "settled" in result
         ? Number((result as { settled?: unknown }).settled ?? 0)
         : 0;
-    return `Zaključenih prestarih scanov: ${settled}.`;
+    return `Settled stale scans: ${settled}.`;
   }
 
   if (action === "settle-scan") {
-    return "Scan je zaključen in odstranjen iz aktivnega queueja.";
+    return "The scan was settled and removed from the active queue.";
   }
 
-  return "Scan je preklican in odstranjen iz aktivnega queueja.";
+  return "The scan was canceled and removed from the active queue.";
 }
 
 function ProgressBar({ value }: { value: number }) {
@@ -728,12 +727,12 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "running") return <Badge variant="warning">v delu</Badge>;
-  if (status === "queued") return <Badge variant="secondary">v vrsti</Badge>;
-  if (status === "completed") return <Badge variant="success">zaključen</Badge>;
-  if (status === "failed") return <Badge variant="danger">napaka</Badge>;
+  if (status === "running") return <Badge variant="warning">in progress</Badge>;
+  if (status === "queued") return <Badge variant="secondary">queued</Badge>;
+  if (status === "completed") return <Badge variant="success">completed</Badge>;
+  if (status === "failed") return <Badge variant="danger">error</Badge>;
   if (status === "canceled")
-    return <Badge variant="secondary">preklican</Badge>;
+    return <Badge variant="secondary">canceled</Badge>;
   return <Badge variant="secondary">{status}</Badge>;
 }
 
@@ -745,7 +744,7 @@ function providerLabel(provider: string) {
 }
 
 function triggerLabel(triggerType: string) {
-  if (triggerType === "manual") return "Ročni scan";
+  if (triggerType === "manual") return "Manual scan";
   if (triggerType === "scheduled") return "Scheduled scan";
   if (triggerType === "free_audit") return "Free audit";
   return triggerType;
@@ -753,7 +752,7 @@ function triggerLabel(triggerType: string) {
 
 function formatDateTime(value: string | null) {
   if (!value) return "-";
-  return new Intl.DateTimeFormat("sl-SI", {
+  return new Intl.DateTimeFormat("en-US", {
     dateStyle: "short",
     timeStyle: "medium",
   }).format(new Date(value));

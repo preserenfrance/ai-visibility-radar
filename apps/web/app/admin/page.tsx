@@ -42,7 +42,7 @@ async function deactivateAccountPlan(formData: FormData) {
   await requireAdminUser();
 
   const organizationId = String(formData.get("organizationId") ?? "");
-  if (!organizationId) throw new Error("Bad Request: manjka organizacija");
+  if (!organizationId) throw new Error("Bad Request: missing organization");
 
   await setOrganizationPlan(organizationId, "disabled");
 
@@ -93,7 +93,7 @@ async function cancelActiveScansForOrganization(organizationId: string) {
       data: {
         status: "skipped",
         finishedAt: canceledAt,
-        errorMessage: "Preklicano zaradi deaktiviranega paketa.",
+        errorMessage: "Canceled because the plan was deactivated.",
       },
     }),
     prisma.scanRun.updateMany({
@@ -117,7 +117,7 @@ export default async function AdminPage({
   const currentUser = await getCurrentUser();
   if (!currentUser) redirect("/login?next=/admin");
   if (!isAdminUser(currentUser))
-    return <main className="p-8">Nimate dostopa do admin strani.</main>;
+    return <main className="p-8">You do not have access to the admin area.</main>;
 
   const params = await searchParams;
   const [users, organizations, leadCount, leads] = await Promise.all([
@@ -188,10 +188,10 @@ export default async function AdminPage({
             <Users className="h-5 w-5" />
             Admin
           </div>
-          <h1 className="text-3xl font-semibold">Uporabniki in paketi</h1>
+          <h1 className="text-3xl font-semibold">Users and plans</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Enoten pregled uporabnikov, organizacij, paketov, billing statusov
-            in zadnjih leadov.
+            Unified overview of users, organizations, plans, billing statuses
+            and latest leads.
           </p>
         </div>
         {params?.updated && (
@@ -202,10 +202,10 @@ export default async function AdminPage({
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <MetricCard label="Uporabniki" value={users.length} />
-        <MetricCard label="Organizacije" value={organizations.length} />
-        <MetricCard label="Znamke" value={totalBrands} />
-        <MetricCard label="Leadi" value={leadCount} />
+        <MetricCard label="Users" value={users.length} />
+        <MetricCard label="Organizations" value={organizations.length} />
+        <MetricCard label="Brands" value={totalBrands} />
+        <MetricCard label="Leads" value={leadCount} />
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
@@ -218,13 +218,13 @@ export default async function AdminPage({
                   {PLAN_LIMITS[summary.plan].scanCadence}
                 </span>
               </CardTitle>
-              <CardDescription>Paket {summary.plan}</CardDescription>
+              <CardDescription>Plan {summary.plan}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <InlineMetric label="Org." value={summary.organizations} />
-                <InlineMetric label="Upor." value={summary.users} />
-                <InlineMetric label="Znamke" value={summary.brands} />
+                <InlineMetric label="Users" value={summary.users} />
+                <InlineMetric label="Brands" value={summary.brands} />
               </div>
             </CardContent>
           </Card>
@@ -233,21 +233,21 @@ export default async function AdminPage({
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Uporabniki, organizacije in account nivo</CardTitle>
+          <CardTitle>Users, organizations and account level</CardTitle>
           <CardDescription>
-            Vsaka vrstica predstavlja članstvo uporabnika v organizaciji.
+            Each row represents a user membership in an organization.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Uporabnik</TH>
-                <TH>Registriran</TH>
-                <TH>Organizacija</TH>
+                <TH>User</TH>
+                <TH>Registered</TH>
+                <TH>Organization</TH>
                 <TH>Status</TH>
-                <TH>Znamke</TH>
-                <TH>Nivo</TH>
+                <TH>Brands</TH>
+                <TH>Level</TH>
                 <TH>Billing</TH>
                 <TH>Spremeni account</TH>
               </TR>
@@ -265,8 +265,8 @@ export default async function AdminPage({
                           </div>
                         )}
                       </TD>
-                      <TD>{user.createdAt.toLocaleString("sl-SI")}</TD>
-                      <TD>brez organizacije</TD>
+                      <TD>{user.createdAt.toLocaleString("en-US")}</TD>
+                      <TD>No organization</TD>
                       <TD>
                         <Badge variant="secondary">brez accounta</Badge>
                       </TD>
@@ -294,11 +294,11 @@ export default async function AdminPage({
                         )}
                         {index > 0 && (
                           <div className="text-xs text-muted-foreground">
-                            dodatna organizacija
+                            additional organization
                           </div>
                         )}
                       </TD>
-                      <TD>{user.createdAt.toLocaleString("sl-SI")}</TD>
+                      <TD>{user.createdAt.toLocaleString("en-US")}</TD>
                       <TD>
                         <div className="font-medium">{organization.name}</div>
                         <div className="text-xs text-muted-foreground">
@@ -340,7 +340,7 @@ export default async function AdminPage({
                               ))}
                             </select>
                             <Button type="submit" size="sm" variant="outline">
-                              Shrani
+                              Save
                             </Button>
                           </form>
                           {organization.plan !== "disabled" && (
@@ -355,7 +355,7 @@ export default async function AdminPage({
                                 size="sm"
                                 variant="destructive"
                               >
-                                Deaktiviraj
+                                Deactivate
                               </Button>
                             </form>
                           )}
@@ -376,14 +376,14 @@ export default async function AdminPage({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <ClipboardList className="h-5 w-5 text-primary" />
-                Zadnji leadi
+                Latest leads
               </CardTitle>
               <CardDescription>
-                Zadnjih 20 leadov iz brezplačnega audita.
+                Latest 20 leads from the free audit.
               </CardDescription>
             </div>
             <Button asChild variant="outline" size="sm">
-              <Link href="/admin/leads">Vsi leadi</Link>
+              <Link href="/admin/leads">All leads</Link>
             </Button>
           </div>
         </CardHeader>
@@ -392,11 +392,11 @@ export default async function AdminPage({
             <THead>
               <TR>
                 <TH>Email</TH>
-                <TH>Domena</TH>
-                <TH>Znamka</TH>
+                <TH>Domain</TH>
+                <TH>Brand</TH>
                 <TH>AI Visibility Score</TH>
                 <TH>Lead score</TH>
-                <TH>Ustvarjeno</TH>
+                <TH>Created</TH>
                 <TH>Status</TH>
               </TR>
             </THead>
@@ -417,7 +417,7 @@ export default async function AdminPage({
                     {lead.auditScanRun?.scoreSnapshot?.visibilityScore ?? "-"}
                   </TD>
                   <TD>{lead.leadScore}</TD>
-                  <TD>{lead.createdAt.toLocaleString("sl-SI")}</TD>
+                  <TD>{lead.createdAt.toLocaleString("en-US")}</TD>
                   <TD>
                     <Badge variant="secondary">{lead.status}</Badge>
                   </TD>
@@ -426,7 +426,7 @@ export default async function AdminPage({
               {leads.length === 0 && (
                 <TR>
                   <TD colSpan={7} className="text-muted-foreground">
-                    Ni zajetih leadov.
+                    No leads have been captured.
                   </TD>
                 </TR>
               )}
@@ -446,7 +446,7 @@ function MetricCard({ label, value }: { label: string; value: number }) {
       </CardHeader>
       <CardContent className="p-4 pt-0">
         <div className="text-2xl font-semibold">
-          {value.toLocaleString("sl-SI")}
+          {value.toLocaleString("en-US")}
         </div>
       </CardContent>
     </Card>
@@ -458,7 +458,7 @@ function InlineMetric({ label, value }: { label: string; value: number }) {
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold">
-        {value.toLocaleString("sl-SI")}
+        {value.toLocaleString("en-US")}
       </div>
     </div>
   );
@@ -472,8 +472,8 @@ function PlanBadge({ plan }: { plan: Plan }) {
 }
 
 function AccountStatusBadge({ plan }: { plan: Plan }) {
-  if (plan === "disabled") return <Badge variant="danger">deaktiviran</Badge>;
-  return <Badge variant="success">aktiven</Badge>;
+  if (plan === "disabled") return <Badge variant="danger">disabled</Badge>;
+  return <Badge variant="success">active</Badge>;
 }
 
 function BillingBadge({
@@ -489,13 +489,13 @@ function BillingBadge({
 }) {
   const subscription = organization.billingSubscription;
   if (organization.plan === "disabled") {
-    return <Badge variant="danger">deaktivirano</Badge>;
+    return <Badge variant="danger">disabled</Badge>;
   }
   if (organization.plan !== "free" && !subscription?.stripeSubscriptionId) {
-    return <Badge variant="success">ročno aktivno</Badge>;
+    return <Badge variant="success">manually active</Badge>;
   }
   if (subscription?.stripeSubscriptionId) {
-    const status = subscription.status ?? "brez statusa";
+    const status = subscription.status ?? "no status";
     return (
       <Badge
         variant={
@@ -510,7 +510,7 @@ function BillingBadge({
       </Badge>
     );
   }
-  return <Badge variant="secondary">ni aktivno</Badge>;
+  return <Badge variant="secondary">inactive</Badge>;
 }
 
 function isPlan(value: string): value is Plan {

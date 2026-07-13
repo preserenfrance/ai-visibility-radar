@@ -17,7 +17,7 @@ async function addCompetitor(formData: FormData) {
   const brandId = String(formData.get("brandId"));
   const name = String(formData.get("name") ?? "").trim();
   if (name.length < 2)
-    throw new Error("Ime konkurenta mora imeti vsaj 2 znaka");
+    throw new Error("Competitor name must be at least 2 characters");
 
   await requireBrandAccess(brandId);
   await prisma.competitor.create({
@@ -35,12 +35,12 @@ async function updateCompetitor(formData: FormData) {
   const competitorId = String(formData.get("competitorId"));
   const name = String(formData.get("name") ?? "").trim();
   if (name.length < 2)
-    throw new Error("Ime konkurenta mora imeti vsaj 2 znaka");
+    throw new Error("Competitor name must be at least 2 characters");
 
   const competitor = await prisma.competitor.findUnique({
     where: { id: competitorId },
   });
-  if (!competitor) throw new Error("Konkurent ni najden");
+  if (!competitor) throw new Error("Competitor not found");
   await requireBrandAccess(competitor.brandId);
 
   await prisma.competitor.update({
@@ -59,7 +59,7 @@ async function deleteCompetitor(formData: FormData) {
   const competitor = await prisma.competitor.findUnique({
     where: { id: competitorId },
   });
-  if (!competitor) throw new Error("Konkurent ni najden");
+  if (!competitor) throw new Error("Competitor not found");
   await requireBrandAccess(competitor.brandId);
 
   await prisma.competitor.delete({ where: { id: competitorId } });
@@ -118,13 +118,13 @@ export default async function CompetitorsPage({
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Pregled konkurentov</h1>
+        <h1 className="text-3xl font-semibold">Competitor overview</h1>
         <p className="text-muted-foreground">{brand.name}</p>
       </div>
       <BrandMenu brandId={brandId} active="competitors" />
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Vnesi konkurenta</CardTitle>
+          <CardTitle>Add competitor</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={addCompetitor} className="grid gap-3">
@@ -132,12 +132,12 @@ export default async function CompetitorsPage({
             <div className="grid gap-3 md:grid-cols-2">
               <div className="grid gap-2">
                 <label htmlFor="competitorName" className="text-sm font-medium">
-                  Ime konkurenta
+                  Competitor name
                 </label>
                 <Input
                   id="competitorName"
                   name="name"
-                  placeholder="Npr. Konkurent d.o.o."
+                  placeholder="e.g. Competitor Ltd."
                   required
                 />
               </div>
@@ -146,37 +146,37 @@ export default async function CompetitorsPage({
                   htmlFor="competitorDomain"
                   className="text-sm font-medium"
                 >
-                  Domena konkurenta
+                  Competitor domain
                 </label>
                 <Input
                   id="competitorDomain"
                   name="domain"
-                  placeholder="konkurent.si"
+                  placeholder="competitor.com"
                 />
               </div>
             </div>
             <Button type="submit" className="justify-self-start">
               <Plus className="h-4 w-4" />
-              Vnesi konkurenta
+              Add competitor
             </Button>
           </form>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Konkurenti</CardTitle>
+          <CardTitle>Competitors</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Ime konkurenta</TH>
-                <TH>Število omemb</TH>
-                <TH>Povprečni rang</TH>
-                <TH>Konkurentov delež glasu</TH>
-                <TH>Naš delež glasu</TH>
+                <TH>Competitor name</TH>
+                <TH>Mention count</TH>
+                <TH>Average rank</TH>
+                <TH>Competitor share of voice</TH>
+                <TH>Our share of voice</TH>
                 <TH>Sentiment</TH>
-                <TH>Upravljanje</TH>
+                <TH>Manage</TH>
               </TR>
             </THead>
             <TBody>
@@ -224,7 +224,7 @@ export default async function CompetitorsPage({
                               htmlFor={`name-${competitor.id}`}
                               className="text-xs font-medium"
                             >
-                              Ime konkurenta
+                              Competitor name
                             </label>
                             <Input
                               id={`name-${competitor.id}`}
@@ -238,7 +238,7 @@ export default async function CompetitorsPage({
                               htmlFor={`domain-${competitor.id}`}
                               className="text-xs font-medium"
                             >
-                              Domena
+                              Domain
                             </label>
                             <Input
                               id={`domain-${competitor.id}`}
@@ -252,13 +252,13 @@ export default async function CompetitorsPage({
                             className="justify-self-start"
                           >
                             <Save className="h-4 w-4" />
-                            Shrani
+                            Save
                           </Button>
                         </form>
                         <div className="mt-3 grid min-w-72 gap-3 rounded-md border bg-white p-3">
                           <div>
                             <div className="text-xs font-semibold uppercase text-muted-foreground">
-                              Prompti, kjer konkurent zmaga
+                              Prompts where this competitor wins
                             </div>
                             <div className="mt-2 grid gap-2">
                               {runs.length ? (
@@ -275,15 +275,15 @@ export default async function CompetitorsPage({
                                 ))
                               ) : (
                                 <div className="text-xs text-muted-foreground">
-                                  Ni najdenih promptov, kjer bi bil ta konkurent
-                                  omenjen.
+                                  No prompts found where this competitor was
+                                  mentioned.
                                 </div>
                               )}
                             </div>
                           </div>
                           <div>
                             <div className="text-xs font-semibold uppercase text-muted-foreground">
-                              Citati, ki podpirajo konkurenta
+                              Citations that support the competitor
                             </div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {citations.length ? (
@@ -294,8 +294,8 @@ export default async function CompetitorsPage({
                                 ))
                               ) : (
                                 <div className="text-xs text-muted-foreground">
-                                  Ni najdenih citatov, ki bi podpirali tega
-                                  konkurenta.
+                                  No citations found that support this
+                                  competitor.
                                 </div>
                               )}
                             </div>
@@ -303,7 +303,7 @@ export default async function CompetitorsPage({
                         </div>
                       </details>
                       <div className="text-xs text-muted-foreground">
-                        {competitor.domain ?? "brez domene"}
+                        {competitor.domain ?? "no domain"}
                       </div>
                     </TD>
                     <TD>{group?._count.entityName ?? 0}</TD>
@@ -333,7 +333,7 @@ export default async function CompetitorsPage({
                         />
                         <Button size="sm" variant="destructive" type="submit">
                           <Trash2 className="h-4 w-4" />
-                          Izbriši
+                          Delete
                         </Button>
                       </form>
                     </TD>

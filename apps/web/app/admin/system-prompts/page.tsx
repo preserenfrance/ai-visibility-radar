@@ -48,7 +48,7 @@ export default async function AdminSystemPromptsPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/system-prompts");
   if (!isAdminUser(user))
-    return <main className="p-8">Nimate dostopa do admin strani.</main>;
+    return <main className="p-8">You do not have access to the admin area.</main>;
 
   const params = await searchParams;
   const settings = await systemPromptSettings();
@@ -61,28 +61,28 @@ export default async function AdminSystemPromptsPage({
             <SlidersHorizontal className="h-5 w-5" />
             Admin
           </div>
-          <h1 className="text-3xl font-semibold">Sistemski prompti</h1>
+          <h1 className="text-3xl font-semibold">System prompts</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Urejanje internih navodil za predlaganje promptov in legacy
-            nastavitve prejšnjega toka. Za testiranje najprej shrani spremembe,
-            nato spodaj zaženi test.
+            Edit internal instructions for prompt suggestions and legacy
+            settings from the previous flow. To test, save changes first, then
+            run the test below.
           </p>
         </div>
         {(params?.saved || params?.reset) && (
           <div className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
             {params.saved
-              ? "Sistemski prompt je shranjen."
-              : "Sistemski prompt je ponastavljen."}
+              ? "System prompt saved."
+              : "System prompt reset."}
           </div>
         )}
       </div>
 
       <Card className="mb-4">
         <CardHeader>
-          <CardTitle>Test predlaganja promptov</CardTitle>
+          <CardTitle>Test prompt suggestions</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Test uporabi trenutno shranjena navodila za sistemski prompt
-            "Predlaganje promptov v začetnem auditu".
+            The test uses the currently saved instructions for the system
+            prompt "Prompt suggestions in the initial audit".
           </p>
         </CardHeader>
         <CardContent>
@@ -100,7 +100,7 @@ export default async function AdminSystemPromptsPage({
               </p>
               <p className="text-xs text-muted-foreground">
                 {prompt.updatedAt
-                  ? `Zadnja sprememba: ${prompt.updatedAt.toLocaleString("sl-SI")}${
+                  ? `Last change: ${prompt.updatedAt.toLocaleString("en-US")}${
                       prompt.updatedByEmail ? ` · ${prompt.updatedByEmail}` : ""
                     }`
                   : "Uporablja se privzeta nastavitev."}
@@ -115,7 +115,7 @@ export default async function AdminSystemPromptsPage({
                   className="min-h-56 font-mono text-xs"
                 />
                 <div className="flex flex-wrap gap-2">
-                  <Button type="submit">Shrani</Button>
+                  <Button type="submit">Save</Button>
                   <Button
                     type="submit"
                     variant="outline"

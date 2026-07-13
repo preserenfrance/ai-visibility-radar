@@ -18,7 +18,7 @@ export function PromptContentReviewSubmit({
       ) : (
         <Search className="h-4 w-4" />
       )}
-      {pending ? "Preverjam..." : "Preveri"}
+      {pending ? "Checking..." : "Check"}
     </Button>
   );
 }

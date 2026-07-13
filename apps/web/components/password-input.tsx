@@ -12,7 +12,7 @@ type PasswordInputProps = Omit<
 
 export function PasswordInput({ className, ...props }: PasswordInputProps) {
   const [visible, setVisible] = React.useState(false);
-  const label = visible ? "Skrij geslo" : "Pokaži geslo";
+  const label = visible ? "Hide password" : "Show password";
   const Icon = visible ? EyeOff : Eye;
 
   return (

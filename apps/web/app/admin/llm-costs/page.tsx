@@ -66,7 +66,7 @@ export default async function AdminLlmCostsPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/llm-costs");
   if (!isAdminUser(user))
-    return <main className="p-8">Nimate dostopa do admin strani.</main>;
+    return <main className="p-8">You do not have access to the admin area.</main>;
 
   const params = await searchParams;
   const now = new Date();
@@ -135,38 +135,38 @@ export default async function AdminLlmCostsPage({
         <div>
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
             <DollarSign className="h-5 w-5" />
-            Admin analitika
+            Admin analytics
           </div>
           <h1 className="text-3xl font-semibold">
-            Realna LLM poraba iz API-jev
+            Actual LLM usage from APIs
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Poraba v tekočem mesecu po providerjih, prebrana iz billing oziroma
-            cost API-jev tam, kjer jih provider omogoča. Lokalna ocena iz
-            shranjenih odgovorov je prikazana samo za primerjavo.
+            Current-month usage by provider, read from billing or cost APIs
+            where the provider supports it. The local estimate from
+            saved responses is shown only for comparison.
           </p>
         </div>
         <div className="rounded-lg border bg-white px-5 py-4 text-right">
           <div className="text-xs font-semibold uppercase text-muted-foreground">
-            Provider API skupaj ta mesec
+            Provider API total this month
           </div>
           <div className="mt-1 text-3xl font-semibold">
             ${formatMoney(realMonthTotal)}
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
-            {realProviderCount}/{apiCostReports.length} providerjev povezanih
+            {realProviderCount}/{apiCostReports.length} providers connected
           </div>
         </div>
       </div>
 
       <Card className="mb-6 border-amber-300 bg-amber-50">
         <CardContent className="p-4 text-sm text-amber-950">
-          OpenAI porabo beremo iz OpenAI Costs API-ja, Claude porabo iz
-          Anthropic Cost API-ja. Za to sta potrebna admin ključa
-          `OPENAI_ADMIN_API_KEY` in `ANTHROPIC_ADMIN_API_KEY`. Gemini API
-          trenutno nima enakega programskega cost endpointa prek API keyja, zato
-          je pri Gemini prikazana lokalna ocena iz shranjenih odgovorov in
-          navodilo za AI Studio oziroma Cloud Billing.
+          OpenAI usage is read from the OpenAI Costs API and Claude usage from
+          the Anthropic Cost API. This requires the admin keys
+          `OPENAI_ADMIN_API_KEY` and `ANTHROPIC_ADMIN_API_KEY`. Gemini does not
+          currently expose an equivalent programmatic cost endpoint through an
+          API key, so Gemini shows a local estimate from saved responses and a
+          note for AI Studio or Cloud Billing.
         </CardContent>
       </Card>
 
@@ -177,31 +177,31 @@ export default async function AdminLlmCostsPage({
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
-          label="Provider API poraba"
+          label="Provider API usage"
           value={`$${formatMoney(realMonthTotal)}`}
         />
         <MetricCard
-          label="Lokalna ocena"
+          label="Local estimate"
           value={`$${formatMoney(localMonthTotal)}`}
         />
         <MetricCard
-          label="Zabeleženo v bazi"
+          label="Recorded in database"
           value={`$${formatMoney(storedTotal)}`}
         />
         <MetricCard
-          label="Ocenjeno iz tokenov"
+          label="Estimated from tokens"
           value={`$${formatMoney(estimatedTotal)}`}
         />
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-2">
         <MetricCard
-          label="Input tokeni"
-          value={inputTokenTotal.toLocaleString("sl-SI")}
+          label="Input tokens"
+          value={inputTokenTotal.toLocaleString("en-US")}
         />
         <MetricCard
-          label="Output tokeni"
-          value={outputTokenTotal.toLocaleString("sl-SI")}
+          label="Output tokens"
+          value={outputTokenTotal.toLocaleString("en-US")}
         />
       </div>
 
@@ -217,20 +217,20 @@ export default async function AdminLlmCostsPage({
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Povzetek po providerjih</CardTitle>
+          <CardTitle>Summary by provider</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
                 <TH>Provider</TH>
-                <TH>Provider API poraba</TH>
-                <TH>Lokalna ocena</TH>
-                <TH>Status vira</TH>
-                <TH>Odgovori</TH>
-                <TH>Input tokeni</TH>
-                <TH>Output tokeni</TH>
-                <TH>Modeli</TH>
+                <TH>Provider API usage</TH>
+                <TH>Local estimate</TH>
+                <TH>Source status</TH>
+                <TH>Responses</TH>
+                <TH>Input tokens</TH>
+                <TH>Output tokens</TH>
+                <TH>Models</TH>
               </TR>
             </THead>
             <TBody>
@@ -254,8 +254,8 @@ export default async function AdminLlmCostsPage({
                       ) : null}
                     </TD>
                     <TD>{summary.responseCount}</TD>
-                    <TD>{summary.inputTokens.toLocaleString("sl-SI")}</TD>
-                    <TD>{summary.outputTokens.toLocaleString("sl-SI")}</TD>
+                    <TD>{summary.inputTokens.toLocaleString("en-US")}</TD>
+                    <TD>{summary.outputTokens.toLocaleString("en-US")}</TD>
                     <TD>{Array.from(summary.models).join(", ") || "-"}</TD>
                   </TR>
                 );
@@ -280,16 +280,16 @@ function ModelSettingsCard({
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>Globalni AI modeli</CardTitle>
+            <CardTitle>Global AI models</CardTitle>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Izbira velja za nove scane vseh uporabnikov. Seznam modelov se
-              prebere iz API-jev ponudnikov; če ponudnik ni dosegljiv, ostane
-              trenutni model ročno izbran.
+              The selection applies to new scans for all users. Model lists are
+              read from provider APIs; if a provider is unavailable, the current
+              model remains selected manually.
             </p>
           </div>
           {saved && (
             <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
-              Modeli so shranjeni.
+              Models saved.
             </div>
           )}
         </div>
@@ -330,7 +330,7 @@ function ModelSettingsCard({
             </div>
           ))}
           <Button type="submit" className="w-fit">
-            Shrani globalne modele
+            Save global models
           </Button>
         </form>
       </CardContent>
@@ -366,14 +366,14 @@ function ProviderCostCard({
           </div>
           <div className="text-right">
             <div className="text-xs font-semibold uppercase text-muted-foreground">
-              {apiReport.status === "ok" ? "Realno ta mesec" : "Lokalna ocena"}
+              {apiReport.status === "ok" ? "Actual this month" : "Local estimate"}
             </div>
             <div className="text-2xl font-semibold">
               ${formatMoney(displayTotal)}
             </div>
             <div className="text-xs text-muted-foreground">
-              ${formatMoney(summary.storedUsd)} zabeleženo · $
-              {formatMoney(summary.estimatedUsd)} ocenjeno
+              ${formatMoney(summary.storedUsd)} recorded · $
+              {formatMoney(summary.estimatedUsd)} estimated
             </div>
           </div>
         </div>

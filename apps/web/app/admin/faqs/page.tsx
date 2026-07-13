@@ -41,7 +41,7 @@ export default async function AdminFaqsPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/faqs");
   if (!isAdminUser(user))
-    return <main className="p-8">Nimate dostopa do admin strani.</main>;
+    return <main className="p-8">You do not have access to the admin area.</main>;
 
   const params = await searchParams;
   const sections = await faqSections();
@@ -56,13 +56,13 @@ export default async function AdminFaqsPage({
           </div>
           <h1 className="text-3xl font-semibold">FAQ vsebina</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Uredi vprašanja in odgovore na javni strani FAQ. Prazna vprašanja
-            ali odgovori se ne shranijo, zato lahko tako tudi odstraniš vnos.
+            Edit questions and answers on the public FAQ page. Empty questions
+            or answers are not saved, so you can remove an entry that way too.
           </p>
         </div>
         {(params?.saved || params?.reset) && (
           <div className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
-            {params.saved ? "FAQ je shranjen." : "FAQ je ponastavljen."}
+            {params.saved ? "FAQ saved." : "FAQ reset."}
           </div>
         )}
       </div>
@@ -71,12 +71,12 @@ export default async function AdminFaqsPage({
         {sections.map((section, sectionIndex) => (
           <Card key={`${section.title}-${sectionIndex}`}>
             <CardHeader>
-              <CardTitle>Sekcija {sectionIndex + 1}</CardTitle>
+              <CardTitle>Section {sectionIndex + 1}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="grid gap-2">
                 <label className="text-sm font-medium">
-                  Naslov sekcije
+                  Section title
                   <Input
                     name="sectionTitle"
                     defaultValue={section.title}
@@ -98,7 +98,7 @@ export default async function AdminFaqsPage({
                         value={sectionIndex}
                       />
                       <label className="text-xs font-medium">
-                        Vprašanje
+                        Question
                         <Input
                           name="question"
                           defaultValue={item.question}
@@ -122,7 +122,7 @@ export default async function AdminFaqsPage({
         ))}
 
         <div className="flex flex-wrap gap-2">
-          <Button type="submit">Shrani FAQ</Button>
+          <Button type="submit">Save FAQ</Button>
           <Button type="submit" variant="outline" formAction={resetFaqs}>
             Ponastavi privzeto
           </Button>

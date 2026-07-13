@@ -51,7 +51,7 @@ async function cancelScanRun(formData: FormData) {
   await requireAdminUser();
 
   const scanRunId = String(formData.get("scanRunId") ?? "");
-  if (!scanRunId) throw new Error("Bad Request: manjka scanRunId");
+  if (!scanRunId) throw new Error("Bad Request: missing scanRunId");
 
   await prisma.$transaction([
     prisma.scanRun.updateMany({
@@ -72,7 +72,7 @@ async function cancelScanRun(formData: FormData) {
       data: {
         status: "skipped",
         finishedAt: new Date(),
-        errorMessage: "Preklicano v adminu.",
+        errorMessage: "Canceled in admin.",
       },
     }),
   ]);
@@ -105,7 +105,7 @@ async function cancelQueuedScans() {
       data: {
         status: "skipped",
         finishedAt: canceledAt,
-        errorMessage: "Množično preklicano v adminu.",
+        errorMessage: "Bulk-canceled by admin.",
       },
     });
     const scanRuns = await tx.scanRun.updateMany({
@@ -148,7 +148,7 @@ async function stopRecurringScan(formData: FormData) {
   await requireAdminUser();
 
   const brandId = String(formData.get("brandId") ?? "");
-  if (!brandId) throw new Error("Bad Request: manjka brandId");
+  if (!brandId) throw new Error("Bad Request: missing brandId");
 
   await prisma.brand.update({
     where: { id: brandId },
@@ -169,7 +169,7 @@ export default async function AdminOperationsPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/admin/operations");
   if (!isAdminUser(user))
-    return <main className="p-8">Nimate dostopa do admin strani.</main>;
+    return <main className="p-8">You do not have access to the admin area.</main>;
 
   const query = (await searchParams) ?? {};
   const requestedScheduledPage = pageFromSearchParam(query.scheduledPage);
@@ -364,12 +364,12 @@ export default async function AdminOperationsPage({
         <div>
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
             <Activity className="h-5 w-5" />
-            Admin operacije
+            Admin operations
           </div>
-          <h1 className="text-3xl font-semibold">Scheduled scani in e-maili</h1>
+          <h1 className="text-3xl font-semibold">Scheduled scans and emails</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Operativni pregled recurring scanov, queue stanja in zabeleženih
-            e-mail dogodkov.
+            Operational view of recurring scans, queue state and recorded
+            email events.
           </p>
         </div>
         <div className="rounded-lg border bg-white px-5 py-4 text-right">
@@ -385,41 +385,41 @@ export default async function AdminOperationsPage({
 
       {updateKey === "scan-queue-run" && (
         <div className="mb-6 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-          Queue zagon sprožen: {queueRunSteps.toLocaleString("sl-SI")} korakov,
-          preostalih {queueRunRemaining.toLocaleString("sl-SI")} scanov.
+          Queue run triggered: {queueRunSteps.toLocaleString("en-US")} steps,
+          {queueRunRemaining.toLocaleString("en-US")} scans remaining.
         </div>
       )}
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
           icon={<RefreshCw className="h-5 w-5" />}
-          label="Aktivni recurring scani"
+          label="Active recurring scans"
           value={activeRecurringCount}
         />
         <MetricCard
           icon={<Clock3 className="h-5 w-5" />}
-          label="Zapadli zdaj"
+          label="Due now"
           value={dueRecurringCount}
           tone={dueRecurringCount > 0 ? "warning" : "default"}
         />
         <MetricCard
           icon={<CalendarClock className="h-5 w-5" />}
-          label="Naslednjih 7 dni"
+          label="Next 7 days"
           value={estimatedNextWeekRuns}
         />
         <MetricCard
           icon={<CalendarClock className="h-5 w-5" />}
-          label="Naslednjih 30 dni"
+          label="Next 30 days"
           value={estimatedNextMonthRuns}
         />
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <MetricCard label="Queued operacije" value={currentQueuedScans} />
-        <MetricCard label="Running operacije" value={currentRunningScans} />
-        <MetricCard label="Zaključeni 7 dni" value={completedScheduledScans} />
+        <MetricCard label="Queued operations" value={currentQueuedScans} />
+        <MetricCard label="Running operations" value={currentRunningScans} />
+        <MetricCard label="Completed 7 days" value={completedScheduledScans} />
         <MetricCard
-          label="Napake 7 dni"
+          label="Errors 7 days"
           value={failedScheduledScans}
           tone={failedScheduledScans > 0 ? "danger" : "default"}
         />
@@ -428,13 +428,13 @@ export default async function AdminOperationsPage({
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard
           icon={<Mail className="h-5 w-5" />}
-          label="E-maili 1h"
+          label="Emails 1h"
           value={emailsLastHour}
         />
-        <MetricCard label="Poslani 24h" value={emailsSentLastDay} />
-        <MetricCard label="V čakanju skupaj" value={emailsQueuedAll} />
+        <MetricCard label="Sent 24h" value={emailsSentLastDay} />
+        <MetricCard label="Queued total" value={emailsQueuedAll} />
         <MetricCard
-          label="Napake 24h"
+          label="Errors 24h"
           value={emailsFailedLastDay}
           tone={emailsFailedLastDay > 0 ? "danger" : "default"}
         />
@@ -443,35 +443,35 @@ export default async function AdminOperationsPage({
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Prihodnji scheduled pregledi</CardTitle>
+            <CardTitle>Upcoming scheduled scans</CardTitle>
             <CardDescription>
-              Naslednji zapisani termini po znamkah. Ocenjeni ponavljajoči
-              pregledi vključujejo tudi tedenske oziroma dnevne ponovitve.
+              Next saved run times by brand. Estimated recurring scans also
+              include weekly or daily repeats.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="mb-4 grid gap-3 md:grid-cols-3">
               <InlineMetric
-                label="Naslednjih 24h"
+                label="Next 24h"
                 value={nextDayRecurringCount}
               />
               <InlineMetric
-                label="Naslednjih 7 dni"
+                label="Next 7 days"
                 value={nextWeekRecurringCount}
               />
               <InlineMetric
-                label="Naslednjih 30 dni"
+                label="Next 30 days"
                 value={nextMonthRecurringCount}
               />
             </div>
             <Table>
               <THead>
                 <TR>
-                  <TH>Znamka</TH>
-                  <TH>Organizacija</TH>
+                  <TH>Brand</TH>
+                  <TH>Organization</TH>
                   <TH>Kadenca</TH>
-                  <TH>Naslednji termin</TH>
-                  <TH>Akcija</TH>
+                  <TH>Next run</TH>
+                  <TH>Action</TH>
                 </TR>
               </THead>
               <TBody>
@@ -496,13 +496,13 @@ export default async function AdminOperationsPage({
                     </TD>
                     <TD>{cadenceLabel(brand.recurringScanCadence)}</TD>
                     <TD>
-                      {brand.recurringScanNextRunAt?.toLocaleString("sl-SI")}
+                      {brand.recurringScanNextRunAt?.toLocaleString("en-US")}
                     </TD>
                     <TD>
                       <form action={stopRecurringScan}>
                         <input type="hidden" name="brandId" value={brand.id} />
                         <Button type="submit" size="sm" variant="outline">
-                          Ustavi urnik
+                          Stop schedule
                         </Button>
                       </form>
                     </TD>
@@ -511,7 +511,7 @@ export default async function AdminOperationsPage({
                 {recurringBrands.length === 0 && (
                   <TR>
                     <TD colSpan={5} className="text-muted-foreground">
-                      Ni aktivnih scheduled pregledov.
+                      There are no active scheduled scans.
                     </TD>
                   </TR>
                 )}
@@ -531,10 +531,10 @@ export default async function AdminOperationsPage({
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <CardTitle>Queued / running scani</CardTitle>
+                <CardTitle>Queued / running scans</CardTitle>
                 <CardDescription>
-                  Trenutni ročni in scheduled scan runi, ki čakajo ali se
-                  izvajajo.
+                  Current manual and scheduled scan runs that are queued or
+                  running.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -545,7 +545,7 @@ export default async function AdminOperationsPage({
                     disabled={pendingScansCount === 0}
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Zaženi queue zdaj
+                    Run queue now
                   </Button>
                 </form>
                 <form action={cancelQueuedScans}>
@@ -556,7 +556,7 @@ export default async function AdminOperationsPage({
                     disabled={currentQueuedScans === 0}
                   >
                     <Ban className="h-4 w-4" />
-                    {`Prekliči queued (${currentQueuedScans.toLocaleString("sl-SI")})`}
+                    {`Cancel queued (${currentQueuedScans.toLocaleString("en-US")})`}
                   </Button>
                 </form>
               </div>
@@ -566,11 +566,11 @@ export default async function AdminOperationsPage({
             <Table>
               <THead>
                 <TR>
-                  <TH>Znamka</TH>
-                  <TH>Tip</TH>
+                  <TH>Brand</TH>
+                  <TH>Type</TH>
                   <TH>Status</TH>
-                  <TH>Ustvarjeno</TH>
-                  <TH>Akcija</TH>
+                  <TH>Created</TH>
+                  <TH>Action</TH>
                 </TR>
               </THead>
               <TBody>
@@ -591,12 +591,12 @@ export default async function AdminOperationsPage({
                     <TD>
                       <ScanStatusBadge status={scan.status} />
                     </TD>
-                    <TD>{scan.createdAt.toLocaleString("sl-SI")}</TD>
+                    <TD>{scan.createdAt.toLocaleString("en-US")}</TD>
                     <TD>
                       <form action={cancelScanRun}>
                         <input type="hidden" name="scanRunId" value={scan.id} />
                         <Button type="submit" size="sm" variant="outline">
-                          Prekini
+                          Cancel
                         </Button>
                       </form>
                     </TD>
@@ -605,7 +605,7 @@ export default async function AdminOperationsPage({
                 {pendingScans.length === 0 && (
                   <TR>
                     <TD colSpan={5} className="text-muted-foreground">
-                      Ni ročnih ali scheduled scanov v queueju.
+                      There are no manual or scheduled scans in the queue.
                     </TD>
                   </TR>
                 )}
@@ -627,7 +627,7 @@ export default async function AdminOperationsPage({
           <CardHeader>
             <CardTitle>E-mail statusi</CardTitle>
             <CardDescription>
-              Zabeleženi e-mail dogodki. Skupaj zadnjih 7 dni: {emailsLastWeek}.
+              Recorded email events. Total last 7 days: {emailsLastWeek}.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -635,9 +635,9 @@ export default async function AdminOperationsPage({
               <THead>
                 <TR>
                   <TH>Status</TH>
-                  <TH>Skupaj</TH>
+                  <TH>Total</TH>
                   <TH>24h</TH>
-                  <TH>7 dni</TH>
+                  <TH>7 days</TH>
                 </TR>
               </THead>
               <TBody>
@@ -658,16 +658,16 @@ export default async function AdminOperationsPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Zadnji e-mail dogodki</CardTitle>
+            <CardTitle>Latest email events</CardTitle>
             <CardDescription>
-              Zadnji zapisi iz e-mail event loga, vključno z napakami.
+              Latest records from the email event log, including errors.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <THead>
                 <TR>
-                  <TH>Čas</TH>
+                  <TH>Time</TH>
                   <TH>Status</TH>
                   <TH>Zadeva</TH>
                   <TH>Lead</TH>
@@ -676,7 +676,7 @@ export default async function AdminOperationsPage({
               <TBody>
                 {recentEmailEvents.map((event) => (
                   <TR key={event.id}>
-                    <TD>{event.createdAt.toLocaleString("sl-SI")}</TD>
+                    <TD>{event.createdAt.toLocaleString("en-US")}</TD>
                     <TD>
                       <EmailStatusBadge type={event.type} />
                     </TD>
@@ -707,7 +707,7 @@ export default async function AdminOperationsPage({
                 {recentEmailEvents.length === 0 && (
                   <TR>
                     <TD colSpan={4} className="text-muted-foreground">
-                      Ni zabeleženih e-mail dogodkov.
+                      No email events recorded.
                     </TD>
                   </TR>
                 )}
@@ -757,7 +757,7 @@ function MetricCard({
             .filter(Boolean)
             .join(" ")}
         >
-          {value.toLocaleString("sl-SI")}
+          {value.toLocaleString("en-US")}
         </div>
       </CardContent>
     </Card>
@@ -769,7 +769,7 @@ function InlineMetric({ label, value }: { label: string; value: number }) {
     <div className="rounded-md border bg-secondary/30 px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold">
-        {value.toLocaleString("sl-SI")}
+        {value.toLocaleString("en-US")}
       </div>
     </div>
   );
@@ -798,17 +798,17 @@ function PaginationControls({
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-sm">
       <div className="text-muted-foreground">
         {totalItems === 0
-          ? "Ni zapisov"
-          : `${start.toLocaleString("sl-SI")}-${end.toLocaleString(
-              "sl-SI",
-            )} od ${totalItems.toLocaleString("sl-SI")}`}
+          ? "No records"
+          : `${start.toLocaleString("en-US")}-${end.toLocaleString(
+              "en-US",
+            )} of ${totalItems.toLocaleString("en-US")}`}
       </div>
       <div className="flex items-center gap-2">
         <PaginationButton
           enabled={page > 1}
           href={operationsPageHref(query, { [pageParam]: previousPage })}
         >
-          Prejšnja
+          Previous
         </PaginationButton>
         <div className="min-w-20 text-center text-xs text-muted-foreground">
           {page}/{totalPages}
@@ -817,7 +817,7 @@ function PaginationControls({
           enabled={page < totalPages}
           href={operationsPageHref(query, { [pageParam]: nextPage })}
         >
-          Naslednja
+          Next
         </PaginationButton>
       </div>
     </div>
@@ -899,8 +899,8 @@ function advanceByCadence(date: Date, cadence: "weekly" | "daily" | null) {
 }
 
 function cadenceLabel(cadence: "weekly" | "daily" | null) {
-  if (cadence === "daily") return "dnevno";
-  return "tedensko";
+  if (cadence === "daily") return "daily";
+  return "weekly";
 }
 
 function ScanStatusBadge({ status }: { status: ScanRunStatus }) {

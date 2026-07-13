@@ -27,30 +27,30 @@ export default async function AppDashboardPage() {
     <section className="mx-auto max-w-7xl px-5 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold">Moje znamke</h1>
+          <h1 className="text-3xl font-semibold">My brands</h1>
           <p className="text-muted-foreground">
-            Seznam znamk, zadnjih rezultatov in statusov scanov.
+            A list of brands, latest results and scan statuses.
           </p>
         </div>
         <Button asChild>
-          <a href="/ai-visibility-checker">Nova znamka</a>
+          <a href="/ai-visibility-checker">New brand</a>
         </Button>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Znamke</CardTitle>
+          <CardTitle>Brands</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <THead>
               <TR>
-                <TH>Znamka</TH>
-                <TH>Organizacija</TH>
+                <TH>Brand</TH>
+                <TH>Organization</TH>
                 <TH>Score</TH>
-                <TH>Zadnji scan</TH>
+                <TH>Latest scan</TH>
                 <TH>Status</TH>
-                <TH>Reden scan</TH>
-                <TH>Plačilo</TH>
+                <TH>Recurring scan</TH>
+                <TH>Billing</TH>
               </TR>
             </THead>
             <TBody>
@@ -78,31 +78,31 @@ export default async function AppDashboardPage() {
                     <TD>{brand.organization.name}</TD>
                     <TD>{brand.scoreSnapshots[0]?.visibilityScore ?? "-"}</TD>
                     <TD>
-                      {brand.scanRuns[0]?.createdAt.toLocaleString("sl-SI") ??
+                      {brand.scanRuns[0]?.createdAt.toLocaleString("en-US") ??
                         "-"}
                     </TD>
                     <TD>
                       <Badge variant="secondary">
-                        {brand.scanRuns[0]?.status ?? "brez scana"}
+                        {brand.scanRuns[0]?.status ?? "no scan yet"}
                       </Badge>
                     </TD>
                     <TD>
                       {recurringScanScheduled ? (
                         <div className="grid gap-1">
-                          <Badge>aktiven</Badge>
+                          <Badge>active</Badge>
                           <span className="text-xs text-muted-foreground">
                             {cadenceLabel(
                               brand.recurringScanCadence ?? "weekly",
                             )}
                             {brand.recurringScanNextRunAt
-                              ? ` · naslednji ${brand.recurringScanNextRunAt.toLocaleDateString("sl-SI")}`
+                              ? ` · next ${brand.recurringScanNextRunAt.toLocaleDateString("en-US")}`
                               : recurringScanActive
                                 ? ""
-                                : " · naslednji termin se nastavi kmalu"}
+                                : " · next run will be scheduled soon"}
                           </span>
                         </div>
                       ) : (
-                        <Badge variant="secondary">ni aktiven</Badge>
+                        <Badge variant="secondary">inactive</Badge>
                       )}
                     </TD>
                     <TD>
@@ -127,7 +127,7 @@ export default async function AppDashboardPage() {
 }
 
 function cadenceLabel(value: "weekly" | "daily" | null) {
-  if (value === "daily") return "dnevno";
-  if (value === "weekly") return "tedensko";
-  return "po urniku";
+  if (value === "daily") return "daily";
+  if (value === "weekly") return "weekly";
+  return "scheduled";
 }
