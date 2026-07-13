@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { getConfig } from "@ai-radar/config";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { Badge } from "@/components/ui/badge";
 import { BillingActions } from "@/components/billing-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { McpTokenManager } from "@/components/mcp-token-manager";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { effectivePlanForOrganization } from "@/lib/billing";
 import { requireCurrentUser } from "@/lib/auth";
+import { parseMcpScopes } from "@/lib/mcp-tokens";
 import { manualScanUsageForOrganization } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +42,11 @@ export default async function SettingsPage() {
       }),
     ),
   );
+  const mcpTokens = await prisma.mcpApiToken.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+  });
+  const appUrl = getConfig().NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -48,6 +56,25 @@ export default async function SettingsPage() {
           Organizations, plan limits and billing status.
         </p>
       </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>MCP access</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <McpTokenManager
+            endpoint={`${appUrl}/mcp`}
+            initialTokens={mcpTokens.map((token) => ({
+              id: token.id,
+              name: token.name,
+              tokenPrefix: token.tokenPrefix,
+              scopes: parseMcpScopes(token.scopes),
+              createdAt: token.createdAt.toISOString(),
+              lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
+              revokedAt: token.revokedAt?.toISOString() ?? null,
+            }))}
+          />
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Organizations</CardTitle>

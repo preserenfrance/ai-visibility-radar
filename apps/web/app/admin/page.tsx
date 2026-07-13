@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList, Users } from "lucide-react";
+import { BarChart3, ClipboardList, Users } from "lucide-react";
 import { prisma, type Plan } from "@ai-radar/db";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const plans: Plan[] = ["free", "starter", "growth", "disabled"];
+const activePlans: Plan[] = ["free", "starter", "growth"];
+const planOptions: Plan[] = ["free", "starter", "growth", "disabled"];
+const GROWTH_WINDOW_DAYS = 30;
 
 async function updateAccountPlan(formData: FormData) {
   "use server";
@@ -117,52 +119,77 @@ export default async function AdminPage({
   const currentUser = await getCurrentUser();
   if (!currentUser) redirect("/login?next=/admin");
   if (!isAdminUser(currentUser))
-    return <main className="p-8">You do not have access to the admin area.</main>;
+    return (
+      <main className="p-8">You do not have access to the admin area.</main>
+    );
 
   const params = await searchParams;
-  const [users, organizations, leadCount, leads] = await Promise.all([
-    prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        memberships: {
-          orderBy: { createdAt: "asc" },
-          include: {
-            organization: {
-              include: {
-                billingSubscription: true,
-                _count: { select: { brands: true } },
+  const now = new Date();
+  const growthDays = lastDays(GROWTH_WINDOW_DAYS, now);
+  const growthStart = growthDays[0]?.date ?? startOfDay(now);
+  const activeLeadWhere = {
+    OR: [
+      { organizationId: null },
+      { organization: { is: { plan: { not: "disabled" as const } } } },
+    ],
+  };
+  const [users, organizations, createdBrands, leadCount, leads] =
+    await Promise.all([
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          memberships: {
+            orderBy: { createdAt: "asc" },
+            include: {
+              organization: {
+                include: {
+                  billingSubscription: true,
+                  _count: { select: { brands: true } },
+                },
               },
             },
           },
         },
-      },
-    }),
-    prisma.organization.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        billingSubscription: true,
-        _count: { select: { brands: true, memberships: true } },
-      },
-    }),
-    prisma.lead.count(),
-    prisma.lead.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: {
-        auditScanRun: {
-          include: {
-            scoreSnapshot: true,
+      }),
+      prisma.organization.findMany({
+        where: { plan: { not: "disabled" } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          billingSubscription: true,
+          _count: { select: { brands: true, memberships: true } },
+        },
+      }),
+      prisma.brand.findMany({
+        where: {
+          createdAt: { gte: growthStart },
+          organization: { plan: { not: "disabled" } },
+        },
+        select: { createdAt: true },
+      }),
+      prisma.lead.count({ where: activeLeadWhere }),
+      prisma.lead.findMany({
+        where: activeLeadWhere,
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: {
+          auditScanRun: {
+            include: {
+              scoreSnapshot: true,
+            },
           },
         },
-      },
-    }),
-  ]);
+      }),
+    ]);
 
+  const visibleUsers = users.filter((user) => {
+    const activeMemberships = activeOrganizationMemberships(user.memberships);
+    return activeMemberships.length > 0 || user.memberships.length === 0;
+  });
   const totalBrands = organizations.reduce(
     (sum, organization) => sum + organization._count.brands,
     0,
   );
-  const planSummaries = plans.map((plan) => {
+  const planSummaries = activePlans.map((plan) => {
     const planOrganizations = organizations.filter(
       (organization) => organization.plan === plan,
     );
@@ -179,6 +206,32 @@ export default async function AdminPage({
       ),
     };
   });
+  const growthSummaries = [
+    {
+      label: "New users",
+      total: visibleUsers.length,
+      points: buildGrowthPoints(
+        growthDays,
+        visibleUsers.map((user) => user.createdAt),
+      ),
+    },
+    {
+      label: "New organizations",
+      total: organizations.length,
+      points: buildGrowthPoints(
+        growthDays,
+        organizations.map((organization) => organization.createdAt),
+      ),
+    },
+    {
+      label: "New brands",
+      total: totalBrands,
+      points: buildGrowthPoints(
+        growthDays,
+        createdBrands.map((brand) => brand.createdAt),
+      ),
+    },
+  ];
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -202,13 +255,19 @@ export default async function AdminPage({
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <MetricCard label="Users" value={users.length} />
-        <MetricCard label="Organizations" value={organizations.length} />
-        <MetricCard label="Brands" value={totalBrands} />
+        <MetricCard label="Active users" value={visibleUsers.length} />
+        <MetricCard label="Active organizations" value={organizations.length} />
+        <MetricCard label="Active brands" value={totalBrands} />
         <MetricCard label="Leads" value={leadCount} />
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
+      <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        {growthSummaries.map((summary) => (
+          <GrowthChartCard key={summary.label} summary={summary} />
+        ))}
+      </div>
+
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
         {planSummaries.map((summary) => (
           <Card key={summary.plan}>
             <CardHeader>
@@ -253,8 +312,11 @@ export default async function AdminPage({
               </TR>
             </THead>
             <TBody>
-              {users.flatMap((user) => {
-                if (user.memberships.length === 0) {
+              {visibleUsers.flatMap((user) => {
+                const memberships = activeOrganizationMemberships(
+                  user.memberships,
+                );
+                if (memberships.length === 0) {
                   return (
                     <TR key={user.id}>
                       <TD>
@@ -280,7 +342,7 @@ export default async function AdminPage({
                   );
                 }
 
-                return user.memberships.map((membership, index) => {
+                return memberships.map((membership, index) => {
                   const organization = membership.organization;
                   const limits = PLAN_LIMITS[organization.plan];
                   return (
@@ -333,7 +395,7 @@ export default async function AdminPage({
                               defaultValue={organization.plan}
                               className="h-9 rounded-md border bg-background px-3 text-sm"
                             >
-                              {plans.map((plan) => (
+                              {planOptions.map((plan) => (
                                 <option key={plan} value={plan}>
                                   {plan}
                                 </option>
@@ -464,6 +526,85 @@ function InlineMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
+type GrowthSummary = {
+  label: string;
+  total: number;
+  points: Array<{
+    key: string;
+    label: string;
+    value: number;
+  }>;
+};
+
+function GrowthChartCard({ summary }: { summary: GrowthSummary }) {
+  const maxValue = Math.max(...summary.points.map((point) => point.value), 0);
+  const windowTotal = summary.points.reduce(
+    (sum, point) => sum + point.value,
+    0,
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              {summary.label}
+            </CardTitle>
+            <CardDescription>
+              Last {GROWTH_WINDOW_DAYS} days, deactivated accounts excluded
+            </CardDescription>
+          </div>
+          <div className="text-right">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">
+              Total
+            </div>
+            <div className="text-2xl font-semibold">
+              {summary.total.toLocaleString("en-US")}
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-3 text-sm text-muted-foreground">
+          +{windowTotal.toLocaleString("en-US")} in window
+        </div>
+        <div className="overflow-x-auto pb-2">
+          <div className="flex min-w-[520px] items-end gap-1 border-b border-l px-3 pt-3">
+            {summary.points.map((point, index) => {
+              const height =
+                maxValue > 0 ? Math.max(5, (point.value / maxValue) * 100) : 0;
+              const showLabel =
+                index === 0 ||
+                index === summary.points.length - 1 ||
+                index % 7 === 0;
+
+              return (
+                <div
+                  key={point.key}
+                  className="flex flex-1 flex-col items-center gap-2"
+                >
+                  <div className="flex h-32 w-full items-end">
+                    <div
+                      className="w-full rounded-t bg-primary/80"
+                      style={{ height: `${height}%` }}
+                      title={`${point.label}: ${point.value}`}
+                    />
+                  </div>
+                  <div className="h-4 text-[10px] text-muted-foreground">
+                    {showLabel ? point.label : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PlanBadge({ plan }: { plan: Plan }) {
   if (plan === "disabled") return <Badge variant="danger">disabled</Badge>;
   if (plan === "growth") return <Badge>growth</Badge>;
@@ -520,4 +661,62 @@ function isPlan(value: string): value is Plan {
     value === "growth" ||
     value === "disabled"
   );
+}
+
+function activeOrganizationMemberships<
+  T extends { organization: { plan: Plan } },
+>(memberships: T[]) {
+  return memberships.filter((membership) =>
+    isActivePlan(membership.organization.plan),
+  );
+}
+
+function isActivePlan(plan: Plan) {
+  return plan !== "disabled";
+}
+
+function buildGrowthPoints(
+  days: Array<{ key: string; label: string }>,
+  dates: Date[],
+) {
+  const valueByDay = new Map(days.map((day) => [day.key, 0]));
+
+  for (const date of dates) {
+    const key = dayKey(date);
+    const current = valueByDay.get(key);
+    if (typeof current === "number") {
+      valueByDay.set(key, current + 1);
+    }
+  }
+
+  return days.map((day) => ({
+    ...day,
+    value: valueByDay.get(day.key) ?? 0,
+  }));
+}
+
+function lastDays(count: number, now: Date) {
+  const end = startOfDay(now);
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(end);
+    date.setDate(end.getDate() - (count - index - 1));
+    return {
+      date,
+      key: dayKey(date),
+      label: `${date.getDate()}.${date.getMonth() + 1}.`,
+    };
+  });
+}
+
+function startOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function dayKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

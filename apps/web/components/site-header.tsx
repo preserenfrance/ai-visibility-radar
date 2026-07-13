@@ -9,6 +9,7 @@ import {
   HelpCircle,
   LogOut,
   Menu,
+  Plug,
   Radar,
   SearchCheck,
   Settings,
@@ -28,6 +29,7 @@ type SiteHeaderMessages = {
     faq: string;
     contact: string;
     pricing: string;
+    mcp: string;
     login: string;
     logout: string;
     freeAudit: string;
@@ -153,6 +155,12 @@ function HeaderNavContent({
           className={navClassName}
         />
         <Nav
+          href="/mcp-access"
+          icon={<Plug className="h-4 w-4" />}
+          label={messages.common.mcp}
+          className={navClassName}
+        />
+        <Nav
           href="/faq"
           icon={<HelpCircle className="h-4 w-4" />}
           label={messages.common.faq}
@@ -250,6 +258,11 @@ function HeaderNavContent({
       <Nav
         href="/pricing"
         label={messages.common.pricing}
+        className={navClassName}
+      />
+      <Nav
+        href="/mcp-access"
+        label={messages.common.mcp}
         className={navClassName}
       />
       <Nav href="/faq" label={messages.common.faq} className={navClassName} />

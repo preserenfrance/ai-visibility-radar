@@ -8,6 +8,7 @@ export function SiteFooter({
     common: {
       freeAudit: string;
       pricing: string;
+      mcp: string;
       faq: string;
       contact: string;
       privacy: string;
@@ -29,6 +30,9 @@ export function SiteFooter({
           </Link>
           <Link href="/pricing" className="hover:text-foreground">
             {messages.common.pricing}
+          </Link>
+          <Link href="/mcp-access" className="hover:text-foreground">
+            {messages.common.mcp}
           </Link>
           <Link href="/faq" className="hover:text-foreground">
             {messages.common.faq}

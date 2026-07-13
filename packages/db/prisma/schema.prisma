@@ -119,25 +119,44 @@ enum AuditAction {
 }
 
 model User {
-  id                      String       @id @default(cuid())
-  email                   String       @unique
+  id                      String        @id @default(cuid())
+  email                   String        @unique
   name                    String?
   passwordHash            String?
   passwordResetTokenHash  String?
   passwordResetExpiresAt  DateTime?
-  preferredLocale         String       @default("sl")
-  marketingEmailConsent   Boolean      @default(false)
+  preferredLocale         String        @default("sl")
+  marketingEmailConsent   Boolean       @default(false)
   marketingEmailConsentAt DateTime?
-  scanEmailConsent        Boolean      @default(true)
-  scanEmailConsentAt      DateTime?    @default(now())
-  emailPreferencesToken   String?      @unique
+  scanEmailConsent        Boolean       @default(true)
+  scanEmailConsentAt      DateTime?     @default(now())
+  emailPreferencesToken   String?       @unique
   memberships             Membership[]
+  mcpApiTokens            McpApiToken[]
   auditLogs               AuditLog[]
   emailEvents             EmailEvent[]
-  createdAt               DateTime     @default(now())
-  updatedAt               DateTime     @updatedAt
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
   @@index([passwordResetTokenHash])
+}
+
+model McpApiToken {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  tokenHash   String    @unique
+  tokenPrefix String
+  scopes      Json      @default("[]")
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, revokedAt])
+  @@index([tokenPrefix])
 }
 
 model SystemPrompt {

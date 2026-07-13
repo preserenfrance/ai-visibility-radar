@@ -1,16 +1,18 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
-const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url));
+const fromRoot = (path: string) =>
+  fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "packages/**/*.test.ts"],
-    globals: true
+    globals: true,
   },
   resolve: {
     alias: {
+      "@": fromRoot("./apps/web"),
       "@ai-radar/ai": fromRoot("./packages/ai/src/index.ts"),
       "@ai-radar/config": fromRoot("./packages/config/src/index.ts"),
       "@ai-radar/crawler": fromRoot("./packages/crawler/src/index.ts"),
@@ -21,7 +23,7 @@ export default defineConfig({
       "@ai-radar/reports": fromRoot("./packages/reports/src/index.ts"),
       "@ai-radar/scoring": fromRoot("./packages/scoring/src/index.ts"),
       "@ai-radar/shared": fromRoot("./packages/shared/src/index.ts"),
-      "@ai-radar/usage": fromRoot("./packages/usage/src/index.ts")
-    }
-  }
+      "@ai-radar/usage": fromRoot("./packages/usage/src/index.ts"),
+    },
+  },
 });
