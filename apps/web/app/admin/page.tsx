@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, ClipboardList, Users } from "lucide-react";
+import { ClipboardList, Users } from "lucide-react";
 import { prisma, type Plan } from "@ai-radar/db";
 import { PLAN_LIMITS } from "@ai-radar/usage";
+import { MentionsTrendChart } from "@/components/mentions-trend-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -126,14 +127,13 @@ export default async function AdminPage({
   const params = await searchParams;
   const now = new Date();
   const growthDays = lastDays(GROWTH_WINDOW_DAYS, now);
-  const growthStart = growthDays[0]?.date ?? startOfDay(now);
   const activeLeadWhere = {
     OR: [
       { organizationId: null },
       { organization: { is: { plan: { not: "disabled" as const } } } },
     ],
   };
-  const [users, organizations, createdBrands, leadCount, leads] =
+  const [users, organizations, activeBrands, leadCount, leads] =
     await Promise.all([
       prisma.user.findMany({
         orderBy: { createdAt: "desc" },
@@ -161,7 +161,6 @@ export default async function AdminPage({
       }),
       prisma.brand.findMany({
         where: {
-          createdAt: { gte: growthStart },
           organization: { plan: { not: "disabled" } },
         },
         select: { createdAt: true },
@@ -185,10 +184,7 @@ export default async function AdminPage({
     const activeMemberships = activeOrganizationMemberships(user.memberships);
     return activeMemberships.length > 0 || user.memberships.length === 0;
   });
-  const totalBrands = organizations.reduce(
-    (sum, organization) => sum + organization._count.brands,
-    0,
-  );
+  const totalBrands = activeBrands.length;
   const planSummaries = activePlans.map((plan) => {
     const planOrganizations = organizations.filter(
       (organization) => organization.plan === plan,
@@ -206,32 +202,29 @@ export default async function AdminPage({
       ),
     };
   });
-  const growthSummaries = [
+  const growthSeries = [
     {
-      label: "New users",
-      total: visibleUsers.length,
-      points: buildGrowthPoints(
-        growthDays,
-        visibleUsers.map((user) => user.createdAt),
-      ),
+      key: "users",
+      label: `Users (${visibleUsers.length.toLocaleString("en-US")})`,
+      color: "#0f766e",
     },
     {
-      label: "New organizations",
-      total: organizations.length,
-      points: buildGrowthPoints(
-        growthDays,
-        organizations.map((organization) => organization.createdAt),
-      ),
+      key: "organizations",
+      label: `Organizations (${organizations.length.toLocaleString("en-US")})`,
+      color: "#2563eb",
     },
     {
-      label: "New brands",
-      total: totalBrands,
-      points: buildGrowthPoints(
-        growthDays,
-        createdBrands.map((brand) => brand.createdAt),
-      ),
+      key: "brands",
+      label: `Brands (${totalBrands.toLocaleString("en-US")})`,
+      color: "#d97706",
     },
   ];
+  const growthPoints = buildAccountGrowthPoints({
+    days: growthDays,
+    users: visibleUsers.map((user) => user.createdAt),
+    organizations: organizations.map((organization) => organization.createdAt),
+    brands: activeBrands.map((brand) => brand.createdAt),
+  });
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -261,11 +254,14 @@ export default async function AdminPage({
         <MetricCard label="Leads" value={leadCount} />
       </div>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-3">
-        {growthSummaries.map((summary) => (
-          <GrowthChartCard key={summary.label} summary={summary} />
-        ))}
-      </div>
+      <MentionsTrendChart
+        title="Account growth"
+        description={`Active cumulative totals over the last ${GROWTH_WINDOW_DAYS} days. Deactivated accounts are excluded from every series.`}
+        series={growthSeries}
+        points={growthPoints}
+        promptMarkers={[]}
+        emptyMessage="No active users, organizations or brands in this period."
+      />
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         {planSummaries.map((summary) => (
@@ -526,85 +522,6 @@ function InlineMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-type GrowthSummary = {
-  label: string;
-  total: number;
-  points: Array<{
-    key: string;
-    label: string;
-    value: number;
-  }>;
-};
-
-function GrowthChartCard({ summary }: { summary: GrowthSummary }) {
-  const maxValue = Math.max(...summary.points.map((point) => point.value), 0);
-  const windowTotal = summary.points.reduce(
-    (sum, point) => sum + point.value,
-    0,
-  );
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              {summary.label}
-            </CardTitle>
-            <CardDescription>
-              Last {GROWTH_WINDOW_DAYS} days, deactivated accounts excluded
-            </CardDescription>
-          </div>
-          <div className="text-right">
-            <div className="text-xs font-semibold uppercase text-muted-foreground">
-              Total
-            </div>
-            <div className="text-2xl font-semibold">
-              {summary.total.toLocaleString("en-US")}
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-3 text-sm text-muted-foreground">
-          +{windowTotal.toLocaleString("en-US")} in window
-        </div>
-        <div className="overflow-x-auto pb-2">
-          <div className="flex min-w-[520px] items-end gap-1 border-b border-l px-3 pt-3">
-            {summary.points.map((point, index) => {
-              const height =
-                maxValue > 0 ? Math.max(5, (point.value / maxValue) * 100) : 0;
-              const showLabel =
-                index === 0 ||
-                index === summary.points.length - 1 ||
-                index % 7 === 0;
-
-              return (
-                <div
-                  key={point.key}
-                  className="flex flex-1 flex-col items-center gap-2"
-                >
-                  <div className="flex h-32 w-full items-end">
-                    <div
-                      className="w-full rounded-t bg-primary/80"
-                      style={{ height: `${height}%` }}
-                      title={`${point.label}: ${point.value}`}
-                    />
-                  </div>
-                  <div className="h-4 text-[10px] text-muted-foreground">
-                    {showLabel ? point.label : ""}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function PlanBadge({ plan }: { plan: Plan }) {
   if (plan === "disabled") return <Badge variant="danger">disabled</Badge>;
   if (plan === "growth") return <Badge>growth</Badge>;
@@ -675,26 +592,6 @@ function isActivePlan(plan: Plan) {
   return plan !== "disabled";
 }
 
-function buildGrowthPoints(
-  days: Array<{ key: string; label: string }>,
-  dates: Date[],
-) {
-  const valueByDay = new Map(days.map((day) => [day.key, 0]));
-
-  for (const date of dates) {
-    const key = dayKey(date);
-    const current = valueByDay.get(key);
-    if (typeof current === "number") {
-      valueByDay.set(key, current + 1);
-    }
-  }
-
-  return days.map((day) => ({
-    ...day,
-    value: valueByDay.get(day.key) ?? 0,
-  }));
-}
-
 function lastDays(count: number, now: Date) {
   const end = startOfDay(now);
   return Array.from({ length: count }, (_, index) => {
@@ -708,9 +605,44 @@ function lastDays(count: number, now: Date) {
   });
 }
 
+function buildAccountGrowthPoints({
+  days,
+  users,
+  organizations,
+  brands,
+}: {
+  days: Array<{ date: Date; key: string; label: string }>;
+  users: Date[];
+  organizations: Date[];
+  brands: Date[];
+}) {
+  return days.map((day) => {
+    const end = endOfDay(day.date);
+    return {
+      date: day.key,
+      label: day.label,
+      values: {
+        users: countCreatedBy(users, end),
+        organizations: countCreatedBy(organizations, end),
+        brands: countCreatedBy(brands, end),
+      },
+    };
+  });
+}
+
+function countCreatedBy(dates: Date[], end: Date) {
+  return dates.filter((date) => date <= end).length;
+}
+
 function startOfDay(date: Date) {
   const copy = new Date(date);
   copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function endOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(23, 59, 59, 999);
   return copy;
 }
 
