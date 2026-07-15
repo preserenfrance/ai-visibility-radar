@@ -35,6 +35,7 @@ export default async function RootLayout({
           />
           <div className="flex-1">{children}</div>
           <SiteFooter
+            locale={locale}
             messages={{ common: dictionary.common, footer: dictionary.footer }}
           />
         </div>

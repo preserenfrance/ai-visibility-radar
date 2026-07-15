@@ -109,6 +109,13 @@ enum BillingStatus {
   paused
 }
 
+enum BlogPostStatus {
+  draft
+  published
+  scheduled
+  archived
+}
+
 enum AuditAction {
   login
   brand_created
@@ -169,6 +176,86 @@ model SystemPrompt {
   updatedByEmail String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model BlogAuthor {
+  id          String     @id @default(cuid())
+  email       String?    @unique
+  slug        String     @unique
+  name        String
+  title       String?
+  bio         String?    @db.Text
+  avatarUrl   String?
+  websiteUrl  String?
+  linkedinUrl String?
+  posts       BlogPost[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model BlogCategory {
+  id           String                    @id @default(cuid())
+  slug         String                    @unique
+  translations BlogCategoryTranslation[]
+  posts        BlogPost[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+}
+
+model BlogCategoryTranslation {
+  id          String       @id @default(cuid())
+  categoryId  String
+  locale      String
+  slug        String
+  name        String
+  description String?      @db.Text
+  category    BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+  @@index([categoryId])
+}
+
+model BlogPost {
+  id           String                @id @default(cuid())
+  externalId   String?               @unique
+  status       BlogPostStatus        @default(draft)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  heroImageUrl String?
+  authorId     String?
+  categoryId   String?
+  author       BlogAuthor?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  category     BlogCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  translations BlogPostTranslation[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([authorId])
+  @@index([categoryId])
+}
+
+model BlogPostTranslation {
+  id              String   @id @default(cuid())
+  postId          String
+  locale          String
+  slug            String
+  title           String
+  excerpt         String?  @db.Text
+  contentMarkdown String   @db.Text
+  seoTitle        String?
+  seoDescription  String?  @db.Text
+  ogImageUrl      String?
+  post            BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([postId, locale])
+  @@unique([locale, slug])
+  @@index([postId])
 }
 
 model Organization {

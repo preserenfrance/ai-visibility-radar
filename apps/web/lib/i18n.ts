@@ -18,6 +18,7 @@ export const dictionaries = {
       openMenu: "Odpri meni",
       home: "Domov",
       faq: "FAQ",
+      blog: "Blog",
       contact: "Kontakt",
       privacy: "Zasebnost",
       pricing: "Cenik",
@@ -389,6 +390,7 @@ export const dictionaries = {
       openMenu: "Open menu",
       home: "Home",
       faq: "FAQ",
+      blog: "Blog",
       contact: "Contact",
       privacy: "Privacy",
       pricing: "Pricing",
@@ -750,11 +752,14 @@ export const dictionaries = {
 export type Dictionary = (typeof dictionaries)[SupportedLocale];
 
 export async function getRequestLocale(): Promise<SupportedLocale> {
+  const headerStore = await headers();
+  const pathLocale = headerStore.get("x-ai-radar-locale");
+  if (pathLocale) return normalizeLocale(pathLocale);
+
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
   if (cookieLocale) return normalizeLocale(cookieLocale);
 
-  const headerStore = await headers();
   return normalizeLocale(headerStore.get("accept-language"));
 }
 

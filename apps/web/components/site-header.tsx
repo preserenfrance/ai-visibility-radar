@@ -5,6 +5,7 @@ import {
   Activity,
   BarChart3,
   Clock3,
+  ClipboardList,
   DollarSign,
   HelpCircle,
   LogOut,
@@ -18,6 +19,7 @@ import {
 import type { SupportedLocale } from "@ai-radar/shared";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { Button } from "@/components/ui/button";
+import { localizedPath } from "@/lib/locale-path";
 
 type HeaderUser = {
   email: string;
@@ -27,6 +29,7 @@ type SiteHeaderMessages = {
   common: {
     openMenu: string;
     faq: string;
+    blog: string;
     contact: string;
     pricing: string;
     mcp: string;
@@ -87,7 +90,7 @@ export function SiteHeader({
     <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
       <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
         <a
-          href="/"
+          href={localizedPath("/", locale)}
           className="flex min-w-0 items-center gap-2 text-sm font-semibold"
         >
           <Radar className="h-5 w-5 shrink-0 text-primary" />
@@ -143,32 +146,38 @@ function HeaderNavContent({
     return (
       <>
         <Nav
-          href="/app/dashboard"
+          href={localizedPath("/app/dashboard", locale)}
           icon={<BarChart3 className="h-4 w-4" />}
           label={messages.nav.myBrands}
           className={navClassName}
         />
         <Nav
-          href="/ai-visibility-checker"
+          href={localizedPath("/ai-visibility-checker", locale)}
           icon={<SearchCheck className="h-4 w-4" />}
           label={messages.nav.newBrand}
           className={navClassName}
         />
         <Nav
-          href="/mcp-access"
+          href={localizedPath("/mcp-access", locale)}
           icon={<Plug className="h-4 w-4" />}
           label={messages.common.mcp}
           className={navClassName}
         />
         <Nav
-          href="/faq"
+          href={localizedPath("/faq", locale)}
           icon={<HelpCircle className="h-4 w-4" />}
           label={messages.common.faq}
           className={navClassName}
         />
+        <Nav
+          href={localizedPath("/blog", locale)}
+          icon={<ClipboardList className="h-4 w-4" />}
+          label={messages.common.blog}
+          className={navClassName}
+        />
         {admin && (
           <Nav
-            href="/admin"
+            href={localizedPath("/admin", locale)}
             icon={<Activity className="h-4 w-4" />}
             label={messages.nav.admin}
             className={navClassName}
@@ -176,7 +185,7 @@ function HeaderNavContent({
         )}
         {admin && (
           <Nav
-            href="/admin/operations"
+            href={localizedPath("/admin/operations", locale)}
             icon={<BarChart3 className="h-4 w-4" />}
             label={messages.nav.operations}
             className={navClassName}
@@ -184,7 +193,7 @@ function HeaderNavContent({
         )}
         {admin && (
           <Nav
-            href="/admin/scan-monitor"
+            href={localizedPath("/admin/scan-monitor", locale)}
             icon={<Clock3 className="h-4 w-4" />}
             label={messages.nav.monitor}
             className={navClassName}
@@ -192,7 +201,7 @@ function HeaderNavContent({
         )}
         {admin && (
           <Nav
-            href="/admin/llm-costs"
+            href={localizedPath("/admin/llm-costs", locale)}
             icon={<DollarSign className="h-4 w-4" />}
             label={messages.nav.analytics}
             className={navClassName}
@@ -200,7 +209,7 @@ function HeaderNavContent({
         )}
         {admin && (
           <Nav
-            href="/admin/faqs"
+            href={localizedPath("/admin/faqs", locale)}
             icon={<HelpCircle className="h-4 w-4" />}
             label={messages.nav.faqAdmin}
             className={navClassName}
@@ -208,14 +217,14 @@ function HeaderNavContent({
         )}
         {admin && (
           <Nav
-            href="/admin/system-prompts"
+            href={localizedPath("/admin/system-prompts", locale)}
             icon={<SlidersHorizontal className="h-4 w-4" />}
             label={messages.nav.prompts}
             className={navClassName}
           />
         )}
         <Nav
-          href="/app/settings"
+          href={localizedPath("/app/settings", locale)}
           icon={<Settings className="h-4 w-4" />}
           label={messages.nav.settings}
           className={navClassName}
@@ -234,7 +243,7 @@ function HeaderNavContent({
           variant="ghost"
           size="sm"
           className={buttonClassName}
-          onClick={logout}
+          onClick={() => logout(locale)}
         >
           <LogOut className="h-4 w-4" />
           {messages.common.logout}
@@ -251,28 +260,37 @@ function HeaderNavContent({
   return (
     <>
       <Nav
-        href="/ai-visibility-checker"
+        href={localizedPath("/ai-visibility-checker", locale)}
         label={messages.common.freeAudit}
         className={navClassName}
       />
       <Nav
-        href="/pricing"
+        href={localizedPath("/pricing", locale)}
         label={messages.common.pricing}
         className={navClassName}
       />
       <Nav
-        href="/mcp-access"
+        href={localizedPath("/mcp-access", locale)}
         label={messages.common.mcp}
         className={navClassName}
       />
-      <Nav href="/faq" label={messages.common.faq} className={navClassName} />
       <Nav
-        href="/contact"
+        href={localizedPath("/faq", locale)}
+        label={messages.common.faq}
+        className={navClassName}
+      />
+      <Nav
+        href={localizedPath("/blog", locale)}
+        label={messages.common.blog}
+        className={navClassName}
+      />
+      <Nav
+        href={localizedPath("/contact", locale)}
         label={messages.common.contact}
         className={navClassName}
       />
       <Button asChild size="sm" className={buttonClassName}>
-        <a href="/login">{messages.common.login}</a>
+        <a href={localizedPath("/login", locale)}>{messages.common.login}</a>
       </Button>
       <LocaleSwitcher
         locale={locale}
@@ -283,12 +301,12 @@ function HeaderNavContent({
   );
 }
 
-async function logout() {
+async function logout(locale: SupportedLocale) {
   await fetch("/api/auth/logout", {
     method: "POST",
     credentials: "same-origin",
   }).catch(() => null);
-  window.location.href = "/login";
+  window.location.href = localizedPath("/login", locale);
 }
 
 function Nav({

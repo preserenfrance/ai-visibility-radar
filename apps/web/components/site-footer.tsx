@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { Radar } from "lucide-react";
+import type { SupportedLocale } from "@ai-radar/shared";
+import { localizedPath } from "@/lib/locale-path";
 
 export function SiteFooter({
+  locale,
   messages,
 }: {
+  locale: SupportedLocale;
   messages: {
     common: {
       freeAudit: string;
       pricing: string;
       mcp: string;
       faq: string;
+      blog: string;
       contact: string;
       privacy: string;
       login: string;
@@ -25,29 +30,56 @@ export function SiteFooter({
           AI Visibility Radar
         </div>
         <div className="flex flex-wrap gap-4">
-          <Link href="/ai-visibility-checker" className="hover:text-foreground">
+          <Link
+            href={localizedPath("/ai-visibility-checker", locale)}
+            className="hover:text-foreground"
+          >
             {messages.common.freeAudit}
           </Link>
-          <Link href="/pricing" className="hover:text-foreground">
+          <Link
+            href={localizedPath("/pricing", locale)}
+            className="hover:text-foreground"
+          >
             {messages.common.pricing}
           </Link>
-          <Link href="/mcp-access" className="hover:text-foreground">
+          <Link
+            href={localizedPath("/mcp-access", locale)}
+            className="hover:text-foreground"
+          >
             {messages.common.mcp}
           </Link>
-          <Link href="/faq" className="hover:text-foreground">
+          <Link
+            href={localizedPath("/faq", locale)}
+            className="hover:text-foreground"
+          >
             {messages.common.faq}
           </Link>
-          <Link href="/contact" className="hover:text-foreground">
+          <Link
+            href={localizedPath("/blog", locale)}
+            className="hover:text-foreground"
+          >
+            {messages.common.blog}
+          </Link>
+          <Link
+            href={localizedPath("/contact", locale)}
+            className="hover:text-foreground"
+          >
             {messages.common.contact}
           </Link>
-          <Link href="/privacy" className="hover:text-foreground">
+          <Link
+            href={localizedPath("/privacy", locale)}
+            className="hover:text-foreground"
+          >
             {messages.common.privacy}
           </Link>
-          <Link href="/login" className="hover:text-foreground">
+          <Link
+            href={localizedPath("/login", locale)}
+            className="hover:text-foreground"
+          >
             {messages.common.login}
           </Link>
         </div>
-        <div>© 2026 AI Visibility Radar. {messages.footer.rights}</div>
+        <div>&copy; 2026 AI Visibility Radar. {messages.footer.rights}</div>
       </div>
     </footer>
   );

@@ -7,6 +7,7 @@ import {
   SUPPORTED_LOCALES,
   type SupportedLocale,
 } from "@ai-radar/shared";
+import { localizedPath } from "@/lib/locale-path";
 
 export function LocaleSwitcher({
   locale,
@@ -31,7 +32,8 @@ export function LocaleSwitcher({
         body: JSON.stringify({ locale: nextLocale }),
       }).catch(() => null);
       const query = searchParams.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname);
+      const nextPath = localizedPath(pathname, nextLocale);
+      router.replace(query ? `${nextPath}?${query}` : nextPath);
       router.refresh();
     });
   }
