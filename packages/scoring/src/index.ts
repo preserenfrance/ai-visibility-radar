@@ -1,8 +1,15 @@
-import type { ScoreBreakdown, ScoreInputResult, Sentiment } from "@ai-radar/shared";
+import type {
+  ScoreBreakdown,
+  ScoreInputResult,
+  Sentiment,
+} from "@ai-radar/shared";
 
 const round = (value: number) => Math.round(Math.max(0, Math.min(100, value)));
 
-export function calculateRankScore(rank: number | null, brandMentioned = rank !== null): number {
+export function calculateRankScore(
+  rank: number | null,
+  brandMentioned = rank !== null,
+): number {
   if (!brandMentioned || rank === null) return 0;
   if (rank === 1) return 100;
   if (rank === 2) return 80;
@@ -14,22 +21,29 @@ export function calculateRankScore(rank: number | null, brandMentioned = rank !=
 export function calculateCitationScore(result: ScoreInputResult): number {
   if (!result.brandMentioned) return 0;
 
-  const hasOwnedCitation = result.citations.some((citation) => citation.isOwnedDomain);
+  const hasOwnedCitation = result.citations.some(
+    (citation) => citation.isOwnedDomain,
+  );
   if (hasOwnedCitation) return 100;
 
   const hasSupportingThirdParty = result.citations.some(
-    (citation) => citation.supportsBrand && !citation.isOwnedDomain
+    (citation) => citation.supportsBrand && !citation.isOwnedDomain,
   );
   if (hasSupportingThirdParty) return 70;
 
   return 30;
 }
 
-export function calculateShareOfVoiceScore(results: ScoreInputResult[]): number {
-  const brandMentions = results.reduce((sum, result) => sum + result.mentionCount, 0);
+export function calculateShareOfVoiceScore(
+  results: ScoreInputResult[],
+): number {
+  const brandMentions = results.reduce(
+    (sum, result) => sum + (result.brandMentioned ? result.mentionCount : 0),
+    0,
+  );
   const competitorMentions = results.reduce(
     (sum, result) => sum + result.competitorsMentioned.length,
-    0
+    0,
   );
   const total = brandMentions + competitorMentions;
   if (total === 0) return 0;
@@ -49,7 +63,9 @@ export function calculateSentimentScore(sentiment: Sentiment): number {
   }
 }
 
-export function calculateVisibilityScore(results: ScoreInputResult[]): ScoreBreakdown {
+export function calculateVisibilityScore(
+  results: ScoreInputResult[],
+): ScoreBreakdown {
   if (results.length === 0) {
     return {
       visibilityScore: 0,
@@ -58,19 +74,29 @@ export function calculateVisibilityScore(results: ScoreInputResult[]): ScoreBrea
       citationScore: 0,
       shareOfVoiceScore: 0,
       sentimentScore: 0,
-      accuracyScore: 0
+      accuracyScore: 0,
     };
   }
 
-  const mentionScore = average(results.map((result) => (result.brandMentioned ? 100 : 0)));
+  const mentionScore = average(
+    results.map((result) => (result.brandMentioned ? 100 : 0)),
+  );
   const rankScore = average(
-    results.map((result) => calculateRankScore(result.brandRank, result.brandMentioned))
+    results.map((result) =>
+      calculateRankScore(result.brandRank, result.brandMentioned),
+    ),
   );
   const citationScore = average(results.map(calculateCitationScore));
   const shareOfVoiceScore = calculateShareOfVoiceScore(results);
-  const sentimentScore = average(results.map((result) => calculateSentimentScore(result.sentiment)));
-
   const mentionedResults = results.filter((result) => result.brandMentioned);
+  const sentimentScore =
+    mentionedResults.length === 0
+      ? 0
+      : average(
+          mentionedResults.map((result) =>
+            calculateSentimentScore(result.sentiment),
+          ),
+        );
   const accuracyScore =
     mentionedResults.length === 0
       ? 0
@@ -91,7 +117,7 @@ export function calculateVisibilityScore(results: ScoreInputResult[]): ScoreBrea
     citationScore: round(citationScore),
     shareOfVoiceScore: round(shareOfVoiceScore),
     sentimentScore: round(sentimentScore),
-    accuracyScore: round(accuracyScore)
+    accuracyScore: round(accuracyScore),
   };
 }
 
@@ -105,20 +131,24 @@ export type RecommendationDraft = {
 };
 
 export function generateRecommendationDrafts(
-  results: Array<ScoreInputResult & { prompt?: string; engine?: string }>
+  results: Array<ScoreInputResult & { prompt?: string; engine?: string }>,
 ): RecommendationDraft[] {
   const losingPrompts = results
     .filter((result) => !result.brandMentioned || (result.brandRank ?? 99) > 3)
     .map((result) => result.prompt)
     .filter((prompt): prompt is string => Boolean(prompt))
     .slice(0, 8);
-  const hasAccuracyIssues = results.some((result) => result.brandMentioned && result.accuracyScore < 70);
+  const hasAccuracyIssues = results.some(
+    (result) => result.brandMentioned && result.accuracyScore < 70,
+  );
   const hasCitationGap = results.some(
-    (result) => result.brandMentioned && !result.citations.some((citation) => citation.isOwnedDomain)
+    (result) =>
+      result.brandMentioned &&
+      !result.citations.some((citation) => citation.isOwnedDomain),
   );
   const competitorWins = results.some((result) => {
     const bestCompetitorRank = Math.min(
-      ...result.competitorsMentioned.map((competitor) => competitor.rank ?? 99)
+      ...result.competitorsMentioned.map((competitor) => competitor.rank ?? 99),
     );
     return bestCompetitorRank < (result.brandRank ?? 99);
   });
@@ -132,7 +162,7 @@ export function generateRecommendationDrafts(
       impactScore: 90,
       effortScore: 55,
       affectedPromptsJson: losingPrompts,
-      affectedEnginesJson: affectedEngines(results)
+      affectedEnginesJson: affectedEngines(results),
     });
   }
 
@@ -144,7 +174,7 @@ export function generateRecommendationDrafts(
       impactScore: 85,
       effortScore: 35,
       affectedPromptsJson: losingPrompts,
-      affectedEnginesJson: affectedEngines(results)
+      affectedEnginesJson: affectedEngines(results),
     });
   }
 
@@ -156,7 +186,7 @@ export function generateRecommendationDrafts(
       impactScore: 80,
       effortScore: 65,
       affectedPromptsJson: losingPrompts,
-      affectedEnginesJson: affectedEngines(results)
+      affectedEnginesJson: affectedEngines(results),
     });
   }
 
@@ -168,7 +198,7 @@ export function generateRecommendationDrafts(
       impactScore: 75,
       effortScore: 30,
       affectedPromptsJson: losingPrompts,
-      affectedEnginesJson: affectedEngines(results)
+      affectedEnginesJson: affectedEngines(results),
     });
   }
 
@@ -180,7 +210,7 @@ export function generateRecommendationDrafts(
       impactScore: 45,
       effortScore: 20,
       affectedPromptsJson: [],
-      affectedEnginesJson: affectedEngines(results)
+      affectedEnginesJson: affectedEngines(results),
     });
   }
 
@@ -215,11 +245,23 @@ function average(values: number[]): number {
 }
 
 function affectedEngines(results: Array<{ engine?: string }>): string[] {
-  return [...new Set(results.map((result) => result.engine).filter((engine): engine is string => Boolean(engine)))];
+  return [
+    ...new Set(
+      results
+        .map((result) => result.engine)
+        .filter((engine): engine is string => Boolean(engine)),
+    ),
+  ];
 }
 
 function isBusinessEmail(email: string): boolean {
-  const freeDomains = new Set(["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com"]);
+  const freeDomains = new Set([
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "outlook.com",
+    "icloud.com",
+  ]);
   const domain = email.split("@")[1]?.toLowerCase();
   return Boolean(domain && !freeDomains.has(domain));
 }
