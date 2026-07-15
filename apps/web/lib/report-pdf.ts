@@ -1,3 +1,9 @@
+import {
+  DEFAULT_LOCALE,
+  normalizeLocale,
+  type SupportedLocale,
+} from "@ai-radar/shared";
+
 type ScoreSnapshot = {
   visibilityScore: number;
   mentionScore: number;
@@ -76,6 +82,7 @@ type ReportPromptRun = {
 export type BrandPdfReportInput = {
   brand: ReportBrand;
   generatedAt: Date;
+  locale?: SupportedLocale;
   latestScore?: ScoreSnapshot | null;
   scoreHistory: ScoreSnapshot[];
   competitors: Array<{ name: string; domain?: string | null }>;
@@ -87,6 +94,7 @@ export type ScanPdfReportInput = {
   brand: ReportBrand;
   scan: ReportScan;
   generatedAt: Date;
+  locale?: SupportedLocale;
 };
 
 type FontName = "F1" | "F2" | "F3";
@@ -97,6 +105,10 @@ const PAGE_HEIGHT = 841.89;
 const MARGIN = 46;
 const CONTENT_TOP = 84;
 const CONTENT_BOTTOM = 790;
+const LINE_CHART_HEIGHT = 154;
+const LINE_CHART_REQUIRED_HEIGHT = LINE_CHART_HEIGHT + 22;
+const KEY_VALUE_ROW_HEIGHT = 24;
+const TABLE_ROW_HEIGHT = 24;
 
 const COLORS = {
   ink: rgb(15, 23, 42),
@@ -111,13 +123,205 @@ const COLORS = {
   white: rgb(255, 255, 255),
 };
 
+type PdfCopy = {
+  brandReportTitle: string;
+  scanReportTitle: string;
+  generatedLabel: string;
+  pageLabel: string;
+  generatedNote: (date: string) => string;
+  visibilityChange: (previous: number, latest: number) => string;
+  scanFact: (id: string) => string;
+  startedFact: (date: string) => string;
+  noAnswer: string;
+  recommendationMeta: (impact: number, effort: number) => string;
+  brandMentionUnknown: string;
+  brandMentionYes: (rank: string) => string;
+  brandMentionNo: string;
+  citations: (value: string) => string;
+  noCitations: string;
+  metrics: {
+    visibility: string;
+    mentions: string;
+    shareOfVoice: string;
+    accuracy: string;
+  };
+  sections: {
+    executiveScore: string;
+    visibilityTrend: string;
+    brandContext: string;
+    latestScans: string;
+    trackedCompetitors: string;
+    scanScore: string;
+    modelBreakdown: string;
+    recommendedActions: string;
+    promptFindings: string;
+  };
+  labels: {
+    domain: string;
+    industry: string;
+    country: string;
+    language: string;
+    activePrompts: string;
+    trackedCompetitors: string;
+    started: string;
+    status: string;
+    visibility: string;
+    runs: string;
+    name: string;
+    model: string;
+    mentions: string;
+    errors: string;
+    finished: string;
+    promptRuns: string;
+  };
+  statuses: Record<string, string>;
+};
+
+const PDF_COPY = {
+  en: {
+    brandReportTitle: "AI Visibility Report",
+    scanReportTitle: "AI Scan Report",
+    generatedLabel: "Generated",
+    pageLabel: "Page",
+    generatedNote: (date: string) =>
+      `Generated ${date}. This report summarizes AI visibility, model answers, citations and practical signals captured in AI Visibility Radar.`,
+    visibilityChange: (previous: number, latest: number) =>
+      `Visibility changed from ${previous}/100 to ${latest}/100 across the latest two snapshots.`,
+    scanFact: (id: string) => `Scan ${id}`,
+    startedFact: (date: string) => `Started ${date}`,
+    noAnswer: "No answer",
+    recommendationMeta: (impact: number, effort: number) =>
+      `Impact ${impact} / Effort ${effort}`,
+    brandMentionUnknown: "Brand mention: unknown",
+    brandMentionYes: (rank: string) => `Brand mention: yes, rank ${rank}`,
+    brandMentionNo: "Brand mention: no",
+    citations: (value: string) => `Citations: ${value}`,
+    noCitations: "Citations: -",
+    metrics: {
+      visibility: "Visibility",
+      mentions: "Mentions",
+      shareOfVoice: "Share of voice",
+      accuracy: "Accuracy",
+    },
+    sections: {
+      executiveScore: "Executive score",
+      visibilityTrend: "Visibility trend",
+      brandContext: "Brand context",
+      latestScans: "Latest scans",
+      trackedCompetitors: "Tracked competitors",
+      scanScore: "Scan score",
+      modelBreakdown: "Model breakdown",
+      recommendedActions: "Recommended actions",
+      promptFindings: "Prompt findings",
+    },
+    labels: {
+      domain: "Domain",
+      industry: "Industry",
+      country: "Country",
+      language: "Language",
+      activePrompts: "Active prompts",
+      trackedCompetitors: "Tracked competitors",
+      started: "Started",
+      status: "Status",
+      visibility: "Visibility",
+      runs: "Runs",
+      name: "Name",
+      model: "Model",
+      mentions: "Mentions",
+      errors: "Errors",
+      finished: "Finished",
+      promptRuns: "Prompt runs",
+    },
+    statuses: {
+      completed: "Completed",
+      running: "Running",
+      queued: "Queued",
+      pending: "Pending",
+      failed: "Failed",
+      canceled: "Canceled",
+      cancelled: "Canceled",
+    },
+  },
+  sl: {
+    brandReportTitle: "Porocilo o AI vidnosti",
+    scanReportTitle: "Porocilo AI pregleda",
+    generatedLabel: "Generirano",
+    pageLabel: "Stran",
+    generatedNote: (date: string) =>
+      `Generirano ${date}. Porocilo povzema AI vidnost, odgovore modelov, citate in uporabne signale, zajete v AI Visibility Radar.`,
+    visibilityChange: (previous: number, latest: number) =>
+      `Vidnost se je med zadnjima dvema meritvama spremenila iz ${previous}/100 na ${latest}/100.`,
+    scanFact: (id: string) => `Pregled ${id}`,
+    startedFact: (date: string) => `Zaceto ${date}`,
+    noAnswer: "Brez odgovora",
+    recommendationMeta: (impact: number, effort: number) =>
+      `Vpliv ${impact} / zahtevnost ${effort}`,
+    brandMentionUnknown: "Omenba znamke: neznano",
+    brandMentionYes: (rank: string) => `Omenba znamke: da, rang ${rank}`,
+    brandMentionNo: "Omenba znamke: ne",
+    citations: (value: string) => `Citati: ${value}`,
+    noCitations: "Citati: -",
+    metrics: {
+      visibility: "Vidnost",
+      mentions: "Omembe",
+      shareOfVoice: "Delez glasu",
+      accuracy: "Tocnost",
+    },
+    sections: {
+      executiveScore: "Glavna ocena",
+      visibilityTrend: "Trend vidnosti",
+      brandContext: "Podatki o znamki",
+      latestScans: "Zadnji pregledi",
+      trackedCompetitors: "Spremljani konkurenti",
+      scanScore: "Ocena pregleda",
+      modelBreakdown: "Pregled po modelih",
+      recommendedActions: "Priporoceni ukrepi",
+      promptFindings: "Ugotovitve po promptih",
+    },
+    labels: {
+      domain: "Domena",
+      industry: "Industrija",
+      country: "Drzava",
+      language: "Jezik",
+      activePrompts: "Aktivni prompti",
+      trackedCompetitors: "Spremljani konkurenti",
+      started: "Zaceto",
+      status: "Stanje",
+      visibility: "Vidnost",
+      runs: "Izvedbe",
+      name: "Ime",
+      model: "Model",
+      mentions: "Omembe",
+      errors: "Napake",
+      finished: "Zakljuceno",
+      promptRuns: "Izvedbe promptov",
+    },
+    statuses: {
+      completed: "Zakljucen",
+      running: "V teku",
+      queued: "V cakalni vrsti",
+      pending: "V cakanju",
+      failed: "Neuspesen",
+      canceled: "Preklican",
+      cancelled: "Preklican",
+    },
+  },
+} satisfies Record<SupportedLocale, PdfCopy>;
+
 export function buildBrandReportPdf(input: BrandPdfReportInput) {
-  const pdf = new PdfCanvas("AI Visibility Radar", input.generatedAt);
+  const locale = normalizeLocale(input.locale ?? DEFAULT_LOCALE);
+  const copy = PDF_COPY[locale];
+  const pdf = new PdfCanvas(
+    "AI Visibility Radar",
+    input.generatedAt,
+    copy,
+    locale,
+  );
   const latest = input.latestScore;
   const previous = input.scoreHistory[1];
 
   pdf.cover(
-    "AI Visibility Report",
+    copy.brandReportTitle,
     input.brand.name,
     [
       input.brand.domain,
@@ -127,61 +331,52 @@ export function buildBrandReportPdf(input: BrandPdfReportInput) {
     ].filter(Boolean) as string[],
   );
 
-  pdf.section("Executive score");
+  pdf.section(copy.sections.executiveScore, 196);
   pdf.metricGrid([
-    metric("Visibility", latest?.visibilityScore),
-    metric("Mentions", latest?.mentionScore),
-    metric("Share of voice", latest?.shareOfVoiceScore),
-    metric("Accuracy", latest?.accuracyScore),
+    metric(copy.metrics.visibility, latest?.visibilityScore),
+    metric(copy.metrics.mentions, latest?.mentionScore),
+    metric(copy.metrics.shareOfVoice, latest?.shareOfVoiceScore),
+    metric(copy.metrics.accuracy, latest?.accuracyScore),
   ]);
 
   if (latest && previous) {
     pdf.note(
-      `Visibility changed from ${previous.visibilityScore}/100 to ${latest.visibilityScore}/100 across the latest two snapshots.`,
+      copy.visibilityChange(previous.visibilityScore, latest.visibilityScore),
     );
   }
 
   if (input.scoreHistory.length > 0) {
-    pdf.section("Visibility trend");
+    pdf.section(copy.sections.visibilityTrend, LINE_CHART_REQUIRED_HEIGHT);
     pdf.lineChart(
       [...input.scoreHistory].reverse().map((item) => ({
-        label: item.createdAt ? shortDate(item.createdAt) : "",
+        label: item.createdAt ? shortDate(item.createdAt, locale) : "",
         value: item.visibilityScore,
       })),
     );
   }
 
-  pdf.section("Brand context");
+  pdf.section(copy.sections.brandContext, KEY_VALUE_ROW_HEIGHT * 6 + 10);
   pdf.keyValues([
-    ["Domain", input.brand.domain],
-    ["Industry", input.brand.industry ?? "-"],
-    ["Country", input.brand.country ?? "-"],
-    ["Language", input.brand.language ?? "-"],
-    ["Active prompts", String(input.activePromptCount)],
-    ["Tracked competitors", String(input.competitors.length)],
+    [copy.labels.domain, input.brand.domain],
+    [copy.labels.industry, input.brand.industry ?? "-"],
+    [copy.labels.country, input.brand.country ?? "-"],
+    [copy.labels.language, input.brand.language ?? "-"],
+    [copy.labels.activePrompts, String(input.activePromptCount)],
+    [copy.labels.trackedCompetitors, String(input.competitors.length)],
   ]);
 
-  const insights = [
-    ["ChatGPT brand view", input.brand.chatGptBrandSummary],
-    ["Customer concerns", input.brand.chatGptCustomerConcernsSummary],
-    ["Products and offer", input.brand.chatGptProductSummary],
-  ].filter((item): item is [string, string] => Boolean(item[1]));
-
-  if (insights.length > 0) {
-    pdf.section("AI brand summary");
-    for (const [title, value] of insights) {
-      pdf.subsection(title);
-      pdf.paragraph(value, { maxLines: 5 });
-    }
-  }
-
   if (input.latestScans.length > 0) {
-    pdf.section("Latest scans");
+    pdf.section(copy.sections.latestScans, TABLE_ROW_HEIGHT * 2 + 10);
     pdf.table(
-      ["Started", "Status", "Visibility", "Runs"],
+      [
+        copy.labels.started,
+        copy.labels.status,
+        copy.labels.visibility,
+        copy.labels.runs,
+      ],
       input.latestScans.map((scan) => [
-        formatDateTime(scan.createdAt),
-        scan.status,
+        formatDateTime(scan.createdAt, locale),
+        formatStatus(scan.status, copy),
         scoreText(scan.scoreSnapshot?.visibilityScore),
         `${scan.completedPromptRuns}/${scan.totalPromptRuns}`,
       ]),
@@ -190,9 +385,9 @@ export function buildBrandReportPdf(input: BrandPdfReportInput) {
   }
 
   if (input.competitors.length > 0) {
-    pdf.section("Tracked competitors");
+    pdf.section(copy.sections.trackedCompetitors, TABLE_ROW_HEIGHT * 2 + 10);
     pdf.table(
-      ["Name", "Domain"],
+      [copy.labels.name, copy.labels.domain],
       input.competitors
         .slice(0, 12)
         .map((item) => [item.name, item.domain ?? "-"]),
@@ -207,35 +402,56 @@ export function buildScanReportPdf(input: ScanPdfReportInput) {
   const scan = input.scan;
   const score = scan.scoreSnapshot;
   const promptRuns = scan.promptRuns ?? [];
+  const locale = normalizeLocale(input.locale ?? DEFAULT_LOCALE);
+  const copy = PDF_COPY[locale];
 
-  const pdf = new PdfCanvas("AI Visibility Radar", input.generatedAt);
-  pdf.cover("AI Scan Report", input.brand.name, [
+  const pdf = new PdfCanvas(
+    "AI Visibility Radar",
+    input.generatedAt,
+    copy,
+    locale,
+  );
+  pdf.cover(copy.scanReportTitle, input.brand.name, [
     input.brand.domain,
-    `Scan ${shortId(scan.id)}`,
-    `Started ${formatDateTime(scan.createdAt)}`,
+    copy.scanFact(shortId(scan.id)),
+    copy.startedFact(formatDateTime(scan.createdAt, locale)),
   ]);
 
-  pdf.section("Scan score");
+  pdf.section(copy.sections.scanScore, 196);
   pdf.metricGrid([
-    metric("Visibility", score?.visibilityScore),
-    metric("Mentions", score?.mentionScore),
-    metric("Share of voice", score?.shareOfVoiceScore),
-    metric("Accuracy", score?.accuracyScore),
+    metric(copy.metrics.visibility, score?.visibilityScore),
+    metric(copy.metrics.mentions, score?.mentionScore),
+    metric(copy.metrics.shareOfVoice, score?.shareOfVoiceScore),
+    metric(copy.metrics.accuracy, score?.accuracyScore),
   ]);
 
   pdf.keyValues([
-    ["Status", scan.status],
-    ["Started", scan.startedAt ? formatDateTime(scan.startedAt) : "-"],
-    ["Finished", scan.finishedAt ? formatDateTime(scan.finishedAt) : "-"],
-    ["Prompt runs", `${scan.completedPromptRuns}/${scan.totalPromptRuns}`],
-    ["Errors", String(scan.failedPromptRuns)],
+    [copy.labels.status, formatStatus(scan.status, copy)],
+    [
+      copy.labels.started,
+      scan.startedAt ? formatDateTime(scan.startedAt, locale) : "-",
+    ],
+    [
+      copy.labels.finished,
+      scan.finishedAt ? formatDateTime(scan.finishedAt, locale) : "-",
+    ],
+    [
+      copy.labels.promptRuns,
+      `${scan.completedPromptRuns}/${scan.totalPromptRuns}`,
+    ],
+    [copy.labels.errors, String(scan.failedPromptRuns)],
   ]);
 
   const breakdown = modelBreakdown(promptRuns);
   if (breakdown.length > 0) {
-    pdf.section("Model breakdown");
+    pdf.section(copy.sections.modelBreakdown, TABLE_ROW_HEIGHT * 2 + 10);
     pdf.table(
-      ["Model", "Runs", "Mentions", "Errors"],
+      [
+        copy.labels.model,
+        copy.labels.runs,
+        copy.labels.mentions,
+        copy.labels.errors,
+      ],
       breakdown.map((item) => [
         item.engine,
         String(item.total),
@@ -248,25 +464,28 @@ export function buildScanReportPdf(input: ScanPdfReportInput) {
 
   const recommendations = scan.recommendations ?? [];
   if (recommendations.length > 0) {
-    pdf.section("Recommended actions");
+    pdf.section(copy.sections.recommendedActions, 90);
     for (const recommendation of recommendations.slice(0, 6)) {
       pdf.callout(
         recommendation.title,
         recommendation.description,
-        `Impact ${recommendation.impactScore} / Effort ${recommendation.effortScore}`,
+        copy.recommendationMeta(
+          recommendation.impactScore,
+          recommendation.effortScore,
+        ),
       );
     }
   }
 
-  pdf.section("Prompt findings");
+  pdf.section(copy.sections.promptFindings, 160);
   for (const run of promptRuns.slice(0, 12)) {
     const parsed = parsedResult(run);
-    const answer = run.aiResponse?.rawText ?? run.errorMessage ?? "No answer";
+    const answer = run.aiResponse?.rawText ?? run.errorMessage ?? copy.noAnswer;
     const citations = run.aiResponse?.citations ?? [];
     pdf.promptFinding({
       prompt: run.prompt.text,
       engine: run.engine.engineName,
-      status: run.status,
+      status: formatStatus(run.status, copy),
       brandMentioned:
         typeof parsed?.brandMentioned === "boolean"
           ? parsed.brandMentioned
@@ -304,10 +523,19 @@ class PdfCanvas {
   private y = CONTENT_TOP;
   private readonly reportTitle: string;
   private readonly generatedAt: Date;
+  private readonly copy: PdfCopy;
+  private readonly locale: SupportedLocale;
 
-  constructor(reportTitle: string, generatedAt: Date) {
+  constructor(
+    reportTitle: string,
+    generatedAt: Date,
+    copy: PdfCopy,
+    locale: SupportedLocale,
+  ) {
     this.reportTitle = reportTitle;
     this.generatedAt = generatedAt;
+    this.copy = copy;
+    this.locale = locale;
     this.addPage();
   }
 
@@ -319,12 +547,12 @@ class PdfCanvas {
     this.text(facts.join("  /  "), MARGIN + 24, 238, 10, "F1", COLORS.white);
     this.y = 286;
     this.note(
-      `Generated ${formatDateTime(this.generatedAt)}. This report summarizes AI visibility, model answers, citations and practical signals captured in AI Visibility Radar.`,
+      this.copy.generatedNote(formatDateTime(this.generatedAt, this.locale)),
     );
   }
 
-  section(title: string) {
-    this.ensure(56);
+  section(title: string, minContentHeight = 0) {
+    this.ensure(56 + minContentHeight);
     this.y += 12;
     this.text(title, MARGIN, this.y, 17, "F2", COLORS.ink);
     this.line(
@@ -399,12 +627,11 @@ class PdfCanvas {
   }
 
   keyValues(rows: Array<[string, string]>) {
-    const rowHeight = 24;
-    this.ensure(rows.length * rowHeight + 10);
+    this.ensure(rows.length * KEY_VALUE_ROW_HEIGHT + 10);
     for (const [label, value] of rows) {
       this.text(label, MARGIN, this.y, 9, "F2", COLORS.muted);
       this.text(value, MARGIN + 165, this.y, 10, "F1", COLORS.ink);
-      this.y += rowHeight;
+      this.y += KEY_VALUE_ROW_HEIGHT;
     }
     this.y += 4;
   }
@@ -412,17 +639,16 @@ class PdfCanvas {
   lineChart(points: Array<{ label: string; value: number }>) {
     if (points.length === 0) return;
     const width = PAGE_WIDTH - MARGIN * 2;
-    const height = 154;
     const x = MARGIN;
+    this.ensure(LINE_CHART_REQUIRED_HEIGHT);
     const y = this.y;
-    this.ensure(height + 22);
-    this.block(x, y, width, height, COLORS.slate);
-    this.strokeRect(x, y, width, height, COLORS.line);
+    this.block(x, y, width, LINE_CHART_HEIGHT, COLORS.slate);
+    this.strokeRect(x, y, width, LINE_CHART_HEIGHT, COLORS.line);
 
     const plotX = x + 34;
     const plotY = y + 24;
     const plotW = width - 58;
-    const plotH = height - 58;
+    const plotH = LINE_CHART_HEIGHT - 58;
     [0, 25, 50, 75, 100].forEach((tick) => {
       const tickY = plotY + plotH - (tick / 100) * plotH;
       this.line(plotX, tickY, plotX + plotW, tickY, COLORS.line);
@@ -448,44 +674,61 @@ class PdfCanvas {
     const first = points[0];
     const last = points[points.length - 1];
     if (first)
-      this.text(first.label, plotX, y + height - 22, 8, "F1", COLORS.muted);
+      this.text(
+        first.label,
+        plotX,
+        y + LINE_CHART_HEIGHT - 22,
+        8,
+        "F1",
+        COLORS.muted,
+      );
     if (last) {
       this.text(
         last.label,
         plotX + plotW - textWidth(last.label, 8),
-        y + height - 22,
+        y + LINE_CHART_HEIGHT - 22,
         8,
         "F1",
         COLORS.muted,
       );
     }
-    this.y += height + 18;
+    this.y += LINE_CHART_HEIGHT + 18;
   }
 
   table(headers: string[], rows: string[][], widths: number[]) {
-    const rowHeight = 24;
-    const totalWidth = widths.reduce((sum, width) => sum + width, 0);
-    this.ensure(rowHeight * 2);
-    this.block(MARGIN, this.y, totalWidth, rowHeight, COLORS.ink);
+    const contentWidth = PAGE_WIDTH - MARGIN * 2;
+    const baseWidth = widths.reduce((sum, width) => sum + width, 0);
+    const columnWidths =
+      baseWidth > 0
+        ? widths.map((width) => (width / baseWidth) * contentWidth)
+        : widths;
+    this.ensure(TABLE_ROW_HEIGHT * 2);
+    this.block(MARGIN, this.y, contentWidth, TABLE_ROW_HEIGHT, COLORS.ink);
     let x = MARGIN;
     headers.forEach((header, index) => {
       this.text(header, x + 8, this.y + 8, 8, "F2", COLORS.white);
-      x += widths[index] ?? 80;
+      x += columnWidths[index] ?? 80;
     });
-    this.y += rowHeight;
+    this.y += TABLE_ROW_HEIGHT;
     for (const row of rows) {
-      this.ensure(rowHeight + 2);
-      this.strokeRect(MARGIN, this.y, totalWidth, rowHeight, COLORS.line);
+      this.ensure(TABLE_ROW_HEIGHT + 2);
+      this.strokeRect(
+        MARGIN,
+        this.y,
+        contentWidth,
+        TABLE_ROW_HEIGHT,
+        COLORS.line,
+      );
       let cellX = MARGIN;
       row.forEach((cell, index) => {
         const value = truncate(
           cell,
-          Math.max(12, Math.floor((widths[index] ?? 80) / 5)),
+          Math.max(12, Math.floor((columnWidths[index] ?? 80) / 5)),
         );
         this.text(value, cellX + 8, this.y + 8, 8, "F1", COLORS.ink);
-        cellX += widths[index] ?? 80;
+        cellX += columnWidths[index] ?? 80;
       });
-      this.y += rowHeight;
+      this.y += TABLE_ROW_HEIGHT;
     }
     this.y += 10;
   }
@@ -557,10 +800,12 @@ class PdfCanvas {
     }
     const mentionText =
       input.brandMentioned === null
-        ? "Brand mention: unknown"
+        ? this.copy.brandMentionUnknown
         : input.brandMentioned
-          ? `Brand mention: yes, rank ${input.brandRank ? `#${input.brandRank}` : "-"}`
-          : "Brand mention: no";
+          ? this.copy.brandMentionYes(
+              input.brandRank ? `#${input.brandRank}` : "-",
+            )
+          : this.copy.brandMentionNo;
     this.text(mentionText, MARGIN + 12, y + 3, 8, "F1", COLORS.muted);
     y += 20;
     for (const line of answerLines) {
@@ -568,8 +813,8 @@ class PdfCanvas {
       y += 11;
     }
     const citations = input.citations.length
-      ? `Citations: ${input.citations.join(", ")}`
-      : "Citations: -";
+      ? this.copy.citations(input.citations.join(", "))
+      : this.copy.noCitations;
     this.text(
       truncate(citations, 110),
       MARGIN + 12,
@@ -660,7 +905,7 @@ class PdfCanvas {
     );
     this.line(MARGIN, 808, PAGE_WIDTH - MARGIN, 808, COLORS.line);
     this.text(
-      `Generated ${shortDate(this.generatedAt)}`,
+      `${this.copy.generatedLabel} ${shortDate(this.generatedAt, this.locale)}`,
       MARGIN,
       817,
       7,
@@ -668,7 +913,7 @@ class PdfCanvas {
       COLORS.muted,
     );
     this.text(
-      `Page ${pageNumber}`,
+      `${this.copy.pageLabel} ${pageNumber}`,
       PAGE_WIDTH - MARGIN - 34,
       817,
       7,
@@ -795,8 +1040,8 @@ function scoreColor(value: number): Color {
   return COLORS.rose;
 }
 
-function formatDateTime(date: Date) {
-  return date.toLocaleString("en-US", {
+function formatDateTime(date: Date, locale: SupportedLocale) {
+  return date.toLocaleString(dateLocale(locale), {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -805,11 +1050,25 @@ function formatDateTime(date: Date) {
   });
 }
 
-function shortDate(date: Date) {
-  return date.toLocaleDateString("en-US", {
+function shortDate(date: Date, locale: SupportedLocale) {
+  return date.toLocaleDateString(dateLocale(locale), {
     month: "short",
     day: "2-digit",
   });
+}
+
+function dateLocale(locale: SupportedLocale) {
+  return locale === "sl" ? "sl-SI" : "en-US";
+}
+
+function formatStatus(status: string, copy: PdfCopy) {
+  const normalized = status.trim().toLowerCase();
+  return (
+    copy.statuses[normalized] ??
+    normalized
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
 }
 
 function shortId(value: string) {

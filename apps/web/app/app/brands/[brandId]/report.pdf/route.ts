@@ -1,5 +1,6 @@
 import { prisma } from "@ai-radar/db";
 import { requireBrandAccess } from "@/lib/auth";
+import { getRequestLocale } from "@/lib/i18n";
 import {
   buildBrandReportPdf,
   pdfFilename,
@@ -41,9 +42,11 @@ export async function GET(
       return Response.json({ error: "Brand not found" }, { status: 404 });
     }
 
+    const locale = await getRequestLocale();
     const input: BrandPdfReportInput = {
       brand,
       generatedAt: new Date(),
+      locale,
       latestScore: brand.scoreSnapshots[0] ?? null,
       scoreHistory: brand.scoreSnapshots,
       competitors: brand.competitors,
@@ -51,7 +54,13 @@ export async function GET(
       latestScans: brand.scanRuns,
     };
     const pdf = buildBrandReportPdf(input);
-    return pdfResponse(pdf, pdfFilename(brand.name, "ai-visibility-report"));
+    return pdfResponse(
+      pdf,
+      pdfFilename(
+        brand.name,
+        locale === "sl" ? "porocilo-ai-vidnost" : "ai-visibility-report",
+      ),
+    );
   } catch (error) {
     return reportErrorResponse(error);
   }

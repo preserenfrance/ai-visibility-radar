@@ -1,5 +1,6 @@
 import { prisma } from "@ai-radar/db";
 import { requireScanAccess } from "@/lib/auth";
+import { getRequestLocale } from "@/lib/i18n";
 import { buildScanReportPdf, pdfFilename } from "@/lib/report-pdf";
 
 export const dynamic = "force-dynamic";
@@ -44,14 +45,21 @@ export async function GET(
       return Response.json({ error: "Scan not found" }, { status: 404 });
     }
 
+    const locale = await getRequestLocale();
     const pdf = buildScanReportPdf({
       brand: scan.brand,
       scan,
       generatedAt: new Date(),
+      locale,
     });
     return pdfResponse(
       pdf,
-      pdfFilename(scan.brand.name, `scan-${scan.id.slice(0, 8)}-report`),
+      pdfFilename(
+        scan.brand.name,
+        locale === "sl"
+          ? `pregled-${scan.id.slice(0, 8)}-porocilo`
+          : `scan-${scan.id.slice(0, 8)}-report`,
+      ),
     );
   } catch (error) {
     return reportErrorResponse(error);
