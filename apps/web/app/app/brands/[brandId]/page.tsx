@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { normalizeDomain } from "@ai-radar/shared";
-import { AlertTriangle, PackageSearch, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  PackageSearch,
+  Sparkles,
+} from "lucide-react";
 import { BrandInsightSubmitButton } from "@/components/brand-insight-submit-button";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
@@ -342,6 +347,16 @@ export default async function BrandPage({
         promptMarkers={promptAdditionMarkers}
         emptyMessage="No own-brand mentions have been recorded in the last 30 days."
       />
+      {latestScan && (
+        <div className="-mt-3 mb-6 flex justify-end">
+          <Button asChild>
+            <a href={`/app/brands/${brand.id}/scans/${latestScan.id}`}>
+              Preglej podrobnosti zadnjega scana
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </Button>
+        </div>
+      )}
 
       <MentionsTrendChart
         title="Competitor mentions over time"
