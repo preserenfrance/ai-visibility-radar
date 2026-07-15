@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { domainFromUrl } from "@ai-radar/shared";
-import { Activity, Search, X } from "lucide-react";
+import { Activity, Download, Search, X } from "lucide-react";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/components/model-mention-badges";
 import { ScanRunner } from "@/components/scan-runner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireScanAccess } from "@/lib/auth";
@@ -65,9 +66,20 @@ export default async function ScanPage({
           <h1 className="text-3xl font-semibold">Scan run</h1>
           <p className="text-muted-foreground">{scan.brand.name}</p>
         </div>
-        <Badge variant={statusBadgeVariant(scan.status)}>
-          {statusLabel(scan.status)}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a
+              href={`/app/brands/${brandId}/scans/${scan.id}/report.pdf`}
+              download
+            >
+              <Download className="h-4 w-4" />
+              Prenesi PDF porocilo
+            </a>
+          </Button>
+          <Badge variant={statusBadgeVariant(scan.status)}>
+            {statusLabel(scan.status)}
+          </Badge>
+        </div>
       </div>
       <BrandMenu brandId={brandId} />
       {scanPending && (

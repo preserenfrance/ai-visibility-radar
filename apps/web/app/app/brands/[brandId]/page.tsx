@@ -4,6 +4,7 @@ import { normalizeDomain } from "@ai-radar/shared";
 import {
   AlertTriangle,
   ArrowRight,
+  Download,
   PackageSearch,
   Sparkles,
 } from "lucide-react";
@@ -255,6 +256,14 @@ export default async function BrandPage({
               {brand.industry && <Badge>{brand.industry}</Badge>}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{brand.domain}</p>
+            <div className="mt-3">
+              <Button asChild variant="outline" size="sm">
+                <a href={`/app/brands/${brand.id}/report.pdf`} download>
+                  <Download className="h-4 w-4" />
+                  Prenesi PDF porocilo
+                </a>
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
