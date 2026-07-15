@@ -2381,10 +2381,11 @@ export async function buildAdminLeadDetail(leadId: string) {
           scoreSnapshot: true,
           recommendations: true,
           promptRuns: {
+            orderBy: { createdAt: "asc" },
             include: {
               prompt: true,
               engine: true,
-              aiResponse: { include: { parsedResult: true } },
+              aiResponse: { include: { parsedResult: true, citations: true } },
             },
           },
         },
