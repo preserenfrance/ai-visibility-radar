@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
 import { LockKeyhole, Loader2, PlayCircle, Search } from "lucide-react";
-import { AI_PROVIDER_OPTIONS } from "@/lib/ai-providers";
 import { trackAnalyticsEvent } from "@/components/analytics-events";
 import { Button } from "@/components/ui/button";
+import {
+  AI_PROVIDER_OPTIONS,
+  selectedEngineVariantsFromFormData,
+} from "@/lib/ai-providers";
 
 export function ProviderScanForm({
   brandId,
-  action,
   manualScanAccess,
   manualScanUsage,
   compact = false,
 }: {
   brandId: string;
-  action: (formData: FormData) => Promise<void>;
   manualScanAccess: boolean;
   manualScanUsage?: {
     used: number;
@@ -25,11 +27,58 @@ export function ProviderScanForm({
   };
   compact?: boolean;
 }) {
+  const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const manualScanLimitReached = (manualScanUsage?.remaining ?? 1) <= 0;
+
+  async function runManualScan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!manualScanAccess || manualScanLimitReached || isPending) return;
+
+    const formData = new FormData(event.currentTarget);
+    const engineVariants = selectedEngineVariantsFromFormData(formData);
+    setError(null);
+    setIsPending(true);
+    trackAnalyticsEvent("manual_scan_submit", {
+      brand_id: brandId,
+      engine_variant_count: engineVariants.length,
+    });
+
+    try {
+      const response = await fetch(`/api/brands/${brandId}/scans`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          engineVariants,
+          runNow: false,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        scan?: { id?: string };
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error ?? "The scan could not be created.");
+      }
+      if (!data.scan?.id) {
+        throw new Error("The scan was created, but no scan id was returned.");
+      }
+      router.push(`/app/brands/${brandId}/scans/${data.scan.id}`);
+    } catch (scanError) {
+      setError(
+        scanError instanceof Error
+          ? scanError.message
+          : "The scan could not be created.",
+      );
+      setIsPending(false);
+    }
+  }
 
   return (
     <form
-      action={action}
+      onSubmit={runManualScan}
       className={[
         "grid rounded-lg border bg-white",
         compact ? "gap-2 p-3" : "gap-3 p-4",
@@ -111,7 +160,10 @@ export function ProviderScanForm({
       </div>
 
       {manualScanAccess ? (
-        <SubmitButton limitReached={manualScanLimitReached} />
+        <SubmitButton
+          pending={isPending}
+          limitReached={manualScanLimitReached}
+        />
       ) : (
         <Button asChild>
           <Link
@@ -127,6 +179,11 @@ export function ProviderScanForm({
             Upgrade for manual runs
           </Link>
         </Button>
+      )}
+      {error && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
     </form>
   );
@@ -181,8 +238,13 @@ function ProviderCheckbox({
   );
 }
 
-function SubmitButton({ limitReached }: { limitReached: boolean }) {
-  const { pending } = useFormStatus();
+function SubmitButton({
+  pending,
+  limitReached,
+}: {
+  pending: boolean;
+  limitReached: boolean;
+}) {
   return (
     <Button type="submit" disabled={pending || limitReached}>
       {pending ? (

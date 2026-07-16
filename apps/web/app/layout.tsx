@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { AccountChatWidget } from "@/components/account-chat-widget";
 import { MetaPixel } from "@/components/meta-pixel";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -40,6 +41,7 @@ export default async function RootLayout({
             messages={{ common: dictionary.common, footer: dictionary.footer }}
           />
         </div>
+        <AccountChatWidget locale={locale} />
         <Analytics />
         <MetaPixel />
       </body>

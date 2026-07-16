@@ -125,6 +125,18 @@ enum AuditAction {
   billing_checkout_started
 }
 
+enum AiChatSessionStatus {
+  active
+  completed
+  failed
+}
+
+enum AiChatMessageRole {
+  user
+  assistant
+  system
+}
+
 model User {
   id                      String                 @id @default(cuid())
   email                   String                 @unique
@@ -141,6 +153,9 @@ model User {
   memberships             Membership[]
   mcpApiTokens            McpApiToken[]
   notificationReads       UserNotificationRead[]
+  aiChatSessions          AiChatSession[]
+  aiChatMessages          AiChatMessage[]
+  aiChatFeedback          AiChatFeedback[]
   auditLogs               AuditLog[]
   emailEvents             EmailEvent[]
   createdAt               DateTime               @default(now())
@@ -279,6 +294,7 @@ model Organization {
   memberships         Membership[]
   brands              Brand[]
   leads               Lead[]
+  aiChatSessions      AiChatSession[]
   billingSubscription BillingSubscription?
   auditLogs           AuditLog[]
   createdAt           DateTime             @default(now())
@@ -329,10 +345,94 @@ model Brand {
   scoreSnapshots                          ScoreSnapshot[]
   recommendations                         Recommendation[]
   promptContentReviews                    PromptContentReview[]
+  aiChatSessions                          AiChatSession[]
   createdAt                               DateTime              @default(now())
   updatedAt                               DateTime              @updatedAt
 
   @@index([organizationId])
+}
+
+model AiChatSession {
+  id             String              @id @default(cuid())
+  userId         String?
+  organizationId String?
+  brandId        String?
+  title          String?
+  locale         String              @default("sl")
+  status         AiChatSessionStatus @default(active)
+  intent         String?
+  summary        String?             @db.Text
+  metadata       Json                @default("{}")
+  lastMessageAt  DateTime            @default(now())
+  completedAt    DateTime?
+  user           User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?       @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  brand          Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  messages       AiChatMessage[]
+  toolCalls      AiChatToolCall[]
+  feedback       AiChatFeedback[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([brandId, createdAt])
+  @@index([status, createdAt])
+}
+
+model AiChatMessage {
+  id           String            @id @default(cuid())
+  sessionId    String
+  userId       String?
+  role         AiChatMessageRole
+  content      String            @db.Text
+  model        String?
+  inputTokens  Int?
+  outputTokens Int?
+  latencyMs    Int?
+  metadata     Json              @default("{}")
+  session      AiChatSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  toolCalls    AiChatToolCall[]
+  feedback     AiChatFeedback[]
+  createdAt    DateTime          @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AiChatToolCall {
+  id         String         @id @default(cuid())
+  sessionId  String
+  messageId  String?
+  toolName   String
+  inputJson  Json           @default("{}")
+  outputJson Json           @default("{}")
+  status     String         @default("completed")
+  latencyMs  Int?
+  session    AiChatSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  message    AiChatMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  createdAt  DateTime       @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([toolName, createdAt])
+}
+
+model AiChatFeedback {
+  id        String         @id @default(cuid())
+  sessionId String
+  messageId String?
+  userId    String?
+  rating    Int
+  comment   String?        @db.Text
+  session   AiChatSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  message   AiChatMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  user      User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([rating, createdAt])
 }
 
 model Competitor {

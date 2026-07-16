@@ -10,6 +10,7 @@ import {
   HelpCircle,
   LogOut,
   Menu,
+  MessageSquare,
   Plug,
   Radar,
   SearchCheck,
@@ -46,6 +47,7 @@ type SiteHeaderMessages = {
     operations: string;
     monitor: string;
     analytics: string;
+    aiChats: string;
     faqAdmin: string;
     prompts: string;
     settings: string;
@@ -218,6 +220,14 @@ function HeaderNavContent({
             href={localizedPath("/admin/llm-costs", locale)}
             icon={<DollarSign className="h-4 w-4" />}
             label={messages.nav.analytics}
+            className={navClassName}
+          />
+        )}
+        {admin && (
+          <Nav
+            href={localizedPath("/admin/ai-chats", locale)}
+            icon={<MessageSquare className="h-4 w-4" />}
+            label={messages.nav.aiChats}
             className={navClassName}
           />
         )}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList, Users } from "lucide-react";
+import { ClipboardList, MessageSquare, Users } from "lucide-react";
 import { prisma, type Plan } from "@ai-radar/db";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { MentionsTrendChart } from "@/components/mentions-trend-chart";
@@ -245,6 +245,12 @@ export default async function AdminPage({
             Account nivo je posodobljen.
           </div>
         )}
+        <Button asChild variant="outline">
+          <Link href="/admin/ai-chats">
+            <MessageSquare className="h-4 w-4" />
+            AI chats
+          </Link>
+        </Button>
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">

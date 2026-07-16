@@ -25,11 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
-import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
 import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
 import { safeChatGptReportUrl } from "@/lib/chatgpt-report-link";
 import {
-  createScanForBrand,
   generateBrandCustomerConcernsSummary,
   generateBrandChatGptSummary,
   generateBrandProductSummary,
@@ -60,21 +58,6 @@ const MENTIONED_DOMAIN_COLORS = [
   "#be123c",
   "#15803d",
 ];
-
-async function startProviderScan(formData: FormData) {
-  "use server";
-  const brandId = String(formData.get("brandId"));
-  const { user, brand } = await requireBrandAccess(brandId);
-  const manualScanAccess = canRunManualScans(brand.organization);
-  const scan = await createScanForBrand(brandId, {
-    engineVariants: manualScanAccess
-      ? selectedEngineVariantsFromFormData(formData)
-      : [{ provider: "openai", searchEnabled: false }],
-    runNow: false,
-    initiatedByUserId: user.id,
-  });
-  redirect(`/app/brands/${brandId}/scans/${scan?.id}`);
-}
 
 type BrandInsightType = "summary" | "customerConcerns" | "products";
 
@@ -477,7 +460,6 @@ export default async function BrandPage({
 
       <ProviderScanForm
         brandId={brand.id}
-        action={startProviderScan}
         manualScanAccess={manualScanAccess}
         manualScanUsage={{
           used: manualScanUsage.used,
