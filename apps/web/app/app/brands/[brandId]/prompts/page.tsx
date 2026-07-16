@@ -8,6 +8,7 @@ import {
   ModelMentionBadges,
 } from "@/components/model-mention-badges";
 import { PromptActiveToggle } from "@/components/prompt-active-toggle";
+import { PromptGapGenerator } from "@/components/prompt-gap-generator";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -199,6 +200,8 @@ export default async function PromptsPage({
   const activePromptCount =
     promptSet?.prompts.filter((prompt) => prompt.isActive).length ?? 0;
   const promptLimitReached = activePromptCount >= promptLimit;
+  const availablePromptSlots = Math.max(0, promptLimit - activePromptCount);
+  const newPromptTextareaId = "new-prompts-textarea";
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -214,6 +217,12 @@ export default async function PromptsPage({
           <CardTitle>Add new prompts</CardTitle>
         </CardHeader>
         <CardContent>
+          <PromptGapGenerator
+            brandId={brandId}
+            textareaId={newPromptTextareaId}
+            disabled={promptLimitReached}
+            availablePromptSlots={availablePromptSlots}
+          />
           <form action={addPrompt} className="grid gap-3">
             <input type="hidden" name="brandId" value={brandId} />
             <p className="text-sm text-muted-foreground">
@@ -221,6 +230,7 @@ export default async function PromptsPage({
               at once and then click add once.
             </p>
             <Textarea
+              id={newPromptTextareaId}
               name="text"
               placeholder={`Where can I buy quality garden furniture with delivery?
 Which online store has a good selection of lawn mowers for a small garden?
@@ -233,7 +243,7 @@ Where should I buy raised garden beds for home use?`}
               <p className="text-sm text-muted-foreground">
                 {promptLimitReached
                   ? `Limit reached: ${promptLimit} active prompts for the current plan.`
-                  : `You can add ${promptLimit - activePromptCount} more active prompts.`}
+                  : `You can add ${availablePromptSlots} more active prompts.`}
               </p>
               <Button type="submit" disabled={promptLimitReached}>
                 <Plus className="h-4 w-4" />
@@ -260,8 +270,8 @@ Where should I buy raised garden beds for home use?`}
             <div className="mt-4 rounded-md border bg-secondary/30 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  New prompts were added. Manual scan runs are included in
-                  the Starter or Growth plan.
+                  New prompts were added. Manual scan runs are included in the
+                  Starter or Growth plan.
                 </p>
                 <Button asChild>
                   <TrackedAnchor

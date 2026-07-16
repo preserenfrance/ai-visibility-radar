@@ -47,6 +47,14 @@ export const dictionaries = {
       prompts: "Prompti",
       settings: "Nastavitve",
     },
+    notifications: {
+      aria: "Obvestila",
+      title: "Novosti",
+      empty: "Trenutno ni novih obvestil.",
+      markAllRead: "Prebrano",
+      unreadLabel: "novih",
+      loading: "Nalagam obvestila",
+    },
     brandMenu: {
       aria: "Meni znamke",
       overview: "Osnovni prikaz",
@@ -418,6 +426,14 @@ export const dictionaries = {
       faqAdmin: "FAQ admin",
       prompts: "Prompts",
       settings: "Settings",
+    },
+    notifications: {
+      aria: "Notifications",
+      title: "What is new",
+      empty: "There are no new notifications right now.",
+      markAllRead: "Mark read",
+      unreadLabel: "new",
+      loading: "Loading notifications",
     },
     brandMenu: {
       aria: "Brand menu",

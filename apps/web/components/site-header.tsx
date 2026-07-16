@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import type { SupportedLocale } from "@ai-radar/shared";
+import { AppNotificationsBell } from "@/components/app-notifications-bell";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { Button } from "@/components/ui/button";
 import { localizedPath } from "@/lib/locale-path";
@@ -48,6 +49,14 @@ type SiteHeaderMessages = {
     faqAdmin: string;
     prompts: string;
     settings: string;
+  };
+  notifications: {
+    aria: string;
+    title: string;
+    empty: string;
+    markAllRead: string;
+    unreadLabel: string;
+    loading: string;
   };
   localeNames: Record<SupportedLocale, string>;
 };
@@ -162,6 +171,11 @@ function HeaderNavContent({
           icon={<Plug className="h-4 w-4" />}
           label={messages.common.mcp}
           className={navClassName}
+        />
+        <AppNotificationsBell
+          locale={locale}
+          messages={messages.notifications}
+          mobile={mobile}
         />
         <Nav
           href={localizedPath("/faq", locale)}

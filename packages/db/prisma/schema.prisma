@@ -126,26 +126,39 @@ enum AuditAction {
 }
 
 model User {
-  id                      String        @id @default(cuid())
-  email                   String        @unique
+  id                      String                 @id @default(cuid())
+  email                   String                 @unique
   name                    String?
   passwordHash            String?
   passwordResetTokenHash  String?
   passwordResetExpiresAt  DateTime?
-  preferredLocale         String        @default("sl")
-  marketingEmailConsent   Boolean       @default(false)
+  preferredLocale         String                 @default("sl")
+  marketingEmailConsent   Boolean                @default(false)
   marketingEmailConsentAt DateTime?
-  scanEmailConsent        Boolean       @default(true)
-  scanEmailConsentAt      DateTime?     @default(now())
-  emailPreferencesToken   String?       @unique
+  scanEmailConsent        Boolean                @default(true)
+  scanEmailConsentAt      DateTime?              @default(now())
+  emailPreferencesToken   String?                @unique
   memberships             Membership[]
   mcpApiTokens            McpApiToken[]
+  notificationReads       UserNotificationRead[]
   auditLogs               AuditLog[]
   emailEvents             EmailEvent[]
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
 
   @@index([passwordResetTokenHash])
+}
+
+model UserNotificationRead {
+  id             String   @id @default(cuid())
+  userId         String
+  notificationId String
+  readAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@index([userId, readAt])
 }
 
 model McpApiToken {

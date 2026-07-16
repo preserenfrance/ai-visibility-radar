@@ -30,6 +30,7 @@ export default async function RootLayout({
             messages={{
               common: dictionary.common,
               nav: dictionary.nav,
+              notifications: dictionary.notifications,
               localeNames: dictionary.localeNames,
             }}
           />

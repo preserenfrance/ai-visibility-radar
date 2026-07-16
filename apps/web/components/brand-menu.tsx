@@ -1,4 +1,5 @@
 import { Menu } from "lucide-react";
+import { TrackedAnchor } from "@/components/analytics-events";
 import { getI18n } from "@/lib/i18n";
 
 type BrandMenuItem = {
@@ -85,7 +86,7 @@ function BrandMenuLinks({
       {items.map((item) => {
         const selected = active === item.key;
         return (
-          <a
+          <TrackedAnchor
             key={item.key}
             className={[
               "rounded-md border px-3 py-2 font-medium transition",
@@ -95,9 +96,16 @@ function BrandMenuLinks({
                 : "bg-white hover:border-primary/60 hover:text-primary",
             ].join(" ")}
             href={item.href(brandId)}
+            eventName="brand_menu_click"
+            eventProperties={{
+              brand_id: brandId,
+              menu_item: item.key,
+              active_item: active ?? "none",
+              location: mobile ? "brand_menu_mobile" : "brand_menu_desktop",
+            }}
           >
             {labels[item.key]}
-          </a>
+          </TrackedAnchor>
         );
       })}
     </>

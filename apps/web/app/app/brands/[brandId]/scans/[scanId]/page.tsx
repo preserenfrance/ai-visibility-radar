@@ -2,7 +2,8 @@ import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@ai-radar/db";
 import { domainFromUrl } from "@ai-radar/shared";
-import { Activity, Download, Search, X } from "lucide-react";
+import { Activity, Bot, Download, Search, X } from "lucide-react";
+import { TrackedAnchor } from "@/components/analytics-events";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
 import {
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireScanAccess } from "@/lib/auth";
+import { safeChatGptReportUrl } from "@/lib/chatgpt-report-link";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,12 @@ export default async function ScanPage({
   const scanPending = scan.status === "queued" || scan.status === "running";
   const promptGroups = groupPromptRuns(scan.promptRuns);
   const modelColumns = modelMentionColumns(modelSummaries(scan.promptRuns));
+  const chatGptReportHref = safeChatGptReportUrl({
+    type: "scan",
+    brandId,
+    scanId: scan.id,
+    brandName: scan.brand.name,
+  });
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -76,6 +84,25 @@ export default async function ScanPage({
               Prenesi PDF porocilo
             </a>
           </Button>
+          {chatGptReportHref && (
+            <Button asChild variant="outline" size="sm">
+              <TrackedAnchor
+                href={chatGptReportHref}
+                target="_blank"
+                rel="noreferrer"
+                eventName="chatgpt_report_click"
+                eventProperties={{
+                  brand_id: brandId,
+                  scan_id: scan.id,
+                  report_type: "scan",
+                  location: "scan_detail",
+                }}
+              >
+                <Bot className="h-4 w-4" />
+                Analiziraj v ChatGPT
+              </TrackedAnchor>
+            </Button>
+          )}
           <Badge variant={statusBadgeVariant(scan.status)}>
             {statusLabel(scan.status)}
           </Badge>

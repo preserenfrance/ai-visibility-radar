@@ -4,10 +4,12 @@ import { normalizeDomain } from "@ai-radar/shared";
 import {
   AlertTriangle,
   ArrowRight,
+  Bot,
   Download,
   PackageSearch,
   Sparkles,
 } from "lucide-react";
+import { TrackedAnchor } from "@/components/analytics-events";
 import { BrandInsightSubmitButton } from "@/components/brand-insight-submit-button";
 import { BrandMenu } from "@/components/brand-menu";
 import { MetricCard } from "@/components/metric-card";
@@ -25,6 +27,7 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
 import { selectedEngineVariantsFromFormData } from "@/lib/ai-providers";
 import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
+import { safeChatGptReportUrl } from "@/lib/chatgpt-report-link";
 import {
   createScanForBrand,
   generateBrandCustomerConcernsSummary,
@@ -241,6 +244,11 @@ export default async function BrandPage({
     brand.organizationId,
     brand.organization.plan,
   );
+  const chatGptReportHref = safeChatGptReportUrl({
+    type: "brand",
+    brandId: brand.id,
+    brandName: brand.name,
+  });
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -256,13 +264,31 @@ export default async function BrandPage({
               {brand.industry && <Badge>{brand.industry}</Badge>}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{brand.domain}</p>
-            <div className="mt-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
                 <a href={`/app/brands/${brand.id}/report.pdf`} download>
                   <Download className="h-4 w-4" />
                   Prenesi PDF porocilo
                 </a>
               </Button>
+              {chatGptReportHref && (
+                <Button asChild variant="outline" size="sm">
+                  <TrackedAnchor
+                    href={chatGptReportHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    eventName="chatgpt_report_click"
+                    eventProperties={{
+                      brand_id: brand.id,
+                      report_type: "brand",
+                      location: "brand_overview",
+                    }}
+                  >
+                    <Bot className="h-4 w-4" />
+                    Analiziraj v ChatGPT
+                  </TrackedAnchor>
+                </Button>
+              )}
             </div>
           </div>
 
