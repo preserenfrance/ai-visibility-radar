@@ -144,6 +144,7 @@ model User {
   passwordHash            String?
   passwordResetTokenHash  String?
   passwordResetExpiresAt  DateTime?
+  lastSeenAt              DateTime?
   preferredLocale         String                 @default("sl")
   marketingEmailConsent   Boolean                @default(false)
   marketingEmailConsentAt DateTime?
@@ -162,6 +163,7 @@ model User {
   updatedAt               DateTime               @updatedAt
 
   @@index([passwordResetTokenHash])
+  @@index([lastSeenAt])
 }
 
 model UserNotificationRead {

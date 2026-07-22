@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const COOKIE_NAME = "air_session";
 const LEGACY_COOKIE_NAME = "air_user_id";
+const LAST_SEEN_UPDATE_INTERVAL_MS = 1000 * 60 * 10;
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
@@ -43,6 +44,7 @@ export async function requireCurrentUser() {
 
 export async function setUserSession(userId: string) {
   const cookieStore = await cookies();
+  const now = new Date();
   cookieStore.set(COOKIE_NAME, signSession(userId), {
     httpOnly: true,
     sameSite: "lax",
@@ -51,12 +53,33 @@ export async function setUserSession(userId: string) {
     maxAge: 60 * 60 * 24 * 30,
   });
   cookieStore.delete(LEGACY_COOKIE_NAME);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { lastSeenAt: now },
+  });
 }
 
 export async function clearUserSession() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
   cookieStore.delete(LEGACY_COOKIE_NAME);
+}
+
+export async function recordCurrentUserPortalVisit(now = new Date()) {
+  const cookieStore = await cookies();
+  const userId = readSignedSession(cookieStore.get(COOKIE_NAME)?.value);
+  if (!userId) return null;
+
+  const staleBefore = new Date(now.getTime() - LAST_SEEN_UPDATE_INTERVAL_MS);
+  await prisma.user.updateMany({
+    where: {
+      id: userId,
+      OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: staleBefore } }],
+    },
+    data: { lastSeenAt: now },
+  });
+
+  return userId;
 }
 
 export function isAdminEmail(email: string) {

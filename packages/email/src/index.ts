@@ -50,6 +50,14 @@ const EMAIL_COPY: Record<
         unsubscribe: string;
       };
     };
+    freeUserReactivation: {
+      subject: (brandName: string) => string;
+      preheader: (brandName: string) => string;
+      title: string;
+      body: (brandName: string, domain: string) => string[];
+      cta: string;
+      text: (brandName: string, domain: string, ctaUrl: string) => string[];
+    };
     layout: {
       dashboard: string;
       footer: string;
@@ -115,6 +123,25 @@ const EMAIL_COPY: Record<
         unsubscribe: "Odjava od scan obvestil",
       },
     },
+    freeUserReactivation: {
+      subject: (brandName) =>
+        `Vas AI monitoring za ${brandName} še vedno zanima?`,
+      preheader: (brandName) =>
+        `Za ${brandName} smo preskočili nov brezplačni AI scan, dokler ne vidimo, da rezultate še vedno uporabljate.`,
+      title: "Najprej preverimo, ali vas še vedno zanima",
+      body: (brandName, domain) => [
+        `Za <strong>${escapeHtml(brandName)}</strong> (${escapeHtml(domain)}) bi bil na vrsti nov brezplačni AI visibility scan.`,
+        "Ker portala že nekaj časa niste obiskali, ga tokrat nismo zagnali. Tako ne porabljamo AI odgovorov po nepotrebnem.",
+        "Če so vam rezultati še vedno koristni, odprite portal. Ko vidimo, da spremljanje še vedno uporabljate, bomo nadaljevali z naslednjimi scani.",
+      ],
+      cta: "Odpri portal",
+      text: (brandName, domain, ctaUrl) => [
+        `Za ${brandName} (${domain}) bi bil na vrsti nov brezplačni AI visibility scan.`,
+        "Ker portala že nekaj časa niste obiskali, ga tokrat nismo zagnali.",
+        "Če so vam rezultati še vedno koristni, odprite portal:",
+        ctaUrl,
+      ],
+    },
     layout: {
       dashboard: "Nadzorna plošča",
       footer: "To sporočilo ste prejeli, ker uporabljate AI Visibility Radar.",
@@ -179,6 +206,25 @@ const EMAIL_COPY: Record<
         unsubscribe: "Unsubscribe from scan notifications",
       },
     },
+    freeUserReactivation: {
+      subject: (brandName) =>
+        `Are you still interested in AI monitoring for ${brandName}?`,
+      preheader: (brandName) =>
+        `We skipped a new free AI scan for ${brandName} until we see the results are still useful to you.`,
+      title: "Checking before we run another scan",
+      body: (brandName, domain) => [
+        `A new free AI visibility scan for <strong>${escapeHtml(brandName)}</strong> (${escapeHtml(domain)}) was due.`,
+        "Because you have not visited the portal for a while, we did not run it this time. That keeps AI usage focused on reports people are still reading.",
+        "If the results are still useful, open the portal. Once we see you are still using the monitoring, future scans will continue.",
+      ],
+      cta: "Open portal",
+      text: (brandName, domain, ctaUrl) => [
+        `A new free AI visibility scan for ${brandName} (${domain}) was due.`,
+        "Because you have not visited the portal for a while, we did not run it this time.",
+        "If the results are still useful, open the portal:",
+        ctaUrl,
+      ],
+    },
     layout: {
       dashboard: "Dashboard",
       footer: "You received this message because you use AI Visibility Radar.",
@@ -222,6 +268,16 @@ export type ScanCompletedEmailInput = {
   totalPromptRuns: number;
   finishedAt?: Date | string | null;
   appUrl?: string;
+  unsubscribeUrl?: string;
+};
+
+export type FreeUserReactivationEmailInput = {
+  to: string;
+  locale?: string | null;
+  recipientName?: string | null;
+  brandName: string;
+  brandDomain: string;
+  ctaUrl: string;
   unsubscribeUrl?: string;
 };
 
@@ -394,6 +450,46 @@ export async function sendScanCompletedEmail(
       `${copy.scanCompleted.text.failed}: ${input.failedPromptRuns}`,
       finishedAt ? `${copy.scanCompleted.text.finished}: ${finishedAt}` : "",
       `${copy.scanCompleted.text.result}: ${scanUrl}`,
+      input.unsubscribeUrl
+        ? `${copy.scanCompleted.text.unsubscribe}: ${input.unsubscribeUrl}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  });
+}
+
+export async function sendFreeUserReactivationEmail(
+  input: FreeUserReactivationEmailInput,
+): Promise<{ id?: string; skipped?: boolean; subject: string }> {
+  const locale = normalizeEmailLocale(input.locale);
+  const copy = EMAIL_COPY[locale];
+
+  return sendEmail({
+    to: input.to,
+    subject: copy.freeUserReactivation.subject(input.brandName),
+    html: renderEmailLayout({
+      locale,
+      preheader: copy.freeUserReactivation.preheader(input.brandName),
+      title: copy.freeUserReactivation.title,
+      bodyHtml: [
+        `<p>${copy.greeting(input.recipientName)}</p>`,
+        ...copy.freeUserReactivation
+          .body(input.brandName, input.brandDomain)
+          .map((paragraph) => `<p>${paragraph}</p>`),
+      ].join(""),
+      cta: {
+        label: copy.freeUserReactivation.cta,
+        url: input.ctaUrl,
+      },
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+    text: [
+      ...copy.freeUserReactivation.text(
+        input.brandName,
+        input.brandDomain,
+        input.ctaUrl,
+      ),
       input.unsubscribeUrl
         ? `${copy.scanCompleted.text.unsubscribe}: ${input.unsubscribeUrl}`
         : "",

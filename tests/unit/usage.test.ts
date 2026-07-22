@@ -22,9 +22,9 @@ describe("usage guard", () => {
   });
 
   it("sets scan cadence by package", () => {
-    expect(PLAN_LIMITS.free.scanCadence).toBe("none");
-    expect(PLAN_LIMITS.starter.scanCadence).toBe("manual");
-    expect(PLAN_LIMITS.growth.scanCadence).toBe("daily");
+    expect(PLAN_LIMITS.free.scanCadence).toBe("weekly");
+    expect(PLAN_LIMITS.starter.scanCadence).toBe("weekly");
+    expect(PLAN_LIMITS.growth.scanCadence).toBe("weekly");
   });
 
   it("blocks plan limits", () => {

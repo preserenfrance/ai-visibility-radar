@@ -187,6 +187,24 @@ export const FREE_AUDIT_LIMITS = {
   repeatCount: 1,
 } as const;
 
+export const FREE_RECURRING_SCAN_INACTIVITY_DAYS = 14;
+
+export function freeRecurringScanNeedsPortalVisit(
+  lastSeenAt: Date | string | null | undefined,
+  now = new Date(),
+  inactivityDays = FREE_RECURRING_SCAN_INACTIVITY_DAYS,
+) {
+  if (!lastSeenAt) return true;
+  const lastSeenTime =
+    lastSeenAt instanceof Date
+      ? lastSeenAt.getTime()
+      : new Date(lastSeenAt).getTime();
+  if (!Number.isFinite(lastSeenTime)) return true;
+
+  const inactivityMs = inactivityDays * 24 * 60 * 60 * 1000;
+  return lastSeenTime <= now.getTime() - inactivityMs;
+}
+
 export const MVP_LIMITS = {
   maxPages: 50,
   promptCount: 25,
