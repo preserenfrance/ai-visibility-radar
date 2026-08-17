@@ -1,7 +1,10 @@
 import { prisma, resetStaleScanWork } from "@ai-radar/db";
 import { getConfig } from "@ai-radar/config";
 import { sendFreeUserReactivationEmail } from "@ai-radar/email";
-import { freeRecurringScanNeedsPortalVisit } from "@ai-radar/shared";
+import {
+  freeRecurringScanCanSendReactivationEmail,
+  freeRecurringScanNeedsPortalVisit,
+} from "@ai-radar/shared";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { fail, ok, route } from "@/lib/http";
 import {
@@ -25,6 +28,10 @@ export const maxDuration = 300;
 const MAX_NEW_SCANS_PER_TICK = 20;
 const CRON_SCHEDULE = "* * * * *";
 const RECURRING_SCAN_PLANS = ["free", "starter", "growth"] as const;
+const FREE_REACTIVATION_EMAIL_SUBJECT_PREFIXES = [
+  "Vas AI monitoring za ",
+  "Are you still interested in AI monitoring for ",
+] as const;
 const PORTAL_ACTIVITY_ACTIONS = [
   "login",
   "report_viewed",
@@ -156,6 +163,7 @@ function runRegularScans(request: Request) {
     const skippedInactiveFreeBrands: string[] = [];
     let reactivationEmails = 0;
     let reactivationEmailFailures = 0;
+    let reactivationEmailLimitReached = 0;
     for (const brand of dueBrands) {
       const cadence =
         brand.recurringScanCadence ??
@@ -166,9 +174,10 @@ function runRegularScans(request: Request) {
           const lastActivityAt = await latestFreePortalActivity(brand);
           if (freeRecurringScanNeedsPortalVisit(lastActivityAt, now)) {
             skippedInactiveFreeBrands.push(brand.id);
-            const result = await notifyInactiveFreeBrand(brand);
+            const result = await notifyInactiveFreeBrand(brand, lastActivityAt);
             reactivationEmails += result.sent;
             reactivationEmailFailures += result.failed;
+            reactivationEmailLimitReached += result.limitReached;
             await prisma.brand.update({
               where: { id: brand.id },
               data: {
@@ -228,12 +237,11 @@ function runRegularScans(request: Request) {
       skippedInactiveFreeBrands,
       reactivationEmails,
       reactivationEmailFailures,
+      reactivationEmailLimitReached,
       scanQueue,
     });
 
-    async function latestFreePortalActivity(
-      brand: (typeof dueBrands)[number],
-    ) {
+    async function latestFreePortalActivity(brand: (typeof dueBrands)[number]) {
       const users = brand.organization.memberships.map(
         (membership) => membership.user,
       );
@@ -279,10 +287,23 @@ function runRegularScans(request: Request) {
       ]);
     }
 
-    async function notifyInactiveFreeBrand(brand: (typeof dueBrands)[number]) {
+    async function notifyInactiveFreeBrand(
+      brand: (typeof dueBrands)[number],
+      lastActivityAt: Date | null,
+    ) {
       let sent = 0;
       let failed = 0;
+      let limitReached = 0;
       for (const recipient of await inactiveFreeBrandRecipients(brand)) {
+        const sentSincePortalVisit = await freeReactivationEmailCount(
+          recipient,
+          lastActivityAt,
+        );
+        if (!freeRecurringScanCanSendReactivationEmail(sentSincePortalVisit)) {
+          limitReached += 1;
+          continue;
+        }
+
         try {
           const email = await sendFreeUserReactivationEmail({
             to: recipient.email,
@@ -311,15 +332,11 @@ function runRegularScans(request: Request) {
             recipientId: recipient.id,
             error,
           });
-          await recordFailedFreeReactivationEmail(
-            recipient,
-            brand.name,
-            error,
-          );
+          await recordFailedFreeReactivationEmail(recipient, brand.name, error);
         }
       }
 
-      return { sent, failed };
+      return { sent, failed, limitReached };
     }
 
     async function inactiveFreeBrandRecipients(
@@ -382,6 +399,24 @@ function latestDate(values: Array<Date | null | undefined>) {
     if (!latest || value.getTime() > latest.getTime()) latest = value;
   }
   return latest;
+}
+
+async function freeReactivationEmailCount(
+  recipient: FreeReactivationRecipient,
+  lastActivityAt: Date | null,
+) {
+  return prisma.emailEvent.count({
+    where: {
+      ...(recipient.kind === "user"
+        ? { userId: recipient.id }
+        : { leadId: recipient.id }),
+      type: { in: ["queued", "sent"] },
+      OR: FREE_REACTIVATION_EMAIL_SUBJECT_PREFIXES.map((prefix) => ({
+        subject: { startsWith: prefix },
+      })),
+      ...(lastActivityAt ? { createdAt: { gt: lastActivityAt } } : {}),
+    },
+  });
 }
 
 function absoluteAppUrl(path: string) {

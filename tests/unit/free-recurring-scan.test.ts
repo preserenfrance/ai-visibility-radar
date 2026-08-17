@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { freeRecurringScanNeedsPortalVisit } from "@ai-radar/shared";
+import {
+  FREE_RECURRING_SCAN_REACTIVATION_EMAIL_LIMIT,
+  freeRecurringScanCanSendReactivationEmail,
+  freeRecurringScanNeedsPortalVisit,
+} from "@ai-radar/shared";
 
 describe("free recurring scan inactivity guard", () => {
   const now = new Date("2026-07-21T12:00:00.000Z");
@@ -24,5 +28,19 @@ describe("free recurring scan inactivity guard", () => {
 
   it("requires a portal visit when no activity is known", () => {
     expect(freeRecurringScanNeedsPortalVisit(null, now)).toBe(true);
+  });
+
+  it("allows only two reactivation emails before the next portal visit", () => {
+    expect(freeRecurringScanCanSendReactivationEmail(0)).toBe(true);
+    expect(
+      freeRecurringScanCanSendReactivationEmail(
+        FREE_RECURRING_SCAN_REACTIVATION_EMAIL_LIMIT - 1,
+      ),
+    ).toBe(true);
+    expect(
+      freeRecurringScanCanSendReactivationEmail(
+        FREE_RECURRING_SCAN_REACTIVATION_EMAIL_LIMIT,
+      ),
+    ).toBe(false);
   });
 });

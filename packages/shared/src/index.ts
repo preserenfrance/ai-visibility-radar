@@ -188,6 +188,7 @@ export const FREE_AUDIT_LIMITS = {
 } as const;
 
 export const FREE_RECURRING_SCAN_INACTIVITY_DAYS = 14;
+export const FREE_RECURRING_SCAN_REACTIVATION_EMAIL_LIMIT = 2;
 
 export function freeRecurringScanNeedsPortalVisit(
   lastSeenAt: Date | string | null | undefined,
@@ -203,6 +204,13 @@ export function freeRecurringScanNeedsPortalVisit(
 
   const inactivityMs = inactivityDays * 24 * 60 * 60 * 1000;
   return lastSeenTime <= now.getTime() - inactivityMs;
+}
+
+export function freeRecurringScanCanSendReactivationEmail(
+  emailsSentSincePortalVisit: number,
+  limit = FREE_RECURRING_SCAN_REACTIVATION_EMAIL_LIMIT,
+) {
+  return emailsSentSincePortalVisit < limit;
 }
 
 export const MVP_LIMITS = {
