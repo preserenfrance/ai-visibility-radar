@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@ai-radar/db";
 import { getCurrentUser, requireBrandAccess } from "@/lib/auth";
@@ -10,9 +11,14 @@ import {
   previousChatMessagesForPrompt,
   runAccountChatCompletion,
 } from "@/lib/account-chat";
-import { ok, parseBody, route } from "@/lib/http";
+import { fail, ok, parseBody, route } from "@/lib/http";
 
 export const maxDuration = 60;
+
+const CHAT_RATE_LIMITS = {
+  account: { perHour: 30, perDay: 120 },
+  public: { perHour: 10, perDay: 30 },
+} as const;
 
 const schema = z.object({
   message: z.string().trim().min(1).max(4000),
@@ -32,6 +38,23 @@ export async function POST(request: Request) {
       const anonymousId = input.anonymousId || null;
       if (!user && !anonymousId) {
         throw new Error("Bad Request: anonymous session key required");
+      }
+      const publicRequestHash = requestFingerprint(request);
+      const rateLimitResult = await checkChatQuestionLimit(
+        user
+          ? { kind: "account", userId: user.id }
+          : {
+              kind: "public",
+              anonymousId: anonymousId ?? "",
+              requestHash: publicRequestHash,
+            },
+      );
+      if (!rateLimitResult.allowed) {
+        return fail(
+          rateLimitMessage(input.locale, rateLimitResult),
+          429,
+          rateLimitResult,
+        );
       }
 
       let brandId = user ? input.brandId || null : null;
@@ -108,6 +131,7 @@ export async function POST(request: Request) {
             metadata: {
               anonymousId,
               supportMode: user ? "account" : "public",
+              requestHash: user ? null : publicRequestHash,
             },
           },
         });
@@ -136,6 +160,8 @@ export async function POST(request: Request) {
             brandId,
             organizationId,
             source: "in_app_chat",
+            rateLimitKind: user ? "account" : "public",
+            requestHash: user ? null : publicRequestHash,
           },
         },
       });
@@ -227,4 +253,125 @@ export async function POST(request: Request) {
       throw error;
     }
   });
+}
+
+type ChatQuestionLimitScope =
+  | { kind: "account"; userId: string }
+  | { kind: "public"; anonymousId: string; requestHash: string };
+
+type ChatQuestionLimitResult =
+  | { allowed: true }
+  | {
+      allowed: false;
+      scope: "account" | "public";
+      window: "hour" | "day";
+      limit: number;
+      resetAt: string;
+    };
+
+async function checkChatQuestionLimit(
+  scope: ChatQuestionLimitScope,
+): Promise<ChatQuestionLimitResult> {
+  const now = new Date();
+  const hourStart = new Date(now.getTime() - 60 * 60 * 1000);
+  const dayStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const limits = CHAT_RATE_LIMITS[scope.kind];
+  const [hourCount, dayCount] = await Promise.all([
+    countChatQuestions(scope, hourStart),
+    countChatQuestions(scope, dayStart),
+  ]);
+
+  if (hourCount >= limits.perHour) {
+    return {
+      allowed: false,
+      scope: scope.kind,
+      window: "hour",
+      limit: limits.perHour,
+      resetAt: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  if (dayCount >= limits.perDay) {
+    return {
+      allowed: false,
+      scope: scope.kind,
+      window: "day",
+      limit: limits.perDay,
+      resetAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  return { allowed: true };
+}
+
+function countChatQuestions(scope: ChatQuestionLimitScope, since: Date) {
+  if (scope.kind === "account") {
+    return prisma.aiChatMessage.count({
+      where: {
+        role: "user",
+        userId: scope.userId,
+        createdAt: { gte: since },
+      },
+    });
+  }
+
+  return prisma.aiChatMessage.count({
+    where: {
+      role: "user",
+      userId: null,
+      createdAt: { gte: since },
+      session: {
+        OR: [
+          {
+            metadata: {
+              path: ["anonymousId"],
+              equals: scope.anonymousId,
+            },
+          },
+          {
+            metadata: {
+              path: ["requestHash"],
+              equals: scope.requestHash,
+            },
+          },
+        ],
+      },
+    },
+  });
+}
+
+function requestFingerprint(request: Request) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const ip =
+    forwardedFor?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    request.headers.get("cf-connecting-ip") ||
+    "unknown";
+  const userAgent = request.headers.get("user-agent")?.slice(0, 180) || "";
+  const salt =
+    process.env.AUTH_SECRET ??
+    process.env.NEXTAUTH_SECRET ??
+    process.env.DATABASE_URL ??
+    "ai-radar-dev-secret";
+
+  return createHash("sha256")
+    .update(`${ip}|${userAgent}|${salt}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function rateLimitMessage(
+  locale: string,
+  result: Exclude<ChatQuestionLimitResult, { allowed: true }>,
+) {
+  const isEnglish = locale.toLowerCase().startsWith("en");
+  if (isEnglish) {
+    return result.window === "hour"
+      ? `You have reached the AI chat limit of ${result.limit} questions per hour. Please try again later.`
+      : `You have reached the AI chat limit of ${result.limit} questions per day. Please try again later.`;
+  }
+
+  return result.window === "hour"
+    ? `Dosegli ste omejitev AI chata: ${result.limit} vprasanj na uro. Poskusite ponovno kasneje.`
+    : `Dosegli ste omejitev AI chata: ${result.limit} vprasanj na dan. Poskusite ponovno kasneje.`;
 }
