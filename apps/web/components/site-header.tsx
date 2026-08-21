@@ -8,6 +8,7 @@ import {
   ClipboardList,
   DollarSign,
   HelpCircle,
+  ListChecks,
   LogOut,
   Menu,
   MessageSquare,
@@ -47,6 +48,7 @@ type SiteHeaderMessages = {
     operations: string;
     monitor: string;
     analytics: string;
+    onboarding: string;
     aiChats: string;
     faqAdmin: string;
     prompts: string;
@@ -166,6 +168,12 @@ function HeaderNavContent({
           href={localizedPath("/ai-visibility-checker", locale)}
           icon={<SearchCheck className="h-4 w-4" />}
           label={messages.nav.newBrand}
+          className={navClassName}
+        />
+        <Nav
+          href={localizedPath("/app/onboarding", locale)}
+          icon={<ListChecks className="h-4 w-4" />}
+          label={messages.nav.onboarding}
           className={navClassName}
         />
         <Nav

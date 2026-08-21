@@ -3,25 +3,30 @@ import { prisma } from "@ai-radar/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
 import { canRunAutomaticScans } from "@/lib/billing";
+import { getUserOnboardingSummary } from "@/lib/onboarding";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppDashboardPage() {
   const user = await requireCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/app/dashboard");
-  const brands = await prisma.brand.findMany({
-    where: { organization: { memberships: { some: { userId: user.id } } } },
-    include: {
-      organization: { include: { billingSubscription: true } },
-      scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
-      scanRuns: { orderBy: { createdAt: "desc" }, take: 1 },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const [brands, onboardingSummary] = await Promise.all([
+    prisma.brand.findMany({
+      where: { organization: { memberships: { some: { userId: user.id } } } },
+      include: {
+        organization: { include: { billingSubscription: true } },
+        scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
+        scanRuns: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    getUserOnboardingSummary(user.id),
+  ]);
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
@@ -36,6 +41,11 @@ export default async function AppDashboardPage() {
           <a href="/ai-visibility-checker">New brand</a>
         </Button>
       </div>
+      <OnboardingChecklist
+        summary={onboardingSummary}
+        compact
+        location="dashboard"
+      />
       <Card>
         <CardHeader>
           <CardTitle>Brands</CardTitle>
