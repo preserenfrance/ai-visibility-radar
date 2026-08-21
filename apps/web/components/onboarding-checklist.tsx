@@ -39,13 +39,11 @@ export function OnboardingChecklist({
           <div>
             <CardTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
-              {compact ? "Onboarding" : "Your onboarding path"}
+              {compact ? "Brand onboarding" : "Brand onboarding path"}
             </CardTitle>
             <CardDescription>
               {summary.completedCount}/{summary.totalCount} steps complete
-              {summary.stats.primaryBrandName
-                ? ` for ${summary.stats.primaryBrandName}`
-                : ""}
+              {` for ${summary.stats.brandName}`}
             </CardDescription>
           </div>
           <div className="min-w-36 text-right">
@@ -91,14 +89,15 @@ export function OnboardingChecklist({
           <div className="mt-4 flex justify-end border-t pt-4">
             <Button asChild variant="outline" size="sm">
               <TrackedAnchor
-                href="/app/onboarding"
+                href={`/app/brands/${summary.stats.brandId}`}
                 eventName="onboarding_overview_click"
                 eventProperties={{
+                  brand_id: summary.stats.brandId,
                   location,
                   completion_percent: summary.completionPercent,
                 }}
               >
-                Open onboarding
+                Open brand
                 <ArrowRight className="h-4 w-4" />
               </TrackedAnchor>
             </Button>

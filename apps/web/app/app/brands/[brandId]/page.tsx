@@ -19,6 +19,7 @@ import {
   type MentionTrendSeries,
   type PromptAdditionMarker,
 } from "@/components/mentions-trend-chart";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { ProviderScanForm } from "@/components/provider-scan-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireBrandAccess } from "@/lib/auth";
 import { canRunAutomaticScans, canRunManualScans } from "@/lib/billing";
 import { safeChatGptReportUrl } from "@/lib/chatgpt-report-link";
+import { getBrandOnboardingSummary } from "@/lib/onboarding";
 import {
   generateBrandCustomerConcernsSummary,
   generateBrandChatGptSummary,
@@ -140,58 +142,60 @@ export default async function BrandPage({
   await requireBrandAccess(brandId);
   const trendDays = mentionTrendDays();
   const trendStart = trendDays[0]?.date ?? new Date();
-  const [brand, mentionTrendScanRuns, promptAdditions] = await Promise.all([
-    prisma.brand.findUnique({
-      where: { id: brandId },
-      include: {
-        organization: { include: { billingSubscription: true } },
-        competitors: true,
-        scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 2 },
-        promptSets: {
-          where: { status: "active" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: { prompts: true },
-        },
-        scanRuns: {
-          orderBy: { createdAt: "desc" },
-          take: 5,
-          include: {
-            scoreSnapshot: true,
-            promptRuns: {
-              include: {
-                engine: true,
-                aiResponse: { include: { parsedResult: true } },
+  const [brand, mentionTrendScanRuns, promptAdditions, onboardingSummary] =
+    await Promise.all([
+      prisma.brand.findUnique({
+        where: { id: brandId },
+        include: {
+          organization: { include: { billingSubscription: true } },
+          competitors: true,
+          scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 2 },
+          promptSets: {
+            where: { status: "active" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            include: { prompts: true },
+          },
+          scanRuns: {
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            include: {
+              scoreSnapshot: true,
+              promptRuns: {
+                include: {
+                  engine: true,
+                  aiResponse: { include: { parsedResult: true } },
+                },
               },
             },
           },
         },
-      },
-    }),
-    prisma.scanRun.findMany({
-      where: {
-        brandId,
-        createdAt: { gte: trendStart },
-      },
-      orderBy: { createdAt: "asc" },
-      include: {
-        promptRuns: {
-          include: {
-            engine: true,
-            aiResponse: { include: { parsedResult: true, citations: true } },
+      }),
+      prisma.scanRun.findMany({
+        where: {
+          brandId,
+          createdAt: { gte: trendStart },
+        },
+        orderBy: { createdAt: "asc" },
+        include: {
+          promptRuns: {
+            include: {
+              engine: true,
+              aiResponse: { include: { parsedResult: true, citations: true } },
+            },
           },
         },
-      },
-    }),
-    prisma.prompt.findMany({
-      where: {
-        createdAt: { gte: trendStart },
-        promptSet: { brandId },
-      },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, createdAt: true },
-    }),
-  ]);
+      }),
+      prisma.prompt.findMany({
+        where: {
+          createdAt: { gte: trendStart },
+          promptSet: { brandId },
+        },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, createdAt: true },
+      }),
+      getBrandOnboardingSummary(brandId),
+    ]);
   if (!brand) return null;
 
   const latestScan = brand.scanRuns[0];
@@ -343,6 +347,11 @@ export default async function BrandPage({
           </p>
         )}
       </section>
+
+      <OnboardingChecklist
+        summary={onboardingSummary}
+        location="brand_overview"
+      />
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <MetricCard

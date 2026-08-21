@@ -5,7 +5,7 @@ import {
   emailPreferencesUrl,
   ensureEmailPreferencesToken,
 } from "@/lib/email-preferences";
-import { getUserOnboardingSummary } from "@/lib/onboarding";
+import { getUserBrandOnboardingOverview } from "@/lib/onboarding";
 
 export const ONBOARDING_REMINDER_SUBJECT_PREFIXES = [
   "Naslednji korak v AI Visibility Radar:",
@@ -84,8 +84,8 @@ export async function sendOnboardingReminderEmails(
   for (const user of users) {
     if (result.sent >= sendLimit) break;
 
-    const summary = await getUserOnboardingSummary(user.id);
-    const nextStep = summary.nextStep;
+    const overview = await getUserBrandOnboardingOverview(user.id);
+    const nextStep = overview.weakestBrand?.nextStep ?? null;
     if (!nextStep) {
       result.complete += 1;
       continue;
@@ -112,9 +112,13 @@ export async function sendOnboardingReminderEmails(
         to: user.email,
         locale: user.preferredLocale,
         recipientName: user.name,
-        nextStepTitle: nextStep.title,
+        nextStepTitle: overview.weakestBrand
+          ? `${overview.weakestBrand.brandName}: ${nextStep.title}`
+          : nextStep.title,
         nextStepDescription: nextStep.description,
-        completionPercent: summary.completionPercent,
+        completionPercent:
+          overview.weakestBrand?.completionPercent ??
+          overview.completionPercent,
         ctaUrl: absoluteAppUrl(nextStep.href),
         unsubscribeUrl: emailPreferencesUrl(preferencesToken, "scans"),
       });

@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOnboardingSummary,
+  buildUserOnboardingLevel,
   summarizeOnboardingAnalytics,
+  type BrandOnboardingStats,
   type OnboardingAnalyticsUser,
-  type OnboardingUsageStats,
+  type OnboardingSummary,
 } from "@/lib/onboarding";
 
-const baseStats: OnboardingUsageStats = {
-  organizationCount: 1,
-  brandCount: 0,
+const baseStats: BrandOnboardingStats = {
+  brandId: "brand_1",
+  brandName: "Acme",
+  organizationId: "org_1",
   activePromptCount: 0,
   competitorCount: 0,
   completedScanCount: 0,
@@ -16,37 +19,37 @@ const baseStats: OnboardingUsageStats = {
   citationCount: 0,
   contentReviewCount: 0,
   touchedRecommendationCount: 0,
-  recurringActiveCount: 0,
-  scheduledScanCount: 0,
+  recurringActive: false,
+  scheduledScan: false,
   manualScanAccess: false,
 };
 
-describe("onboarding summary", () => {
-  it("starts with the brand creation step", () => {
+describe("brand onboarding summary", () => {
+  it("starts with the first scan step for an existing brand", () => {
     const summary = buildOnboardingSummary(baseStats);
 
     expect(summary.completionPercent).toBe(0);
-    expect(summary.nextStep?.key).toBe("create_brand");
+    expect(summary.nextStep?.key).toBe("first_scan");
+    expect(summary.steps.map((step) => step.key as string)).not.toContain(
+      "create_brand",
+    );
     expect(
-      summary.steps.find((step) => step.key === "first_scan")?.locked,
+      summary.steps.find((step) => step.key === "source_intelligence")?.locked,
     ).toBe(true);
   });
 
-  it("marks a mature account as fully complete", () => {
+  it("marks a mature brand as fully complete", () => {
     const summary = buildOnboardingSummary({
       ...baseStats,
-      brandCount: 1,
-      primaryBrandId: "brand_1",
       activePromptCount: 9,
       competitorCount: 3,
       completedScanCount: 2,
       manualCompletedScanCount: 1,
       latestScanId: "scan_1",
-      latestScanBrandId: "brand_1",
       citationCount: 4,
       contentReviewCount: 1,
-      recurringActiveCount: 1,
-      scheduledScanCount: 1,
+      recurringActive: true,
+      scheduledScan: true,
       manualScanAccess: true,
     });
 
@@ -55,23 +58,42 @@ describe("onboarding summary", () => {
   });
 });
 
-describe("onboarding analytics", () => {
-  it("builds activation, depth and repeat rates", () => {
-    const users: OnboardingAnalyticsUser[] = [
-      user("u1", {
-        brandCount: 1,
+describe("user onboarding level", () => {
+  it("aggregates onboarding level across a user's brands", () => {
+    const level = buildUserOnboardingLevel("u1", [
+      completedSummary("brand_1"),
+      buildOnboardingSummary({
+        ...baseStats,
+        brandId: "brand_2",
+        brandName: "Beta",
+        completedScanCount: 1,
         activePromptCount: 8,
         competitorCount: 2,
-        completedScanCount: 2,
-        scheduledScanCount: 1,
+        citationCount: 1,
       }),
-      user("u2", {
-        brandCount: 1,
-        activePromptCount: 4,
-        competitorCount: 0,
-        completedScanCount: 1,
-      }),
-      user("u3", {}),
+    ]);
+
+    expect(level.totalBrands).toBe(2);
+    expect(level.completedBrands).toBe(1);
+    expect(level.level.key).toBe("advanced");
+    expect(level.weakestBrand?.brandId).toBe("brand_2");
+  });
+});
+
+describe("onboarding analytics", () => {
+  it("builds activation, depth and repeat rates from brand summaries", () => {
+    const users: OnboardingAnalyticsUser[] = [
+      user("u1", [completedSummary("brand_1")]),
+      user("u2", [
+        buildOnboardingSummary({
+          ...baseStats,
+          brandId: "brand_2",
+          brandName: "Beta",
+          completedScanCount: 1,
+          activePromptCount: 4,
+        }),
+      ]),
+      user("u3", []),
     ];
 
     const analytics = summarizeOnboardingAnalytics(
@@ -85,20 +107,35 @@ describe("onboarding analytics", () => {
     expect(
       analytics.funnel.find((step) => step.key === "first_scan")
         ?.conversionPercent,
-    ).toBe(67);
+    ).toBe(100);
   });
 });
 
+function completedSummary(brandId: string): OnboardingSummary {
+  return buildOnboardingSummary({
+    ...baseStats,
+    brandId,
+    brandName: brandId,
+    activePromptCount: 8,
+    competitorCount: 2,
+    completedScanCount: 2,
+    citationCount: 1,
+    contentReviewCount: 1,
+    recurringActive: true,
+    scheduledScan: true,
+  });
+}
+
 function user(
   userId: string,
-  overrides: Partial<OnboardingAnalyticsUser>,
+  summaries: OnboardingSummary[],
 ): OnboardingAnalyticsUser {
   return {
-    ...baseStats,
-    userId,
+    ...buildUserOnboardingLevel(userId, summaries),
     email: `${userId}@example.com`,
+    name: null,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
     lastSeenAt: new Date("2026-08-21T00:00:00.000Z"),
-    ...overrides,
+    brandSummaries: summaries,
   };
 }

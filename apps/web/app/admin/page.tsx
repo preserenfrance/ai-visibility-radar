@@ -16,6 +16,11 @@ import {
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { getCurrentUser, isAdminUser, requireAdminUser } from "@/lib/auth";
 import {
+  getAdminUserOnboardingLevels,
+  type OnboardingLevelKey,
+  type UserOnboardingLevel,
+} from "@/lib/onboarding";
+import {
   activateRecurringScansForOrganizationPlan,
   deactivateRecurringScansForOrganization,
 } from "@/lib/services";
@@ -133,52 +138,59 @@ export default async function AdminPage({
       { organization: { is: { plan: { not: "disabled" as const } } } },
     ],
   };
-  const [users, organizations, activeBrands, leadCount, leads] =
-    await Promise.all([
-      prisma.user.findMany({
-        orderBy: { createdAt: "desc" },
-        include: {
-          memberships: {
-            orderBy: { createdAt: "asc" },
-            include: {
-              organization: {
-                include: {
-                  billingSubscription: true,
-                  _count: { select: { brands: true } },
-                },
+  const [
+    users,
+    organizations,
+    activeBrands,
+    leadCount,
+    leads,
+    onboardingLevels,
+  ] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        memberships: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            organization: {
+              include: {
+                billingSubscription: true,
+                _count: { select: { brands: true } },
               },
             },
           },
         },
-      }),
-      prisma.organization.findMany({
-        where: { plan: { not: "disabled" } },
-        orderBy: { createdAt: "desc" },
-        include: {
-          billingSubscription: true,
-          _count: { select: { brands: true, memberships: true } },
-        },
-      }),
-      prisma.brand.findMany({
-        where: {
-          organization: { plan: { not: "disabled" } },
-        },
-        select: { createdAt: true },
-      }),
-      prisma.lead.count({ where: activeLeadWhere }),
-      prisma.lead.findMany({
-        where: activeLeadWhere,
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        include: {
-          auditScanRun: {
-            include: {
-              scoreSnapshot: true,
-            },
+      },
+    }),
+    prisma.organization.findMany({
+      where: { plan: { not: "disabled" } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        billingSubscription: true,
+        _count: { select: { brands: true, memberships: true } },
+      },
+    }),
+    prisma.brand.findMany({
+      where: {
+        organization: { plan: { not: "disabled" } },
+      },
+      select: { createdAt: true },
+    }),
+    prisma.lead.count({ where: activeLeadWhere }),
+    prisma.lead.findMany({
+      where: activeLeadWhere,
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: {
+        auditScanRun: {
+          include: {
+            scoreSnapshot: true,
           },
         },
-      }),
-    ]);
+      },
+    }),
+    getAdminUserOnboardingLevels(),
+  ]);
 
   const visibleUsers = users.filter((user) => {
     const activeMemberships = activeOrganizationMemberships(user.memberships);
@@ -302,7 +314,7 @@ export default async function AdminPage({
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Users, organizations and account level</CardTitle>
+          <CardTitle>Users, organizations and onboarding</CardTitle>
           <CardDescription>
             Each row represents a user membership in an organization.
           </CardDescription>
@@ -316,7 +328,8 @@ export default async function AdminPage({
                 <TH>Organization</TH>
                 <TH>Status</TH>
                 <TH>Brands</TH>
-                <TH>Level</TH>
+                <TH>Onboarding</TH>
+                <TH>Plan</TH>
                 <TH>Billing</TH>
                 <TH>Spremeni account</TH>
               </TR>
@@ -326,6 +339,7 @@ export default async function AdminPage({
                 const memberships = activeOrganizationMemberships(
                   user.memberships,
                 );
+                const onboardingLevel = onboardingLevels.get(user.id);
                 if (memberships.length === 0) {
                   return (
                     <TR key={user.id}>
@@ -344,8 +358,9 @@ export default async function AdminPage({
                       </TD>
                       <TD>0</TD>
                       <TD>
-                        <Badge variant="secondary">-</Badge>
+                        <OnboardingLevelBadge level={onboardingLevel} />
                       </TD>
+                      <TD>-</TD>
                       <TD>-</TD>
                       <TD>-</TD>
                     </TR>
@@ -382,6 +397,9 @@ export default async function AdminPage({
                       </TD>
                       <TD>
                         {organization._count.brands} / {limits.brandCount}
+                      </TD>
+                      <TD>
+                        <OnboardingLevelBadge level={onboardingLevel} />
                       </TD>
                       <TD>
                         <PlanBadge plan={organization.plan} />
@@ -534,6 +552,32 @@ function InlineMetric({ label, value }: { label: string; value: number }) {
       </div>
     </div>
   );
+}
+
+function OnboardingLevelBadge({ level }: { level?: UserOnboardingLevel }) {
+  if (!level) {
+    return <Badge variant="secondary">No brand · 0%</Badge>;
+  }
+
+  return (
+    <div className="grid gap-1">
+      <Badge variant={onboardingBadgeVariant(level.level.key)}>
+        {level.level.label} · {level.completionPercent}%
+      </Badge>
+      <span className="text-xs text-muted-foreground">
+        {level.completedBrands}/{level.totalBrands} brands
+      </span>
+    </div>
+  );
+}
+
+function onboardingBadgeVariant(
+  key: OnboardingLevelKey,
+): "default" | "secondary" | "warning" | "danger" | "success" {
+  if (key === "complete") return "success";
+  if (key === "advanced") return "default";
+  if (key === "progressing") return "warning";
+  return "secondary";
 }
 
 function PlanBadge({ plan }: { plan: Plan }) {

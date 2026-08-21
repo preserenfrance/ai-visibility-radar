@@ -39,10 +39,10 @@ export default async function AdminOnboardingPage() {
           <Target className="h-5 w-5" />
           Admin onboarding
         </div>
-        <h1 className="text-3xl font-semibold">Activation analytics</h1>
+        <h1 className="text-3xl font-semibold">Brand onboarding analytics</h1>
         <p className="mt-2 max-w-3xl text-muted-foreground">
-          User progress from signup to deeper, repeated use of AI Visibility
-          Radar.
+          Progress of active brands from first scan to deeper, repeated use of
+          AI Visibility Radar.
         </p>
       </div>
 
@@ -51,7 +51,7 @@ export default async function AdminOnboardingPage() {
           icon={<Users className="h-5 w-5" />}
           label="Users"
           value={analytics.totalUsers}
-          detail={`${analytics.recentlyActiveRate}% active in 7d`}
+          detail={`${analytics.totalBrands} active brands`}
         />
         <MetricCard
           icon={<Target className="h-5 w-5" />}
@@ -75,7 +75,7 @@ export default async function AdminOnboardingPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           label="Needs help"
           value={analytics.atRiskUsers}
-          detail="no brand, scan or recent return"
+          detail="low brand progress or stale return"
           tone={analytics.atRiskUsers > 0 ? "warning" : "default"}
         />
       </div>
@@ -84,7 +84,7 @@ export default async function AdminOnboardingPage() {
         <CardHeader>
           <CardTitle>Onboarding funnel</CardTitle>
           <CardDescription>
-            Derived from product data: brands, scans, prompts, competitors,
+            Derived from product data per brand: scans, prompts, competitors,
             reviews and recurring measurement.
           </CardDescription>
         </CardHeader>
@@ -95,7 +95,7 @@ export default async function AdminOnboardingPage() {
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                   <div className="font-medium">{step.label}</div>
                   <div className="text-sm text-muted-foreground">
-                    {step.count.toLocaleString("en-US")} users ·{" "}
+                    {step.count.toLocaleString("en-US")} brands ·{" "}
                     {step.conversionPercent}%
                   </div>
                 </div>
@@ -149,7 +149,8 @@ export default async function AdminOnboardingPage() {
           <CardHeader>
             <CardTitle>Users needing a nudge</CardTitle>
             <CardDescription>
-              Lowest onboarding progress first, with the next unfinished step.
+              Lowest brand onboarding progress first, with the next unfinished
+              step.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -176,20 +177,23 @@ export default async function AdminOnboardingPage() {
                     </TD>
                     <TD>
                       <Badge
-                        variant={progressBadgeVariant(item.completionPercent)}
+                        variant={progressBadgeVariant(
+                          item.brandCompletionPercent ?? item.completionPercent,
+                        )}
                       >
-                        {item.completionPercent}%
+                        {item.brandCompletionPercent ?? item.completionPercent}%
                       </Badge>
                     </TD>
                     <TD>{item.nextStep?.title ?? "-"}</TD>
-                    <TD>{item.primaryBrandName ?? "-"}</TD>
+                    <TD>{item.brandName ?? "-"}</TD>
                     <TD>{formatDate(item.lastSeenAt)}</TD>
                   </TR>
                 ))}
                 {analytics.usersNeedingHelp.length === 0 && (
                   <TR>
                     <TD colSpan={5} className="text-muted-foreground">
-                      Every user has completed the current onboarding path.
+                      Every active brand has completed the current onboarding
+                      path.
                     </TD>
                   </TR>
                 )}
