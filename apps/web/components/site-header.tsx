@@ -17,6 +17,7 @@ import {
   SearchCheck,
   Settings,
   SlidersHorizontal,
+  Target,
 } from "lucide-react";
 import type { SupportedLocale } from "@ai-radar/shared";
 import { AppNotificationsBell } from "@/components/app-notifications-bell";
@@ -49,6 +50,7 @@ type SiteHeaderMessages = {
     monitor: string;
     analytics: string;
     onboarding: string;
+    adminOnboarding: string;
     aiChats: string;
     faqAdmin: string;
     prompts: string;
@@ -204,6 +206,14 @@ function HeaderNavContent({
             href={localizedPath("/admin", locale)}
             icon={<Activity className="h-4 w-4" />}
             label={messages.nav.admin}
+            className={navClassName}
+          />
+        )}
+        {admin && (
+          <Nav
+            href={localizedPath("/admin/onboarding", locale)}
+            icon={<Target className="h-4 w-4" />}
+            label={messages.nav.adminOnboarding}
             className={navClassName}
           />
         )}

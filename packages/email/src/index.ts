@@ -58,6 +58,21 @@ const EMAIL_COPY: Record<
       cta: string;
       text: (brandName: string, domain: string, ctaUrl: string) => string[];
     };
+    onboardingReminder: {
+      subject: (stepTitle: string) => string;
+      preheader: string;
+      title: string;
+      intro: string;
+      progress: (completionPercent: number) => string;
+      nextStep: string;
+      cta: string;
+      text: (
+        stepTitle: string,
+        stepDescription: string,
+        completionPercent: number,
+        ctaUrl: string,
+      ) => string[];
+    };
     layout: {
       dashboard: string;
       footer: string;
@@ -140,6 +155,25 @@ const EMAIL_COPY: Record<
         "Ker portala že nekaj časa niste obiskali, ga tokrat nismo zagnali.",
         "Če so vam rezultati še vedno koristni, odprite portal:",
         ctaUrl,
+      ],
+    },
+    onboardingReminder: {
+      subject: (stepTitle) =>
+        `Naslednji korak v AI Visibility Radar: ${stepTitle}`,
+      preheader:
+        "V onboardingu vas čaka naslednji praktičen korak za bolj uporabne AI visibility rezultate.",
+      title: "Vaš naslednji onboarding korak",
+      intro:
+        "Radar je najbolj uporaben, ko so znamka, vprašanja, konkurenti in ponavljajoče meritve povezani v navado.",
+      progress: (completionPercent) =>
+        `Trenutni napredek onboardinga: ${completionPercent} %.`,
+      nextStep: "Naslednji korak",
+      cta: "Nadaljuj onboarding",
+      text: (stepTitle, stepDescription, completionPercent, ctaUrl) => [
+        "Vaš naslednji onboarding korak v AI Visibility Radar.",
+        `Napredek: ${completionPercent} %.`,
+        `${stepTitle}: ${stepDescription}`,
+        `Nadaljujte tukaj: ${ctaUrl}`,
       ],
     },
     layout: {
@@ -225,6 +259,25 @@ const EMAIL_COPY: Record<
         ctaUrl,
       ],
     },
+    onboardingReminder: {
+      subject: (stepTitle) =>
+        `Your next AI Visibility Radar step: ${stepTitle}`,
+      preheader:
+        "Your onboarding path has a practical next step to make AI visibility results more useful.",
+      title: "Your next onboarding step",
+      intro:
+        "Radar works best when your brand, buyer questions, competitors and recurring measurement become a connected workflow.",
+      progress: (completionPercent) =>
+        `Current onboarding progress: ${completionPercent}%.`,
+      nextStep: "Next step",
+      cta: "Continue onboarding",
+      text: (stepTitle, stepDescription, completionPercent, ctaUrl) => [
+        "Your next AI Visibility Radar onboarding step.",
+        `Progress: ${completionPercent}%.`,
+        `${stepTitle}: ${stepDescription}`,
+        `Continue here: ${ctaUrl}`,
+      ],
+    },
     layout: {
       dashboard: "Dashboard",
       footer: "You received this message because you use AI Visibility Radar.",
@@ -277,6 +330,17 @@ export type FreeUserReactivationEmailInput = {
   recipientName?: string | null;
   brandName: string;
   brandDomain: string;
+  ctaUrl: string;
+  unsubscribeUrl?: string;
+};
+
+export type OnboardingReminderEmailInput = {
+  to: string;
+  locale?: string | null;
+  recipientName?: string | null;
+  nextStepTitle: string;
+  nextStepDescription: string;
+  completionPercent: number;
   ctaUrl: string;
   unsubscribeUrl?: string;
 };
@@ -492,6 +556,48 @@ export async function sendFreeUserReactivationEmail(
       ),
       input.unsubscribeUrl
         ? `${copy.scanCompleted.text.unsubscribe}: ${input.unsubscribeUrl}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  });
+}
+
+export async function sendOnboardingReminderEmail(
+  input: OnboardingReminderEmailInput,
+): Promise<{ id?: string; skipped?: boolean; subject: string }> {
+  const locale = normalizeEmailLocale(input.locale);
+  const copy = EMAIL_COPY[locale];
+
+  return sendEmail({
+    to: input.to,
+    subject: copy.onboardingReminder.subject(input.nextStepTitle),
+    html: renderEmailLayout({
+      locale,
+      preheader: copy.onboardingReminder.preheader,
+      title: copy.onboardingReminder.title,
+      bodyHtml: [
+        `<p>${copy.greeting(input.recipientName)}</p>`,
+        `<p>${copy.onboardingReminder.intro}</p>`,
+        `<p>${copy.onboardingReminder.progress(input.completionPercent)}</p>`,
+        `<p><strong>${copy.onboardingReminder.nextStep}:</strong> ${escapeHtml(input.nextStepTitle)}</p>`,
+        `<p>${escapeHtml(input.nextStepDescription)}</p>`,
+      ].join(""),
+      cta: {
+        label: copy.onboardingReminder.cta,
+        url: input.ctaUrl,
+      },
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+    text: [
+      ...copy.onboardingReminder.text(
+        input.nextStepTitle,
+        input.nextStepDescription,
+        input.completionPercent,
+        input.ctaUrl,
+      ),
+      input.unsubscribeUrl
+        ? `${copy.layout.unsubscribe}: ${input.unsubscribeUrl}`
         : "",
     ]
       .filter(Boolean)
