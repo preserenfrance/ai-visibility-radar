@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">AI content structure</title>
+  <desc id="desc">A structured article layout with definitions, criteria, proof and next steps.</desc>
+  <rect width="1200" height="675" fill="#f8fafc"/>
+  <rect x="86" y="68" width="1028" height="539" rx="30" fill="#ffffff" stroke="#dbe4ee"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="176" y="126" width="848" height="72" rx="16" fill="#0f172a"/>
+    <text x="600" y="172" text-anchor="middle" font-size="28" font-weight="800" fill="#ffffff">Article that AI can summarize</text>
+    <rect x="176" y="244" width="250" height="246" rx="22" fill="#e0f2fe" stroke="#7dd3fc"/>
+    <text x="301" y="300" text-anchor="middle" font-size="26" font-weight="800" fill="#075985">Definition</text>
+    <text x="301" y="348" text-anchor="middle" font-size="19" fill="#0369a1">clear category</text>
+    <text x="301" y="386" text-anchor="middle" font-size="19" fill="#0369a1">plain language</text>
+    <rect x="475" y="244" width="250" height="246" rx="22" fill="#f0fdf4" stroke="#86efac"/>
+    <text x="600" y="300" text-anchor="middle" font-size="26" font-weight="800" fill="#166534">Criteria</text>
+    <text x="600" y="348" text-anchor="middle" font-size="19" fill="#15803d">who it fits</text>
+    <text x="600" y="386" text-anchor="middle" font-size="19" fill="#15803d">when it fails</text>
+    <rect x="774" y="244" width="250" height="246" rx="22" fill="#fef3c7" stroke="#facc15"/>
+    <text x="899" y="300" text-anchor="middle" font-size="26" font-weight="800" fill="#92400e">Proof</text>
+    <text x="899" y="348" text-anchor="middle" font-size="19" fill="#a16207">examples</text>
+    <text x="899" y="386" text-anchor="middle" font-size="19" fill="#a16207">methodology</text>
+  </g>
+  <path d="M296 528 H904" stroke="#0f172a" stroke-width="7" stroke-linecap="round"/>
+  <path d="M878 504 L906 528 L878 552" fill="none" stroke="#0f172a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

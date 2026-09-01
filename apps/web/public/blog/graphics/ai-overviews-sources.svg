@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">AI Overviews source architecture</title>
+  <desc id="desc">A search result panel supported by indexed pages, snippets and structured content.</desc>
+  <rect width="1200" height="675" fill="#f8fafc"/>
+  <rect x="78" y="70" width="1044" height="535" rx="28" fill="#ffffff" stroke="#dbe4ee"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="144" y="130" width="912" height="146" rx="24" fill="#eef2ff" stroke="#a5b4fc"/>
+    <text x="184" y="190" font-size="31" font-weight="800" fill="#312e81">AI Overview</text>
+    <text x="184" y="232" font-size="22" fill="#475569">Synthesized answer with supporting links and clear snippets.</text>
+    <rect x="158" y="362" width="260" height="130" rx="18" fill="#dcfce7" stroke="#86efac"/>
+    <text x="288" y="418" text-anchor="middle" font-size="26" font-weight="800" fill="#166534">Indexed page</text>
+    <text x="288" y="454" text-anchor="middle" font-size="18" fill="#15803d">crawlable HTML</text>
+    <rect x="470" y="362" width="260" height="130" rx="18" fill="#e0f2fe" stroke="#7dd3fc"/>
+    <text x="600" y="418" text-anchor="middle" font-size="26" font-weight="800" fill="#075985">Snippet</text>
+    <text x="600" y="454" text-anchor="middle" font-size="18" fill="#0369a1">eligible summary</text>
+    <rect x="782" y="362" width="260" height="130" rx="18" fill="#fef3c7" stroke="#facc15"/>
+    <text x="912" y="418" text-anchor="middle" font-size="26" font-weight="800" fill="#92400e">Structure</text>
+    <text x="912" y="454" text-anchor="middle" font-size="18" fill="#a16207">clear sections</text>
+  </g>
+  <g stroke="#64748b" stroke-width="5" stroke-linecap="round">
+    <path d="M288 348 V308 H600 V282"/>
+    <path d="M600 348 V282"/>
+    <path d="M912 348 V308 H600 V282"/>
+  </g>
+</svg>

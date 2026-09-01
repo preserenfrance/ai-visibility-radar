@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">LLM visibility dashboard metrics</title>
+  <desc id="desc">A dashboard with mention rate, share of voice, citations and competitor metrics.</desc>
+  <rect width="1200" height="675" fill="#f8fafc"/>
+  <rect x="70" y="64" width="1060" height="547" rx="30" fill="#ffffff" stroke="#dbe4ee"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="136" y="132" font-size="36" font-weight="800" fill="#0f172a">LLM Visibility Dashboard</text>
+    <rect x="136" y="184" width="208" height="126" rx="18" fill="#dcfce7"/>
+    <text x="166" y="232" font-size="21" fill="#166534">Mention rate</text>
+    <text x="166" y="278" font-size="44" font-weight="800" fill="#166534">68%</text>
+    <rect x="380" y="184" width="208" height="126" rx="18" fill="#e0f2fe"/>
+    <text x="410" y="232" font-size="21" fill="#075985">Avg. rank</text>
+    <text x="410" y="278" font-size="44" font-weight="800" fill="#075985">2.4</text>
+    <rect x="624" y="184" width="208" height="126" rx="18" fill="#fef3c7"/>
+    <text x="654" y="232" font-size="21" fill="#92400e">Citations</text>
+    <text x="654" y="278" font-size="44" font-weight="800" fill="#92400e">41</text>
+    <rect x="868" y="184" width="208" height="126" rx="18" fill="#fee2e2"/>
+    <text x="898" y="232" font-size="21" fill="#991b1b">Risks</text>
+    <text x="898" y="278" font-size="44" font-weight="800" fill="#991b1b">7</text>
+    <rect x="136" y="360" width="940" height="160" rx="20" fill="#f8fafc" stroke="#dbe4ee"/>
+    <polyline points="178,478 286,430 394,456 502,394 610,412 718,356 826,376 1034,338" fill="none" stroke="#2563eb" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#2563eb"><circle cx="178" cy="478" r="9"/><circle cx="286" cy="430" r="9"/><circle cx="394" cy="456" r="9"/><circle cx="502" cy="394" r="9"/><circle cx="610" cy="412" r="9"/><circle cx="718" cy="356" r="9"/><circle cx="826" cy="376" r="9"/><circle cx="1034" cy="338" r="9"/></g>
+  </g>
+</svg>

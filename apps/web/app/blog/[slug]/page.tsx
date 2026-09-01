@@ -15,7 +15,7 @@ const copy = {
     back: "Nazaj na blog",
     author: "Avtor",
     category: "Kategorija",
-    metadataFallback: "AI Visibility Radar blog clanek.",
+    metadataFallback: "AI Visibility Radar blog članek.",
   },
   en: {
     back: "Back to blog",

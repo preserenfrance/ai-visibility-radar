@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">30 day AI visibility plan</title>
+  <desc id="desc">A four-week plan for baseline, diagnosis, fixes and repeated measurement.</desc>
+  <rect width="1200" height="675" fill="#f8fafc"/>
+  <rect x="78" y="70" width="1044" height="535" rx="30" fill="#ffffff" stroke="#dbe4ee"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="600" y="142" text-anchor="middle" font-size="42" font-weight="800" fill="#0f172a">30-Day AI Visibility Plan</text>
+    <text x="600" y="180" text-anchor="middle" font-size="22" fill="#64748b">measure, diagnose, publish, repeat</text>
+    <rect x="150" y="266" width="202" height="208" rx="22" fill="#e0f2fe" stroke="#7dd3fc"/>
+    <text x="251" y="330" text-anchor="middle" font-size="54" font-weight="800" fill="#075985">1</text>
+    <text x="251" y="384" text-anchor="middle" font-size="24" font-weight="800" fill="#075985">Baseline</text>
+    <rect x="388" y="266" width="202" height="208" rx="22" fill="#fef3c7" stroke="#facc15"/>
+    <text x="489" y="330" text-anchor="middle" font-size="54" font-weight="800" fill="#92400e">2</text>
+    <text x="489" y="384" text-anchor="middle" font-size="24" font-weight="800" fill="#92400e">Gaps</text>
+    <rect x="626" y="266" width="202" height="208" rx="22" fill="#dcfce7" stroke="#86efac"/>
+    <text x="727" y="330" text-anchor="middle" font-size="54" font-weight="800" fill="#166534">3</text>
+    <text x="727" y="384" text-anchor="middle" font-size="24" font-weight="800" fill="#166534">Fixes</text>
+    <rect x="864" y="266" width="202" height="208" rx="22" fill="#f5f3ff" stroke="#c4b5fd"/>
+    <text x="965" y="330" text-anchor="middle" font-size="54" font-weight="800" fill="#5b21b6">4</text>
+    <text x="965" y="384" text-anchor="middle" font-size="24" font-weight="800" fill="#5b21b6">Routine</text>
+  </g>
+  <g stroke="#64748b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M352 370 H386"/>
+    <path d="M590 370 H624"/>
+    <path d="M828 370 H862"/>
+  </g>
+</svg>

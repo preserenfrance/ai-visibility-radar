@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">ChatGPT product recommendation signals</title>
+  <desc id="desc">Product cards, reviews, price signals and product data flowing into an AI answer.</desc>
+  <rect width="1200" height="675" fill="#f8fafc"/>
+  <rect x="82" y="72" width="1036" height="531" rx="28" fill="#ffffff" stroke="#dbe4ee"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="600" y="142" text-anchor="middle" font-size="42" font-weight="800" fill="#0f172a">Product Visibility</text>
+    <text x="600" y="180" text-anchor="middle" font-size="22" fill="#64748b">data quality, proof and decision context</text>
+    <rect x="160" y="252" width="230" height="230" rx="24" fill="#fff7ed" stroke="#fdba74"/>
+    <rect x="202" y="296" width="146" height="88" rx="16" fill="#fed7aa"/>
+    <text x="275" y="424" text-anchor="middle" font-size="24" font-weight="800" fill="#9a3412">Product feed</text>
+    <rect x="486" y="252" width="230" height="230" rx="24" fill="#f0fdfa" stroke="#5eead4"/>
+    <circle cx="601" cy="334" r="48" fill="#99f6e4"/>
+    <text x="601" y="424" text-anchor="middle" font-size="24" font-weight="800" fill="#115e59">Reviews</text>
+    <rect x="812" y="252" width="230" height="230" rx="24" fill="#eef2ff" stroke="#a5b4fc"/>
+    <path d="M892 354 H964 M892 314 H1000 M892 394 H930" stroke="#4f46e5" stroke-width="14" stroke-linecap="round"/>
+    <text x="927" y="424" text-anchor="middle" font-size="24" font-weight="800" fill="#3730a3">Comparison</text>
+  </g>
+  <g stroke="#64748b" stroke-width="5" stroke-linecap="round">
+    <path d="M390 366 H464"/>
+    <path d="M716 366 H790"/>
+  </g>
+</svg>

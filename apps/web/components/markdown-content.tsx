@@ -2,6 +2,7 @@ import Link from "next/link";
 
 type Block =
   | { type: "heading"; level: 2 | 3; text: string }
+  | { type: "image"; src: string; alt: string }
   | { type: "paragraph"; text: string }
   | { type: "quote"; text: string }
   | { type: "list"; items: string[] }
@@ -43,6 +44,25 @@ export function MarkdownContent({ content }: { content: string }) {
                   </li>
                 ))}
               </ul>
+            );
+          case "image":
+            return (
+              <figure
+                key={index}
+                className="my-8 overflow-hidden rounded-lg border bg-secondary"
+              >
+                <img
+                  src={block.src}
+                  alt={block.alt}
+                  className="aspect-[16/9] w-full object-cover"
+                  loading="lazy"
+                />
+                {block.alt && (
+                  <figcaption className="border-t bg-white px-4 py-3 text-sm text-muted-foreground">
+                    {block.alt}
+                  </figcaption>
+                )}
+              </figure>
             );
           case "code":
             return (
@@ -130,6 +150,18 @@ function parseMarkdown(content: string): Block[] {
       flushParagraph();
       flushList();
       blocks.push({ type: "quote", text: trimmed.slice(2) });
+      continue;
+    }
+
+    const image = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (image) {
+      flushParagraph();
+      flushList();
+      const alt = image[1] ?? "";
+      const src = image[2] ?? "";
+      if (safeHref(src)) {
+        blocks.push({ type: "image", alt, src });
+      }
       continue;
     }
 

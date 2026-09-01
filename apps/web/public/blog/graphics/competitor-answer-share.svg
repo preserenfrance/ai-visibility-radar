@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Competitor answer share</title>
+  <desc id="desc">A ranking panel showing brand and competitor visibility in AI answers.</desc>
+  <rect width="1200" height="675" fill="#f8fafc"/>
+  <rect x="88" y="70" width="1024" height="535" rx="28" fill="#ffffff" stroke="#dbe4ee"/>
+  <g font-family="Inter, Arial, sans-serif">
+    <text x="600" y="142" text-anchor="middle" font-size="42" font-weight="800" fill="#0f172a">Answer Share</text>
+    <text x="600" y="180" text-anchor="middle" font-size="22" fill="#64748b">who appears, who leads and why</text>
+    <rect x="208" y="248" width="784" height="74" rx="16" fill="#dcfce7"/>
+    <text x="252" y="294" font-size="24" font-weight="800" fill="#166534">1. Your brand</text>
+    <rect x="682" y="272" width="250" height="18" rx="9" fill="#22c55e"/>
+    <rect x="208" y="350" width="784" height="74" rx="16" fill="#eef2ff"/>
+    <text x="252" y="396" font-size="24" font-weight="800" fill="#3730a3">2. Competitor A</text>
+    <rect x="682" y="374" width="184" height="18" rx="9" fill="#6366f1"/>
+    <rect x="208" y="452" width="784" height="74" rx="16" fill="#fff7ed"/>
+    <text x="252" y="498" font-size="24" font-weight="800" fill="#9a3412">3. Competitor B</text>
+    <rect x="682" y="476" width="132" height="18" rx="9" fill="#f97316"/>
+  </g>
+</svg>
