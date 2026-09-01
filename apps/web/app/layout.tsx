@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { AccountChatWidget } from "@/components/account-chat-widget";
+import { AnalyticsPageTracker } from "@/components/analytics-page-tracker";
 import { MetaPixel } from "@/components/meta-pixel";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -42,6 +43,7 @@ export default async function RootLayout({
           />
         </div>
         <AccountChatWidget locale={locale} />
+        <AnalyticsPageTracker locale={locale} />
         <Analytics />
         <MetaPixel />
       </body>

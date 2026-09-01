@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import {
   Activity,
   BarChart3,
+  Building2,
   Clock3,
   ClipboardList,
   DollarSign,
   HelpCircle,
   LogOut,
   Menu,
+  MousePointerClick,
   MessageSquare,
   Plug,
   Radar,
@@ -48,9 +50,11 @@ type SiteHeaderMessages = {
     operations: string;
     monitor: string;
     analytics: string;
+    websiteFunnel: string;
     onboarding: string;
     adminOnboarding: string;
     aiChats: string;
+    agency: string;
     faqAdmin: string;
     prompts: string;
     settings: string;
@@ -76,7 +80,8 @@ export function SiteHeader({
   const [session, setSession] = useState<{
     user: HeaderUser | null;
     isAdmin: boolean;
-  }>({ user: null, isAdmin: false });
+    isAgencyUser: boolean;
+  }>({ user: null, isAdmin: false, isAgencyUser: false });
 
   useEffect(() => {
     let ignore = false;
@@ -88,11 +93,13 @@ export function SiteHeader({
           setSession({
             user: data.user ? { email: String(data.user.email) } : null,
             isAdmin: Boolean(data.isAdmin),
+            isAgencyUser: Boolean(data.isAgencyUser),
           });
         }
       })
       .catch(() => {
-        if (!ignore) setSession({ user: null, isAdmin: false });
+        if (!ignore)
+          setSession({ user: null, isAdmin: false, isAgencyUser: false });
       });
 
     return () => {
@@ -114,6 +121,7 @@ export function SiteHeader({
           <HeaderNavContent
             userEmail={session.user?.email}
             admin={session.isAdmin}
+            agencyUser={session.isAgencyUser}
             locale={locale}
             messages={messages}
           />
@@ -129,6 +137,7 @@ export function SiteHeader({
             <HeaderNavContent
               userEmail={session.user?.email}
               admin={session.isAdmin}
+              agencyUser={session.isAgencyUser}
               locale={locale}
               messages={messages}
               mobile
@@ -143,12 +152,14 @@ export function SiteHeader({
 function HeaderNavContent({
   userEmail,
   admin,
+  agencyUser,
   locale,
   messages,
   mobile = false,
 }: {
   userEmail?: string;
   admin: boolean;
+  agencyUser: boolean;
   locale: SupportedLocale;
   messages: SiteHeaderMessages;
   mobile?: boolean;
@@ -177,6 +188,14 @@ function HeaderNavContent({
           label={messages.common.mcp}
           className={navClassName}
         />
+        {(agencyUser || admin) && (
+          <Nav
+            href={localizedPath("/app/agency", locale)}
+            icon={<Building2 className="h-4 w-4" />}
+            label={messages.nav.agency}
+            className={navClassName}
+          />
+        )}
         <AppNotificationsBell
           locale={locale}
           messages={messages.notifications}
@@ -207,6 +226,14 @@ function HeaderNavContent({
             href={localizedPath("/admin/onboarding", locale)}
             icon={<Target className="h-4 w-4" />}
             label={messages.nav.adminOnboarding}
+            className={navClassName}
+          />
+        )}
+        {admin && (
+          <Nav
+            href={localizedPath("/admin/website-funnel", locale)}
+            icon={<MousePointerClick className="h-4 w-4" />}
+            label={messages.nav.websiteFunnel}
             className={navClassName}
           />
         )}

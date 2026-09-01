@@ -1,6 +1,11 @@
 import { cookies } from "next/headers";
 import { prisma } from "@ai-radar/db";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  findAgencyClientMembership,
+  findAgencyMembershipForBrand,
+  findAgencyMembershipForScan,
+} from "@/lib/agency";
 
 const COOKIE_NAME = "air_session";
 const LEGACY_COOKIE_NAME = "air_user_id";
@@ -16,6 +21,11 @@ export async function getCurrentUser() {
       memberships: {
         include: {
           organization: true,
+        },
+      },
+      agencyMemberships: {
+        include: {
+          agency: true,
         },
       },
     },
@@ -110,12 +120,30 @@ export async function requireOrganizationAccess(organizationId: string) {
   return { user, membership };
 }
 
+export async function requireOrganizationClientAccess(organizationId: string) {
+  const user = await requireCurrentUser();
+  const membership = user.memberships.find(
+    (item) => item.organizationId === organizationId,
+  );
+  if (membership) return { user, membership, agencyMembership: null };
+
+  const agencyMembership = await findAgencyClientMembership(
+    user.id,
+    organizationId,
+  );
+  if (!agencyMembership) {
+    throw new Error("Forbidden: organization or agency membership required");
+  }
+
+  return { user, membership: null, agencyMembership };
+}
+
 export async function requireBrandAccess(brandId: string) {
   const user = await requireCurrentUser();
   const brand = await prisma.brand.findUnique({
     where: { id: brandId },
     include: {
-      organization: { include: { billingSubscription: true } },
+      organization: { include: { agency: true, billingSubscription: true } },
       competitors: true,
     },
   });
@@ -123,9 +151,12 @@ export async function requireBrandAccess(brandId: string) {
   const membership = user.memberships.find(
     (item) => item.organizationId === brand.organizationId,
   );
-  if (!membership)
-    throw new Error("Forbidden: organization membership required");
-  return { user, membership, brand };
+  if (membership) return { user, membership, agencyMembership: null, brand };
+
+  const agencyMembership = await findAgencyMembershipForBrand(user.id, brandId);
+  if (!agencyMembership)
+    throw new Error("Forbidden: organization or agency membership required");
+  return { user, membership: null, agencyMembership, brand };
 }
 
 export async function requireScanAccess(scanRunId: string) {
@@ -133,7 +164,11 @@ export async function requireScanAccess(scanRunId: string) {
   const scan = await prisma.scanRun.findUnique({
     where: { id: scanRunId },
     include: {
-      brand: true,
+      brand: {
+        include: {
+          organization: { select: { id: true } },
+        },
+      },
       promptSet: true,
     },
   });
@@ -141,9 +176,15 @@ export async function requireScanAccess(scanRunId: string) {
   const membership = user.memberships.find(
     (item) => item.organizationId === scan.brand.organizationId,
   );
-  if (!membership)
-    throw new Error("Forbidden: organization membership required");
-  return { user, membership, scan };
+  if (membership) return { user, membership, agencyMembership: null, scan };
+
+  const agencyMembership = await findAgencyMembershipForScan(
+    user.id,
+    scanRunId,
+  );
+  if (!agencyMembership)
+    throw new Error("Forbidden: organization or agency membership required");
+  return { user, membership: null, agencyMembership, scan };
 }
 
 function signSession(userId: string) {

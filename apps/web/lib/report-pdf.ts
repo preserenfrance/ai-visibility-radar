@@ -25,6 +25,13 @@ type ReportBrand = {
   chatGptProductSummary?: string | null;
 };
 
+type ReportAgency = {
+  name: string;
+  productName: string;
+  reportFooter?: string | null;
+  supportEmail?: string | null;
+};
+
 type ReportScan = {
   id: string;
   status: string;
@@ -81,6 +88,7 @@ type ReportPromptRun = {
 
 export type BrandPdfReportInput = {
   brand: ReportBrand;
+  agency?: ReportAgency | null;
   generatedAt: Date;
   locale?: SupportedLocale;
   latestScore?: ScoreSnapshot | null;
@@ -92,6 +100,7 @@ export type BrandPdfReportInput = {
 
 export type ScanPdfReportInput = {
   brand: ReportBrand;
+  agency?: ReportAgency | null;
   scan: ReportScan;
   generatedAt: Date;
   locale?: SupportedLocale;
@@ -312,10 +321,11 @@ export function buildBrandReportPdf(input: BrandPdfReportInput) {
   const locale = normalizeLocale(input.locale ?? DEFAULT_LOCALE);
   const copy = PDF_COPY[locale];
   const pdf = new PdfCanvas(
-    "AI Visibility Radar",
+    input.agency?.productName ?? "AI Visibility Radar",
     input.generatedAt,
     copy,
     locale,
+    agencyReportNote(input.agency),
   );
   const latest = input.latestScore;
   const previous = input.scoreHistory[1];
@@ -406,10 +416,11 @@ export function buildScanReportPdf(input: ScanPdfReportInput) {
   const copy = PDF_COPY[locale];
 
   const pdf = new PdfCanvas(
-    "AI Visibility Radar",
+    input.agency?.productName ?? "AI Visibility Radar",
     input.generatedAt,
     copy,
     locale,
+    agencyReportNote(input.agency),
   );
   pdf.cover(copy.scanReportTitle, input.brand.name, [
     input.brand.domain,
@@ -525,23 +536,26 @@ class PdfCanvas {
   private readonly generatedAt: Date;
   private readonly copy: PdfCopy;
   private readonly locale: SupportedLocale;
+  private readonly reportNote?: string;
 
   constructor(
     reportTitle: string,
     generatedAt: Date,
     copy: PdfCopy,
     locale: SupportedLocale,
+    reportNote?: string,
   ) {
     this.reportTitle = reportTitle;
     this.generatedAt = generatedAt;
     this.copy = copy;
     this.locale = locale;
+    this.reportNote = reportNote;
     this.addPage();
   }
 
   cover(title: string, brandName: string, facts: string[]) {
     this.block(MARGIN, 116, PAGE_WIDTH - MARGIN * 2, 120, COLORS.primary);
-    this.text("AI Visibility Radar", MARGIN + 24, 139, 13, "F2", COLORS.white);
+    this.text(this.reportTitle, MARGIN + 24, 139, 13, "F2", COLORS.white);
     this.text(title, MARGIN + 24, 170, 28, "F2", COLORS.white);
     this.text(brandName, MARGIN + 24, 210, 18, "F1", COLORS.white);
     this.text(facts.join("  /  "), MARGIN + 24, 238, 10, "F1", COLORS.white);
@@ -549,6 +563,7 @@ class PdfCanvas {
     this.note(
       this.copy.generatedNote(formatDateTime(this.generatedAt, this.locale)),
     );
+    if (this.reportNote) this.note(this.reportNote);
   }
 
   section(title: string, minContentHeight = 0) {
@@ -894,7 +909,7 @@ class PdfCanvas {
   private drawShell(pageNumber: number) {
     this.block(0, 0, PAGE_WIDTH, 52, COLORS.ink);
     this.block(MARGIN, 18, 18, 18, COLORS.primary);
-    this.text("AI Visibility Radar", MARGIN + 28, 18, 13, "F2", COLORS.white);
+    this.text(this.reportTitle, MARGIN + 28, 18, 13, "F2", COLORS.white);
     this.text(
       this.reportTitle,
       PAGE_WIDTH - MARGIN - 130,
@@ -1028,6 +1043,17 @@ function parsedResult(run: ReportPromptRun) {
     | { brandMentioned?: unknown; brandRank?: unknown; mentionCount?: unknown }
     | null
     | undefined;
+}
+
+function agencyReportNote(agency?: ReportAgency | null) {
+  if (!agency) return undefined;
+  if (agency.reportFooter?.trim()) return agency.reportFooter.trim();
+  return [
+    `Prepared by ${agency.name}.`,
+    agency.supportEmail ? `Support: ${agency.supportEmail}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function scoreText(value: number | null | undefined) {

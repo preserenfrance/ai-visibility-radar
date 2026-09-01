@@ -20,6 +20,12 @@ enum MembershipRole {
   member
 }
 
+enum AgencyMembershipRole {
+  owner
+  admin
+  member
+}
+
 enum PromptSetStatus {
   draft
   active
@@ -152,6 +158,7 @@ model User {
   scanEmailConsentAt      DateTime?              @default(now())
   emailPreferencesToken   String?                @unique
   memberships             Membership[]
+  agencyMemberships       AgencyMembership[]
   mcpApiTokens            McpApiToken[]
   notificationReads       UserNotificationRead[]
   aiChatSessions          AiChatSession[]
@@ -159,11 +166,47 @@ model User {
   aiChatFeedback          AiChatFeedback[]
   auditLogs               AuditLog[]
   emailEvents             EmailEvent[]
+  websiteEvents           WebsiteEvent[]
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
 
   @@index([passwordResetTokenHash])
   @@index([lastSeenAt])
+}
+
+model Agency {
+  id            String             @id @default(cuid())
+  slug          String             @unique
+  name          String
+  productName   String             @default("AI Visibility Radar")
+  logoUrl       String?
+  primaryColor  String             @default("#2563eb")
+  accentColor   String             @default("#0f766e")
+  customDomain  String?            @unique
+  supportEmail  String?
+  senderName    String?
+  senderEmail   String?
+  reportFooter  String?            @db.Text
+  memberships   AgencyMembership[]
+  organizations Organization[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([createdAt])
+}
+
+model AgencyMembership {
+  id        String               @id @default(cuid())
+  userId    String
+  agencyId  String
+  role      AgencyMembershipRole @default(member)
+  agency    Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime             @default(now())
+
+  @@unique([userId, agencyId])
+  @@index([agencyId])
+  @@index([userId])
 }
 
 model UserNotificationRead {
@@ -290,9 +333,12 @@ model BlogPostTranslation {
 
 model Organization {
   id                  String               @id @default(cuid())
+  agencyId            String?
+  agencyClientCode    String?
   name                String
   plan                Plan                 @default(free)
   stripeCustomerId    String?
+  agency              Agency?              @relation(fields: [agencyId], references: [id], onDelete: SetNull)
   memberships         Membership[]
   brands              Brand[]
   leads               Lead[]
@@ -301,6 +347,8 @@ model Organization {
   auditLogs           AuditLog[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+
+  @@index([agencyId])
 }
 
 model Membership {
@@ -766,6 +814,29 @@ model EmailEvent {
 
   @@index([leadId])
   @@index([userId])
+}
+
+model WebsiteEvent {
+  id             String   @id @default(cuid())
+  visitorId      String
+  sessionId      String?
+  userId         String?
+  eventName      String
+  path           String
+  normalizedPath String
+  search         String?
+  referrer       String?
+  locale         String?
+  properties     Json     @default("{}")
+  userAgent      String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+
+  @@index([eventName, createdAt])
+  @@index([normalizedPath, createdAt])
+  @@index([visitorId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model AuditLog {

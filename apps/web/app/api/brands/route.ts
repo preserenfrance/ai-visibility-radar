@@ -2,7 +2,11 @@ import { z } from "zod";
 import { prisma } from "@ai-radar/db";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { normalizeDomain } from "@ai-radar/shared";
-import { requireCurrentUser, requireOrganizationAccess } from "@/lib/auth";
+import {
+  requireCurrentUser,
+  requireOrganizationClientAccess,
+} from "@/lib/auth";
+import { accessibleBrandWhereForUser } from "@/lib/agency";
 import { ok, parseBody, route } from "@/lib/http";
 import {
   generateBrandChatGptInsightsSafely,
@@ -26,11 +30,7 @@ export async function GET() {
   return route(async () => {
     const user = await requireCurrentUser();
     const brands = await prisma.brand.findMany({
-      where: {
-        organization: {
-          memberships: { some: { userId: user.id } },
-        },
-      },
+      where: accessibleBrandWhereForUser(user.id),
       include: {
         competitors: true,
         scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
@@ -44,7 +44,9 @@ export async function GET() {
 export async function POST(request: Request) {
   return route(async () => {
     const input = await parseBody(request, schema);
-    const { user } = await requireOrganizationAccess(input.organizationId);
+    const { user } = await requireOrganizationClientAccess(
+      input.organizationId,
+    );
     const organization = await prisma.organization.findUnique({
       where: { id: input.organizationId },
       include: { _count: { select: { brands: true } } },

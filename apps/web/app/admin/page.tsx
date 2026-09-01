@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList, MessageSquare, Target, Users } from "lucide-react";
+import {
+  ClipboardList,
+  MessageSquare,
+  MousePointerClick,
+  Target,
+  Users,
+} from "lucide-react";
 import { prisma, type Plan } from "@ai-radar/db";
 import { PLAN_LIMITS } from "@ai-radar/usage";
 import { MentionsTrendChart } from "@/components/mentions-trend-chart";
@@ -258,6 +264,12 @@ export default async function AdminPage({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/admin/website-funnel">
+              <MousePointerClick className="h-4 w-4" />
+              Website funnel
+            </Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href="/admin/onboarding">
               <Target className="h-4 w-4" />

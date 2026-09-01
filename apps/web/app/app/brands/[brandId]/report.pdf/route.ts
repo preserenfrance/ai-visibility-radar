@@ -20,6 +20,7 @@ export async function GET(
     const brand = await prisma.brand.findUnique({
       where: { id: brandId },
       include: {
+        organization: { include: { agency: true } },
         competitors: true,
         scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 8 },
         promptSets: {
@@ -45,6 +46,7 @@ export async function GET(
     const locale = await getRequestLocale();
     const input: BrandPdfReportInput = {
       brand,
+      agency: brand.organization.agency,
       generatedAt: new Date(),
       locale,
       latestScore: brand.scoreSnapshots[0] ?? null,

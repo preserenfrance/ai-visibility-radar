@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegularScanControls } from "@/components/regular-scan-controls";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth";
+import { accessibleBrandWhereForUser } from "@/lib/agency";
 import { canRunAutomaticScans } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +14,13 @@ export const dynamic = "force-dynamic";
 export default async function AppDashboardPage() {
   const user = await requireCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/app/dashboard");
+  const directOrganizationIds = new Set(
+    user.memberships.map((membership) => membership.organizationId),
+  );
   const brands = await prisma.brand.findMany({
-    where: { organization: { memberships: { some: { userId: user.id } } } },
+    where: accessibleBrandWhereForUser(user.id),
     include: {
-      organization: { include: { billingSubscription: true } },
+      organization: { include: { agency: true, billingSubscription: true } },
       scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
       scanRuns: { orderBy: { createdAt: "desc" }, take: 1 },
     },
@@ -61,6 +65,9 @@ export default async function AppDashboardPage() {
                 const recurringScanActive =
                   brand.recurringScanActive && automaticScanAccess;
                 const recurringScanScheduled = automaticScanAccess;
+                const directOrganizationAccess = directOrganizationIds.has(
+                  brand.organizationId,
+                );
 
                 return (
                   <TR key={brand.id}>
@@ -75,7 +82,14 @@ export default async function AppDashboardPage() {
                         {brand.domain}
                       </div>
                     </TD>
-                    <TD>{brand.organization.name}</TD>
+                    <TD>
+                      <div>{brand.organization.name}</div>
+                      {brand.organization.agency && (
+                        <div className="text-xs text-muted-foreground">
+                          {brand.organization.agency.name}
+                        </div>
+                      )}
+                    </TD>
                     <TD>{brand.scoreSnapshots[0]?.visibilityScore ?? "-"}</TD>
                     <TD>
                       {brand.scanRuns[0]?.createdAt.toLocaleString("en-US") ??
@@ -106,14 +120,18 @@ export default async function AppDashboardPage() {
                       )}
                     </TD>
                     <TD>
-                      <RegularScanControls
-                        brandId={brand.id}
-                        organizationId={brand.organizationId}
-                        organizationPlan={brand.organization.plan}
-                        hasStripeCustomer={Boolean(
-                          brand.organization.stripeCustomerId,
-                        )}
-                      />
+                      {directOrganizationAccess ? (
+                        <RegularScanControls
+                          brandId={brand.id}
+                          organizationId={brand.organizationId}
+                          organizationPlan={brand.organization.plan}
+                          hasStripeCustomer={Boolean(
+                            brand.organization.stripeCustomerId,
+                          )}
+                        />
+                      ) : (
+                        <Badge variant="secondary">Agency managed</Badge>
+                      )}
                     </TD>
                   </TR>
                 );

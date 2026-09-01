@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@ai-radar/db";
+import { accessibleBrandWhereForUser } from "@/lib/agency";
 import { requireCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +11,9 @@ export default async function OnboardingPage() {
 
   const brand = await prisma.brand.findFirst({
     where: {
+      ...accessibleBrandWhereForUser(user.id),
       organization: {
         plan: { not: "disabled" },
-        memberships: { some: { userId: user.id } },
       },
     },
     orderBy: { createdAt: "desc" },

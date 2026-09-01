@@ -147,7 +147,9 @@ export default async function BrandPage({
       prisma.brand.findUnique({
         where: { id: brandId },
         include: {
-          organization: { include: { billingSubscription: true } },
+          organization: {
+            include: { agency: true, billingSubscription: true },
+          },
           competitors: true,
           scoreSnapshots: { orderBy: { createdAt: "desc" }, take: 2 },
           promptSets: {
@@ -240,6 +242,9 @@ export default async function BrandPage({
   return (
     <section className="mx-auto max-w-7xl px-5 py-8">
       <BrandMenu brandId={brand.id} active="overview" />
+      {brand.organization.agency && (
+        <AgencyClientPortalBanner agency={brand.organization.agency} />
+      )}
 
       <section className="mb-6 rounded-md border bg-card px-5 py-4">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
@@ -255,7 +260,7 @@ export default async function BrandPage({
               <Button asChild variant="outline" size="sm">
                 <a href={`/app/brands/${brand.id}/report.pdf`} download>
                   <Download className="h-4 w-4" />
-                  Prenesi PDF porocilo
+                  Prenesi PDF poročilo
                 </a>
               </Button>
               {chatGptReportHref && (
@@ -503,6 +508,65 @@ function CompactBrandFact({
         </div>
       )}
     </div>
+  );
+}
+
+function AgencyClientPortalBanner({
+  agency,
+}: {
+  agency: {
+    name: string;
+    productName: string;
+    logoUrl: string | null;
+    primaryColor: string;
+    accentColor: string;
+    supportEmail: string | null;
+  };
+}) {
+  return (
+    <section className="mb-6 grid gap-4 rounded-md border bg-card p-4 md:grid-cols-[1fr_auto] md:items-center">
+      <div className="flex min-w-0 items-center gap-4">
+        {agency.logoUrl ? (
+          <img
+            src={agency.logoUrl}
+            alt=""
+            className="h-12 w-12 rounded-md border object-contain"
+          />
+        ) : (
+          <div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md text-base font-semibold text-white"
+            style={{ backgroundColor: agency.primaryColor }}
+          >
+            {agency.name.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold">
+            {agency.productName}
+          </div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Managed by {agency.name}
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+        <span className="inline-flex items-center gap-2">
+          <span
+            className="h-3 w-3 rounded-full border"
+            style={{ backgroundColor: agency.primaryColor }}
+          />
+          Primary
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span
+            className="h-3 w-3 rounded-full border"
+            style={{ backgroundColor: agency.accentColor }}
+          />
+          Accent
+        </span>
+        {agency.supportEmail && <span>{agency.supportEmail}</span>}
+      </div>
+    </section>
   );
 }
 

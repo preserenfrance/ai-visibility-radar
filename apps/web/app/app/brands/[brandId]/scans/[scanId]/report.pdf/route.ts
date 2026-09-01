@@ -19,7 +19,11 @@ export async function GET(
     const scan = await prisma.scanRun.findUnique({
       where: { id: scanId },
       include: {
-        brand: true,
+        brand: {
+          include: {
+            organization: { include: { agency: true } },
+          },
+        },
         scoreSnapshot: true,
         recommendations: {
           orderBy: [{ impactScore: "desc" }, { createdAt: "desc" }],
@@ -48,6 +52,7 @@ export async function GET(
     const locale = await getRequestLocale();
     const pdf = buildScanReportPdf({
       brand: scan.brand,
+      agency: scan.brand.organization.agency,
       scan,
       generatedAt: new Date(),
       locale,

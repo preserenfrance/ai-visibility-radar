@@ -1,18 +1,19 @@
 import { z } from "zod";
 import { prisma } from "@ai-radar/db";
+import { accessibleOrganizationWhereForUser } from "@/lib/agency";
 import { requireCurrentUser } from "@/lib/auth";
 import { ok, parseBody, route } from "@/lib/http";
 
 const schema = z.object({
-  name: z.string().min(2)
+  name: z.string().min(2),
 });
 
 export async function GET() {
   return route(async () => {
     const user = await requireCurrentUser();
     const organizations = await prisma.organization.findMany({
-      where: { memberships: { some: { userId: user.id } } },
-      include: { memberships: true, brands: true }
+      where: accessibleOrganizationWhereForUser(user.id),
+      include: { memberships: true, brands: true },
     });
     return ok({ organizations });
   });
@@ -28,10 +29,10 @@ export async function POST(request: Request) {
         memberships: {
           create: {
             userId: user.id,
-            role: "owner"
-          }
-        }
-      }
+            role: "owner",
+          },
+        },
+      },
     });
     return ok({ organization }, 201);
   });

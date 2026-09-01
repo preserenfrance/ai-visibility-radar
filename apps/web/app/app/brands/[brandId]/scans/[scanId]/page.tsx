@@ -81,7 +81,7 @@ export default async function ScanPage({
               download
             >
               <Download className="h-4 w-4" />
-              Prenesi PDF porocilo
+              Prenesi PDF poročilo
             </a>
           </Button>
           {chatGptReportHref && (
